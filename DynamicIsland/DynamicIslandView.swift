@@ -27,24 +27,21 @@ struct DynamicIslandView: View {
             
             // Content
             if showContent {
-                if isExpanded {
-                    expandedContent
-                } else {
-                    collapsedContent
-                }
+                expandedContent
             }
         }
         .onAppear {
-            withAnimation(.easeOut(duration: 0.3)) {
-                showContent = true
-            }
-            
+            // withAnimation(.easeOut(duration: 0.3)) {
+            //     showContent = true
+            // }
+            showContent = true
+            isExpanded = true
             // Auto-expand after showing
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
-                    isExpanded = true
-                }
-            }
+            // DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            //     withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+            //         isExpanded = true
+            //     }
+            // }
         }
         .onTapGesture {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
@@ -61,9 +58,9 @@ struct DynamicIslandView: View {
                 .frame(width: 8, height: 8)
                 .scaleEffect(isExpanded ? 0 : 1)
             
-            Text("Dynamic Island")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(.primary)
+            // Text("Dynamic Island")
+            //    .font(.system(size: 13, weight: .medium, design: .rounded))
+             //   .foregroundStyle(.primary)
         }
         .transition(.opacity)
     }
