@@ -146,15 +146,15 @@ struct DynamicIslandView: View {
         .animation(.spring(response: 0.5, dampingFraction: 0.85), value: UUID())
         .onAppear {
             print("Triggering AppleScript for permission prompt")
-            _ = getSpotifyInfo()
-            _ = getAppleMusicInfo()
-            updateMediaInfo()
+//            _ = getSpotifyInfo()
+//            _ = getAppleMusicInfo()
+//            updateMediaInfo()
             // Load quick files from UserDefaults
             quickFiles = UserDefaults.standard.quickFiles
             // Poll for media info every 2 seconds
-            Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-                updateMediaInfo()
-            }
+//            Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+//                updateMediaInfo()
+//            }
         }
         // Allow dropping files anywhere on the window
         .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in

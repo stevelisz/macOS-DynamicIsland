@@ -40,6 +40,21 @@ class DynamicIslandManager: ObservableObject {
         ) { [weak self] _ in
             self?.showDynamicIsland()
         }
+        
+        NotificationCenter.default.addObserver(
+            forName: .dynamicIslandMouseEntered,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.pauseAutoHide()
+        }
+        NotificationCenter.default.addObserver(
+            forName: .dynamicIslandMouseExited,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.resumeAutoHide()
+        }
     }
     
     func toggleDynamicIsland() {
@@ -96,8 +111,17 @@ class DynamicIslandManager: ObservableObject {
     
     private func scheduleAutoHide() {
         hideTimer?.invalidate()
-        hideTimer = Timer.scheduledTimer(withTimeInterval: 8.0, repeats: false) { [weak self] _ in
+        hideTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
             self?.hideDynamicIsland()
         }
+    }
+    
+    private func pauseAutoHide() {
+        hideTimer?.invalidate()
+        hideTimer = nil
+    }
+    
+    private func resumeAutoHide() {
+        scheduleAutoHide()
     }
 }

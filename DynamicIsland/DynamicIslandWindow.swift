@@ -2,6 +2,7 @@ import SwiftUI
 import Cocoa
 
 class DynamicIslandWindow: NSPanel {
+    private var trackingArea: NSTrackingArea?
     
     init() {
         super.init(
@@ -35,6 +36,33 @@ class DynamicIslandWindow: NSPanel {
         self.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.modalPanelWindow)) + 1)
     }
     
+    override func makeKeyAndOrderFront(_ sender: Any?) {
+        super.makeKeyAndOrderFront(sender)
+        addTrackingAreaIfNeeded()
+    }
+    
+    private func addTrackingAreaIfNeeded() {
+        if let trackingArea = trackingArea {
+            self.contentView?.removeTrackingArea(trackingArea)
+        }
+        let area = NSTrackingArea(
+            rect: self.contentView?.bounds ?? .zero,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        self.contentView?.addTrackingArea(area)
+        self.trackingArea = area
+    }
+    
+    override func mouseEntered(with event: NSEvent) {
+        NotificationCenter.default.post(name: .dynamicIslandMouseEntered, object: nil)
+    }
+    
+    override func mouseExited(with event: NSEvent) {
+        NotificationCenter.default.post(name: .dynamicIslandMouseExited, object: nil)
+    }
+    
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
     
@@ -52,4 +80,9 @@ class DynamicIslandWindow: NSPanel {
         
         self.setFrameOrigin(newOrigin)
     }
+}
+
+extension Notification.Name {
+    static let dynamicIslandMouseEntered = Notification.Name("dynamicIslandMouseEntered")
+    static let dynamicIslandMouseExited = Notification.Name("dynamicIslandMouseExited")
 }
