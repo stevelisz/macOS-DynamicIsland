@@ -8,6 +8,13 @@ struct DynamicIslandView: View {
     @State private var mediaInfo: MediaInfo? = nil
     @State private var quickFiles: [URL] = UserDefaults.standard.quickFiles
     @State private var quickActionIndex: Int = 0
+    @State private var isAnimatingQuickAction = false
+    @State private var isCarouselCooldown = false
+    @State private var lastQuickActionIndex = 0
+    @State private var carouselDirection: Int = 0 // -1 for left, 1 for right
+    @State private var carouselDragOffset: CGFloat = 0
+    @State private var showCarouselArrows = false
+    @State private var carouselArrowHideTask: DispatchWorkItem?
     
     let quickActions: [QuickActionItem] = [
         .weather, .calendar, .googleSearch, .screenshotPreview
@@ -132,61 +139,131 @@ struct DynamicIslandView: View {
                     .padding(.bottom, 8)
                 
                 // Quick Actions Carousel
-                HStack(spacing: 0) {
-                    Button(action: {
-                        withAnimation { quickActionIndex = max(0, quickActionIndex - 1) }
-                    }) {
-                        Image(systemName: "chevron.left.circle.fill")
-                            .font(.system(size: 32))
-                            .foregroundColor(quickActionIndex > 0 ? .accentColor : .gray)
+                ZStack {
+                    // Background hover detection (does not block clicks)
+                    HStack(spacing: 0) {
+                        Rectangle()
+                            .fill(Color.clear)
+                            .frame(width: 48)
+                            .contentShape(Rectangle())
+                            .onHover { hovering in
+                                handleCarouselArrowHover(hovering: hovering)
+                            }
+                            .allowsHitTesting(true)
+                        Spacer(minLength: 0)
+                        Rectangle()
+                            .fill(Color.clear)
+                            .frame(width: 48)
+                            .contentShape(Rectangle())
+                            .onHover { hovering in
+                                handleCarouselArrowHover(hovering: hovering)
+                            }
+                            .allowsHitTesting(true)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(quickActionIndex == 0)
-                    
+                    .frame(height: 130)
+                    // Arrow buttons overlay (always clickable)
+                    HStack {
+                        if showCarouselArrows {
+                            Button(action: {
+                                guard !isAnimatingQuickAction, !isCarouselCooldown else { return }
+                                carouselDirection = -1
+                                lastQuickActionIndex = quickActionIndex
+                                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                    quickActionIndex = max(0, quickActionIndex - 1)
+                                    isAnimatingQuickAction = true
+                                }
+                                debounceQuickActionAnimation()
+                                startCarouselCooldown()
+                            }) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 22, weight: .bold))
+                                    .foregroundColor(quickActionIndex > 0 ? .accentColor : .gray)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(quickActionIndex == 0 || isAnimatingQuickAction || isCarouselCooldown)
+                            .padding(.leading, 8)
+                        }
+                        Spacer(minLength: 0)
+                        if showCarouselArrows {
+                            Button(action: {
+                                guard !isAnimatingQuickAction, !isCarouselCooldown else { return }
+                                carouselDirection = 1
+                                lastQuickActionIndex = quickActionIndex
+                                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                    quickActionIndex = min(quickActions.count - 1, quickActionIndex + 1)
+                                    isAnimatingQuickAction = true
+                                }
+                                debounceQuickActionAnimation()
+                                startCarouselCooldown()
+                            }) {
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 22, weight: .bold))
+                                    .foregroundColor(quickActionIndex < quickActions.count - 1 ? .accentColor : .gray)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(quickActionIndex == quickActions.count - 1 || isAnimatingQuickAction || isCarouselCooldown)
+                            .padding(.trailing, 8)
+                        }
+                    }
+                    .frame(width: 340, height: 130)
+                    // The actual carousel card
                     ScrollWheelCatcher(
                         onScrollLeft: {
-                            if quickActionIndex < quickActions.count - 1 {
-                                withAnimation { quickActionIndex += 1 }
+                            guard !isAnimatingQuickAction, !isCarouselCooldown, quickActionIndex < quickActions.count - 1 else { return }
+                            isCarouselCooldown = true
+                            carouselDirection = 1
+                            lastQuickActionIndex = quickActionIndex
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                quickActionIndex += 1
+                                isAnimatingQuickAction = true
                             }
+                            debounceQuickActionAnimation()
+                            startCarouselCooldown()
                         },
                         onScrollRight: {
-                            if quickActionIndex > 0 {
-                                withAnimation { quickActionIndex -= 1 }
+                            guard !isAnimatingQuickAction, !isCarouselCooldown, quickActionIndex > 0 else { return }
+                            isCarouselCooldown = true
+                            carouselDirection = -1
+                            lastQuickActionIndex = quickActionIndex
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                quickActionIndex -= 1
+                                isAnimatingQuickAction = true
                             }
+                            debounceQuickActionAnimation()
+                            startCarouselCooldown()
                         },
                         onDragLeft: {
-                            if quickActionIndex < quickActions.count - 1 {
-                                withAnimation { quickActionIndex += 1 }
+                            guard !isAnimatingQuickAction, !isCarouselCooldown, quickActionIndex < quickActions.count - 1 else { return }
+                            carouselDirection = 1
+                            lastQuickActionIndex = quickActionIndex
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                quickActionIndex += 1
+                                isAnimatingQuickAction = true
                             }
+                            debounceQuickActionAnimation()
+                            startCarouselCooldown()
                         },
                         onDragRight: {
-                            if quickActionIndex > 0 {
-                                withAnimation { quickActionIndex -= 1 }
+                            guard !isAnimatingQuickAction, !isCarouselCooldown, quickActionIndex > 0 else { return }
+                            carouselDirection = -1
+                            lastQuickActionIndex = quickActionIndex
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                quickActionIndex -= 1
+                                isAnimatingQuickAction = true
                             }
+                            debounceQuickActionAnimation()
+                            startCarouselCooldown()
                         }
                     ) {
                         ZStack {
-                            ForEach(0..<quickActions.count, id: \ .self) { idx in
-                                if idx == quickActionIndex {
-                                    QuickActionView(item: quickActions[idx])
-                                        .frame(width: 180, height: 120)
-                                        .transition(.opacity)
-                                }
-                            }
+                            QuickActionView(item: quickActions[quickActionIndex])
+                                .id(quickActionIndex)
+                                .transition(carouselDirection == 1 ? .asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity).combined(with: .scale), removal: .move(edge: .leading).combined(with: .opacity).combined(with: .scale)) : .asymmetric(insertion: .move(edge: .leading).combined(with: .opacity).combined(with: .scale), removal: .move(edge: .trailing).combined(with: .opacity).combined(with: .scale)))
+                                .animation(.spring(response: 0.45, dampingFraction: 0.85), value: quickActionIndex)
                         }
                         .frame(width: 200, height: 130)
                         .padding(.horizontal, 8)
                     }
-                    
-                    Button(action: {
-                        withAnimation { quickActionIndex = min(quickActions.count - 1, quickActionIndex + 1) }
-                    }) {
-                        Image(systemName: "chevron.right.circle.fill")
-                            .font(.system(size: 32))
-                            .foregroundColor(quickActionIndex < quickActions.count - 1 ? .accentColor : .gray)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(quickActionIndex == quickActions.count - 1)
                 }
                 .padding(.vertical, 8)
                 
@@ -770,12 +847,22 @@ struct ScrollWheelCatcher<Content: View>: NSViewRepresentable {
         var onDragRight: (() -> Void)?
         private var dragStart: NSPoint?
         var hostingView: NSHostingView<AnyView>?
+        private var isScrollLocked = false
         override func scrollWheel(with event: NSEvent) {
+            guard !isScrollLocked else { return }
             if abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) {
                 if event.scrollingDeltaX > 0 {
                     onScrollRight?()
+                    isScrollLocked = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) { [weak self] in
+                        self?.isScrollLocked = false
+                    }
                 } else if event.scrollingDeltaX < 0 {
                     onScrollLeft?()
+                    isScrollLocked = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) { [weak self] in
+                        self?.isScrollLocked = false
+                    }
                 }
             }
         }
@@ -796,3 +883,34 @@ struct ScrollWheelCatcher<Content: View>: NSViewRepresentable {
     }
 }
 #endif
+
+// Helper for debouncing quick action animation
+extension DynamicIslandView {
+    private func debounceQuickActionAnimation() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.38) {
+            isAnimatingQuickAction = false
+        }
+    }
+    private func startCarouselCooldown() {
+        isCarouselCooldown = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
+            isCarouselCooldown = false
+        }
+    }
+}
+
+// Helper for carousel arrow hover
+extension DynamicIslandView {
+    private func handleCarouselArrowHover(hovering: Bool) {
+        if hovering {
+            carouselArrowHideTask?.cancel()
+            showCarouselArrows = true
+        } else {
+            let task = DispatchWorkItem {
+                showCarouselArrows = false
+            }
+            carouselArrowHideTask = task
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: task)
+        }
+    }
+}
