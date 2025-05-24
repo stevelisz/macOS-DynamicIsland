@@ -1,0 +1,563 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXContainerItemProxy section */
+		AA8DFB3C2DE15EF2008AF217 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA8DFB222DE15EF1008AF217 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA8DFB292DE15EF1008AF217;
+			remoteInfo = DynamicIsland;
+		};
+		AA8DFB462DE15EF2008AF217 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA8DFB222DE15EF1008AF217 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA8DFB292DE15EF1008AF217;
+			remoteInfo = DynamicIsland;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		AA8DFB2A2DE15EF1008AF217 /* DynamicIsland.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DynamicIsland.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA8DFB3B2DE15EF2008AF217 /* DynamicIslandTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DynamicIslandTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA8DFB452DE15EF2008AF217 /* DynamicIslandUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DynamicIslandUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AA8DFB652DE1607A008AF217 /* Exceptions for "DynamicIsland" folder in "DynamicIsland" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AA8DFB292DE15EF1008AF217 /* DynamicIsland */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		AA8DFB2C2DE15EF1008AF217 /* DynamicIsland */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AA8DFB652DE1607A008AF217 /* Exceptions for "DynamicIsland" folder in "DynamicIsland" target */,
+			);
+			path = DynamicIsland;
+			sourceTree = "<group>";
+		};
+		AA8DFB3E2DE15EF2008AF217 /* DynamicIslandTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DynamicIslandTests;
+			sourceTree = "<group>";
+		};
+		AA8DFB482DE15EF2008AF217 /* DynamicIslandUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DynamicIslandUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AA8DFB272DE15EF1008AF217 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA8DFB382DE15EF2008AF217 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA8DFB422DE15EF2008AF217 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AA8DFB212DE15EF1008AF217 = {
+			isa = PBXGroup;
+			children = (
+				AA8DFB2C2DE15EF1008AF217 /* DynamicIsland */,
+				AA8DFB3E2DE15EF2008AF217 /* DynamicIslandTests */,
+				AA8DFB482DE15EF2008AF217 /* DynamicIslandUITests */,
+				AA8DFB2B2DE15EF1008AF217 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AA8DFB2B2DE15EF1008AF217 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AA8DFB2A2DE15EF1008AF217 /* DynamicIsland.app */,
+				AA8DFB3B2DE15EF2008AF217 /* DynamicIslandTests.xctest */,
+				AA8DFB452DE15EF2008AF217 /* DynamicIslandUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AA8DFB292DE15EF1008AF217 /* DynamicIsland */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA8DFB4F2DE15EF2008AF217 /* Build configuration list for PBXNativeTarget "DynamicIsland" */;
+			buildPhases = (
+				AA8DFB262DE15EF1008AF217 /* Sources */,
+				AA8DFB272DE15EF1008AF217 /* Frameworks */,
+				AA8DFB282DE15EF1008AF217 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AA8DFB2C2DE15EF1008AF217 /* DynamicIsland */,
+			);
+			name = DynamicIsland;
+			packageProductDependencies = (
+			);
+			productName = DynamicIsland;
+			productReference = AA8DFB2A2DE15EF1008AF217 /* DynamicIsland.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AA8DFB3A2DE15EF2008AF217 /* DynamicIslandTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA8DFB522DE15EF2008AF217 /* Build configuration list for PBXNativeTarget "DynamicIslandTests" */;
+			buildPhases = (
+				AA8DFB372DE15EF2008AF217 /* Sources */,
+				AA8DFB382DE15EF2008AF217 /* Frameworks */,
+				AA8DFB392DE15EF2008AF217 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA8DFB3D2DE15EF2008AF217 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AA8DFB3E2DE15EF2008AF217 /* DynamicIslandTests */,
+			);
+			name = DynamicIslandTests;
+			packageProductDependencies = (
+			);
+			productName = DynamicIslandTests;
+			productReference = AA8DFB3B2DE15EF2008AF217 /* DynamicIslandTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		AA8DFB442DE15EF2008AF217 /* DynamicIslandUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA8DFB552DE15EF2008AF217 /* Build configuration list for PBXNativeTarget "DynamicIslandUITests" */;
+			buildPhases = (
+				AA8DFB412DE15EF2008AF217 /* Sources */,
+				AA8DFB422DE15EF2008AF217 /* Frameworks */,
+				AA8DFB432DE15EF2008AF217 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA8DFB472DE15EF2008AF217 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AA8DFB482DE15EF2008AF217 /* DynamicIslandUITests */,
+			);
+			name = DynamicIslandUITests;
+			packageProductDependencies = (
+			);
+			productName = DynamicIslandUITests;
+			productReference = AA8DFB452DE15EF2008AF217 /* DynamicIslandUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AA8DFB222DE15EF1008AF217 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1620;
+				LastUpgradeCheck = 1620;
+				TargetAttributes = {
+					AA8DFB292DE15EF1008AF217 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					AA8DFB3A2DE15EF2008AF217 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = AA8DFB292DE15EF1008AF217;
+					};
+					AA8DFB442DE15EF2008AF217 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = AA8DFB292DE15EF1008AF217;
+					};
+				};
+			};
+			buildConfigurationList = AA8DFB252DE15EF1008AF217 /* Build configuration list for PBXProject "DynamicIsland" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = AA8DFB212DE15EF1008AF217;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = AA8DFB2B2DE15EF1008AF217 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AA8DFB292DE15EF1008AF217 /* DynamicIsland */,
+				AA8DFB3A2DE15EF2008AF217 /* DynamicIslandTests */,
+				AA8DFB442DE15EF2008AF217 /* DynamicIslandUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AA8DFB282DE15EF1008AF217 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA8DFB392DE15EF2008AF217 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA8DFB432DE15EF2008AF217 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AA8DFB262DE15EF1008AF217 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA8DFB372DE15EF2008AF217 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA8DFB412DE15EF2008AF217 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AA8DFB3D2DE15EF2008AF217 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA8DFB292DE15EF1008AF217 /* DynamicIsland */;
+			targetProxy = AA8DFB3C2DE15EF2008AF217 /* PBXContainerItemProxy */;
+		};
+		AA8DFB472DE15EF2008AF217 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA8DFB292DE15EF1008AF217 /* DynamicIsland */;
+			targetProxy = AA8DFB462DE15EF2008AF217 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		AA8DFB4D2DE15EF2008AF217 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.1;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AA8DFB4E2DE15EF2008AF217 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.1;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		AA8DFB502DE15EF2008AF217 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = DynamicIsland/DynamicIsland.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"DynamicIsland/Preview Content\"";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DynamicIsland/Info.plist;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = fpt.DynamicIsland;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		AA8DFB512DE15EF2008AF217 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = DynamicIsland/DynamicIsland.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"DynamicIsland/Preview Content\"";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DynamicIsland/Info.plist;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = fpt.DynamicIsland;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		AA8DFB532DE15EF2008AF217 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = fpt.DynamicIslandTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DynamicIsland.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DynamicIsland";
+			};
+			name = Debug;
+		};
+		AA8DFB542DE15EF2008AF217 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = fpt.DynamicIslandTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DynamicIsland.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DynamicIsland";
+			};
+			name = Release;
+		};
+		AA8DFB562DE15EF2008AF217 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = fpt.DynamicIslandUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = DynamicIsland;
+			};
+			name = Debug;
+		};
+		AA8DFB572DE15EF2008AF217 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = fpt.DynamicIslandUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = DynamicIsland;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AA8DFB252DE15EF1008AF217 /* Build configuration list for PBXProject "DynamicIsland" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA8DFB4D2DE15EF2008AF217 /* Debug */,
+				AA8DFB4E2DE15EF2008AF217 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA8DFB4F2DE15EF2008AF217 /* Build configuration list for PBXNativeTarget "DynamicIsland" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA8DFB502DE15EF2008AF217 /* Debug */,
+				AA8DFB512DE15EF2008AF217 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA8DFB522DE15EF2008AF217 /* Build configuration list for PBXNativeTarget "DynamicIslandTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA8DFB532DE15EF2008AF217 /* Debug */,
+				AA8DFB542DE15EF2008AF217 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA8DFB552DE15EF2008AF217 /* Build configuration list for PBXNativeTarget "DynamicIslandUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA8DFB562DE15EF2008AF217 /* Debug */,
+				AA8DFB572DE15EF2008AF217 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = AA8DFB222DE15EF1008AF217 /* Project object */;
+}
