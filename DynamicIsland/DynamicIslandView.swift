@@ -7,6 +7,11 @@ struct DynamicIslandView: View {
     @State private var showFilesPopover = false
     @State private var mediaInfo: MediaInfo? = nil
     @State private var quickFiles: [URL] = UserDefaults.standard.quickFiles
+    @State private var quickActionIndex: Int = 0
+    
+    let quickActions: [QuickActionItem] = [
+        .weather, .calendar, .googleSearch, .screenshotPreview
+    ]
     
     var body: some View {
         ZStack {
@@ -126,6 +131,65 @@ struct DynamicIslandView: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 8)
                 
+                // Quick Actions Carousel
+                HStack(spacing: 0) {
+                    Button(action: {
+                        withAnimation { quickActionIndex = max(0, quickActionIndex - 1) }
+                    }) {
+                        Image(systemName: "chevron.left.circle.fill")
+                            .font(.system(size: 32))
+                            .foregroundColor(quickActionIndex > 0 ? .accentColor : .gray)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(quickActionIndex == 0)
+                    
+                    ScrollWheelCatcher(
+                        onScrollLeft: {
+                            if quickActionIndex < quickActions.count - 1 {
+                                withAnimation { quickActionIndex += 1 }
+                            }
+                        },
+                        onScrollRight: {
+                            if quickActionIndex > 0 {
+                                withAnimation { quickActionIndex -= 1 }
+                            }
+                        },
+                        onDragLeft: {
+                            if quickActionIndex < quickActions.count - 1 {
+                                withAnimation { quickActionIndex += 1 }
+                            }
+                        },
+                        onDragRight: {
+                            if quickActionIndex > 0 {
+                                withAnimation { quickActionIndex -= 1 }
+                            }
+                        }
+                    ) {
+                        ZStack {
+                            ForEach(0..<quickActions.count, id: \ .self) { idx in
+                                if idx == quickActionIndex {
+                                    QuickActionView(item: quickActions[idx])
+                                        .frame(width: 180, height: 120)
+                                        .transition(.opacity)
+                                }
+                            }
+                        }
+                        .frame(width: 200, height: 130)
+                        .padding(.horizontal, 8)
+                    }
+                    
+                    Button(action: {
+                        withAnimation { quickActionIndex = min(quickActions.count - 1, quickActionIndex + 1) }
+                    }) {
+                        Image(systemName: "chevron.right.circle.fill")
+                            .font(.system(size: 32))
+                            .foregroundColor(quickActionIndex < quickActions.count - 1 ? .accentColor : .gray)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(quickActionIndex == quickActions.count - 1)
+                }
+                .padding(.vertical, 8)
+                
                 // Media Control Section
                 if let mediaInfo = mediaInfo {
                     MediaControlView(
@@ -138,7 +202,6 @@ struct DynamicIslandView: View {
                     .padding(.bottom, 8)
                 }
                 
-                // Main content can go here (empty for now)
                 Spacer()
             }
         }
@@ -562,3 +625,174 @@ extension UserDefaults {
         }
     }
 }
+
+// MARK: - Quick Action Carousel Items
+enum QuickActionItem: Int, CaseIterable {
+    case weather, calendar, googleSearch, screenshotPreview
+    
+    var title: String {
+        switch self {
+        case .weather: return "Weather"
+        case .calendar: return "Calendar"
+        case .googleSearch: return "Google Search"
+        case .screenshotPreview: return "Screenshots"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .weather: return "cloud.sun.fill"
+        case .calendar: return "calendar"
+        case .googleSearch: return "magnifyingglass"
+        case .screenshotPreview: return "photo.on.rectangle"
+        }
+    }
+}
+
+struct QuickActionView: View {
+    let item: QuickActionItem
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(Color.accentColor.opacity(0.15))
+                    .frame(width: 64, height: 64)
+                Image(systemName: item.icon)
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundColor(.accentColor)
+            }
+            Text(item.title)
+                .font(.headline)
+                .foregroundColor(.primary)
+            // Placeholder for each quick action's content
+            switch item {
+            case .weather:
+                Text("72°F, Sunny\nSan Francisco")
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+            case .calendar:
+                Text("No events today")
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+            case .googleSearch:
+                GoogleSearchBar()
+            case .screenshotPreview:
+                ScreenshotPreview()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Google Search Bar
+struct GoogleSearchBar: View {
+    @State private var query: String = ""
+    var body: some View {
+        HStack {
+            TextField("Search Google...", text: $query)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+            Button(action: {
+                let q = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+                if let url = URL(string: "https://www.google.com/search?q=\(q)") {
+                    NSWorkspace.shared.open(url)
+                }
+            }) {
+                Image(systemName: "arrow.right.circle.fill")
+                    .font(.title2)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 8)
+    }
+}
+
+// MARK: - Screenshot Preview (Placeholder)
+struct ScreenshotPreview: View {
+    // For demo, just show a placeholder
+    var body: some View {
+        VStack(spacing: 4) {
+            Image(systemName: "photo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 48, height: 32)
+                .foregroundColor(.secondary)
+            Text("No screenshots yet")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+// MARK: - ScrollWheelCatcher for macOS
+#if os(macOS)
+import AppKit
+struct ScrollWheelCatcher<Content: View>: NSViewRepresentable {
+    let onScrollLeft: () -> Void
+    let onScrollRight: () -> Void
+    let onDragLeft: () -> Void
+    let onDragRight: () -> Void
+    let content: () -> Content
+    
+    func makeNSView(context: Context) -> NSView {
+        let hosting = NSHostingView(rootView: AnyView(content()))
+        let view = ScrollCatcherView()
+        view.onScrollLeft = onScrollLeft
+        view.onScrollRight = onScrollRight
+        view.onDragLeft = onDragLeft
+        view.onDragRight = onDragRight
+        view.hostingView = hosting
+        view.addSubview(hosting)
+        hosting.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            hosting.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            hosting.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            hosting.topAnchor.constraint(equalTo: view.topAnchor),
+            hosting.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        if let view = nsView as? ScrollCatcherView {
+            view.onScrollLeft = onScrollLeft
+            view.onScrollRight = onScrollRight
+            view.onDragLeft = onDragLeft
+            view.onDragRight = onDragRight
+            view.hostingView?.rootView = AnyView(content())
+        }
+    }
+    
+    class ScrollCatcherView: NSView {
+        var onScrollLeft: (() -> Void)?
+        var onScrollRight: (() -> Void)?
+        var onDragLeft: (() -> Void)?
+        var onDragRight: (() -> Void)?
+        private var dragStart: NSPoint?
+        var hostingView: NSHostingView<AnyView>?
+        override func scrollWheel(with event: NSEvent) {
+            if abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) {
+                if event.scrollingDeltaX > 0 {
+                    onScrollRight?()
+                } else if event.scrollingDeltaX < 0 {
+                    onScrollLeft?()
+                }
+            }
+        }
+        override func mouseDown(with event: NSEvent) {
+            dragStart = event.locationInWindow
+        }
+        override func mouseUp(with event: NSEvent) {
+            guard let start = dragStart else { return }
+            let end = event.locationInWindow
+            let dx = end.x - start.x
+            if dx < -30 {
+                onDragLeft?()
+            } else if dx > 30 {
+                onDragRight?()
+            }
+            dragStart = nil
+        }
+    }
+}
+#endif
