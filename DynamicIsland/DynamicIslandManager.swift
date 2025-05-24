@@ -32,6 +32,14 @@ class DynamicIslandManager: ObservableObject {
         ) { [weak self] _ in
             self?.hideDynamicIsland()
         }
+        
+        NotificationCenter.default.addObserver(
+            forName: .notchFileDragEntered,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.showDynamicIsland()
+        }
     }
     
     func toggleDynamicIsland() {

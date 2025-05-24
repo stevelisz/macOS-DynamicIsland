@@ -16,16 +16,17 @@ class MouseEventMonitor: ObservableObject {
         
         // Monitor global mouse events
         globalMonitor = NSEvent.addGlobalMonitorForEvents(
-            matching: [.mouseMoved, .leftMouseDown, .rightMouseDown]
-        ) { [weak self] event in
-            DispatchQueue.main.async {
-                self?.handleMouseEvent(event)
+            matching: [.mouseMoved, .leftMouseDown, .rightMouseDown, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged],
+            handler: { [weak self] event in
+                DispatchQueue.main.async {
+                    self?.handleMouseEvent(event)
+                }
             }
-        }
+        )
         
         // Monitor local mouse events
         localMonitor = NSEvent.addLocalMonitorForEvents(
-            matching: [.mouseMoved, .leftMouseDown, .rightMouseDown]
+            matching: [.mouseMoved, .leftMouseDown, .rightMouseDown, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged]
         ) { [weak self] event in
             DispatchQueue.main.async {
                 self?.handleMouseEvent(event)
@@ -74,6 +75,23 @@ class MouseEventMonitor: ObservableObject {
                 object: isMouseInNotchArea
             )
         }
+        
+        // Detect file drag over notch area
+        if isMouseInNotchArea && isFileDrag(event: event) {
+            NotificationCenter.default.post(name: .notchFileDragEntered, object: nil)
+        }
+    }
+    
+    private func isFileDrag(event: NSEvent) -> Bool {
+        // Check for drag event with file types
+        if event.type == .leftMouseDragged || event.type == .rightMouseDragged || event.type == .otherMouseDragged {
+            // This is a mouse drag, but we can't directly check for file drag here
+            // We'll rely on the fact that file drags from Finder are usually leftMouseDragged
+            // and the user will drop on the window, which will handle the file drop
+            return true
+        }
+        // NSEventType.draggingEntered is not always delivered globally, but included for completeness
+        return false
     }
     
     private func requestAccessibilityPermissions() {
@@ -95,4 +113,5 @@ extension Notification.Name {
     static let notchClicked = Notification.Name("notchClicked")
     static let mouseNotchStateChanged = Notification.Name("mouseNotchStateChanged")
     static let closeDynamicIsland = Notification.Name("closeDynamicIsland")
+    static let notchFileDragEntered = Notification.Name("notchFileDragEntered")
 }

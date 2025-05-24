@@ -161,7 +161,7 @@ struct DynamicIslandView: View {
             handleFileDrop(providers: providers)
         }
         // Save quickFiles to UserDefaults whenever it changes
-        .onChange(of: quickFiles) { newValue in
+        .onChange(of: quickFiles) { _, newValue in
             UserDefaults.standard.quickFiles = newValue
         }
     }
