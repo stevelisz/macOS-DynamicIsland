@@ -1,8 +1,12 @@
 import SwiftUI
+import AppKit
 
 struct DynamicIslandView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var showActionsPopover = false
+    @State private var showFilesPopover = false
+    @State private var mediaInfo: MediaInfo? = nil
+    @State private var quickFiles: [URL] = UserDefaults.standard.quickFiles
     
     var body: some View {
         ZStack {
@@ -24,7 +28,7 @@ struct DynamicIslandView: View {
             
             VStack(spacing: 0) {
                 // Header
-                HStack {
+                HStack(spacing: 12) {
                     HStack(spacing: 10) {
                         Image(systemName: "macbook")
                             .font(.title2)
@@ -39,6 +43,22 @@ struct DynamicIslandView: View {
                         }
                     }
                     Spacer()
+                    // Folder icon for quick file access
+                    Button(action: { showFilesPopover.toggle() }) {
+                        Image(systemName: "folder.fill")
+                            .font(.system(size: 20, weight: .regular))
+                            .foregroundStyle(Color.yellow)
+                            .background(Color.clear)
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Circle())
+                    .popover(isPresented: $showFilesPopover, arrowEdge: .top) {
+                        QuickFilesPopover(quickFiles: $quickFiles)
+                            .frame(width: 220, height: 220)
+                    }
+                    .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in
+                        handleFileDrop(providers: providers)
+                    }
                     // New icon for actions popover
                     Button(action: { showActionsPopover.toggle() }) {
                         Image(systemName: "square.grid.2x2")
@@ -106,12 +126,67 @@ struct DynamicIslandView: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 8)
                 
+                // Media Control Section
+                if let mediaInfo = mediaInfo {
+                    MediaControlView(
+                        mediaInfo: mediaInfo,
+                        onPlayPause: { handleMediaControl(.playPause) },
+                        onNext: { handleMediaControl(.next) },
+                        onPrevious: { handleMediaControl(.previous) },
+                        onStop: { handleMediaControl(.stop) }
+                    )
+                    .padding(.bottom, 8)
+                }
+                
                 // Main content can go here (empty for now)
                 Spacer()
             }
         }
         .frame(width: 340, height: 240)
         .animation(.spring(response: 0.5, dampingFraction: 0.85), value: UUID())
+        .onAppear {
+            print("Triggering AppleScript for permission prompt")
+            _ = getSpotifyInfo()
+            _ = getAppleMusicInfo()
+            updateMediaInfo()
+            // Load quick files from UserDefaults
+            quickFiles = UserDefaults.standard.quickFiles
+            // Poll for media info every 2 seconds
+            Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+                updateMediaInfo()
+            }
+        }
+        // Allow dropping files anywhere on the window
+        .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in
+            handleFileDrop(providers: providers)
+        }
+        // Save quickFiles to UserDefaults whenever it changes
+        .onChange(of: quickFiles) { newValue in
+            UserDefaults.standard.quickFiles = newValue
+        }
+    }
+    
+    private func handleFileDrop(providers: [NSItemProvider]) -> Bool {
+        for provider in providers {
+            if provider.hasItemConformingToTypeIdentifier("public.file-url") {
+                provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { (item, error) in
+                    if let data = item as? Data, let url = URL(dataRepresentation: data, relativeTo: nil) {
+                        DispatchQueue.main.async {
+                            if !quickFiles.contains(url) {
+                                quickFiles.append(url)
+                            }
+                        }
+                    } else if let url = item as? URL {
+                        DispatchQueue.main.async {
+                            if !quickFiles.contains(url) {
+                                quickFiles.append(url)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return true
     }
     
     private func quickActionRow(
@@ -144,6 +219,116 @@ struct DynamicIslandView: View {
         }
     }
     
+    // MARK: - Media Control Logic
+    private func updateMediaInfo() {
+        // Try Apple Music first
+        if let info = getAppleMusicInfo() {
+            self.mediaInfo = info
+            return
+        }
+        // Then try Spotify
+        if let info = getSpotifyInfo() {
+            self.mediaInfo = info
+            return
+        }
+        // No media playing
+        self.mediaInfo = nil
+    }
+
+    private func getAppleMusicInfo() -> MediaInfo? {
+        let script = """
+        if application "Music" is running then
+            tell application "Music"
+                if player state is playing or player state is paused then
+                    set trackName to name of current track
+                    set artistName to artist of current track
+                    set isPlaying to (player state is playing)
+                    return trackName & "|||" & artistName & "|||" & (isPlaying as string)
+                end if
+            end tell
+        end if
+        """
+        if let result = runAppleScript(script) {
+            let parts = result.components(separatedBy: "|||")
+            if parts.count == 3 {
+                return MediaInfo(app: "Music", title: parts[0], artist: parts[1], isPlaying: parts[2] == "true")
+            }
+        }
+        return nil
+    }
+
+    private func getSpotifyInfo() -> MediaInfo? {
+        let script = """
+        if application "Spotify" is running then
+            tell application "Spotify"
+                if player state is playing or player state is paused then
+                    set trackName to name of current track
+                    set artistName to artist of current track
+                    set isPlaying to (player state is playing)
+                    return trackName & "|||" & artistName & "|||" & (isPlaying as string)
+                end if
+            end tell
+        end if
+        """
+        if let result = runAppleScript(script) {
+            let parts = result.components(separatedBy: "|||")
+            if parts.count == 3 {
+                return MediaInfo(app: "Spotify", title: parts[0], artist: parts[1], isPlaying: parts[2] == "true")
+            }
+        }
+        return nil
+    }
+
+    private func runAppleScript(_ script: String) -> String? {
+        let process = Process()
+        process.launchPath = "/usr/bin/osascript"
+        process.arguments = ["-e", script]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        do {
+            try process.run()
+        } catch {
+            return nil
+        }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    enum MediaControlAction {
+        case playPause, next, previous, stop
+    }
+
+    private func handleMediaControl(_ action: MediaControlAction) {
+        guard let info = mediaInfo else { return }
+        let app = info.app
+        var script = ""
+        switch (app, action) {
+        case ("Music", .playPause):
+            script = "tell application \"Music\" to playpause"
+        case ("Music", .next):
+            script = "tell application \"Music\" to next track"
+        case ("Music", .previous):
+            script = "tell application \"Music\" to previous track"
+        case ("Music", .stop):
+            script = "tell application \"Music\" to stop"
+        case ("Spotify", .playPause):
+            script = "tell application \"Spotify\" to playpause"
+        case ("Spotify", .next):
+            script = "tell application \"Spotify\" to next track"
+        case ("Spotify", .previous):
+            script = "tell application \"Spotify\" to previous track"
+        case ("Spotify", .stop):
+            script = "tell application \"Spotify\" to pause"
+        default:
+            return
+        }
+        _ = runAppleScript(script)
+        // Refresh info after control
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            updateMediaInfo()
+        }
+    }
+    
     // MARK: - Actions
     private func closeDynamicIsland() {
         NotificationCenter.default.post(name: .closeDynamicIsland, object: nil)
@@ -166,6 +351,67 @@ struct DynamicIslandView: View {
         let configuration = NSWorkspace.OpenConfiguration()
         NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app"), configuration: configuration) { _, _ in }
         closeDynamicIsland()
+    }
+}
+
+// MARK: - Media Info Model and View
+struct MediaInfo {
+    let app: String // "Music" or "Spotify"
+    let title: String
+    let artist: String
+    let isPlaying: Bool
+}
+
+struct MediaControlView: View {
+    let mediaInfo: MediaInfo
+    let onPlayPause: () -> Void
+    let onNext: () -> Void
+    let onPrevious: () -> Void
+    let onStop: () -> Void
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: mediaInfo.app == "Spotify" ? "music.note.list" : "music.note")
+                .font(.title2)
+                .foregroundColor(.accentColor)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(mediaInfo.title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text(mediaInfo.artist)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+            HStack(spacing: 8) {
+                Button(action: onPrevious) {
+                    Image(systemName: "backward.fill")
+                        .font(.title3)
+                }
+                .buttonStyle(.plain)
+                Button(action: onPlayPause) {
+                    Image(systemName: mediaInfo.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.title3)
+                }
+                .buttonStyle(.plain)
+                Button(action: onNext) {
+                    Image(systemName: "forward.fill")
+                        .font(.title3)
+                }
+                .buttonStyle(.plain)
+                Button(action: onStop) {
+                    Image(systemName: "stop.fill")
+                        .font(.title3)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
     }
 }
 
@@ -215,5 +461,104 @@ struct PressActionModifier: ViewModifier {
 extension View {
     func pressAction(onPress: @escaping () -> Void, onRelease: @escaping () -> Void) -> some View {
         self.modifier(PressActionModifier(onPress: onPress, onRelease: onRelease))
+    }
+}
+
+// MARK: - Quick Files Popover
+struct QuickFilesPopover: View {
+    @Binding var quickFiles: [URL]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Quick Files")
+                .font(.headline)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
+                .padding(.horizontal, 12)
+            Divider()
+            if quickFiles.isEmpty {
+                Text("Drop files here for quick access.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(16)
+            } else {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(quickFiles, id: \.self) { url in
+                            Button(action: {
+                                NSWorkspace.shared.open(url)
+                            }) {
+                                HStack {
+                                    Image(systemName: "doc.fill")
+                                        .foregroundColor(.accentColor)
+                                    Text(url.lastPathComponent)
+                                        .font(.subheadline)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                    Spacer()
+                                    Button(action: {
+                                        if let idx = quickFiles.firstIndex(of: url) {
+                                            quickFiles.remove(at: idx)
+                                        }
+                                    }) {
+                                        Image(systemName: "trash")
+                                            .foregroundColor(.red)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .padding(.vertical, 6)
+                                .padding(.horizontal, 8)
+                                .background(Color.primary.opacity(0.03))
+                                .cornerRadius(8)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 4)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in
+            for provider in providers {
+                if provider.hasItemConformingToTypeIdentifier("public.file-url") {
+                    provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { (item, error) in
+                        if let data = item as? Data, let url = URL(dataRepresentation: data, relativeTo: nil) {
+                            DispatchQueue.main.async {
+                                if !quickFiles.contains(url) {
+                                    quickFiles.append(url)
+                                }
+                            }
+                        } else if let url = item as? URL {
+                            DispatchQueue.main.async {
+                                if !quickFiles.contains(url) {
+                                    quickFiles.append(url)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return true
+        }
+    }
+}
+
+// MARK: - UserDefaults helper for quickFiles
+extension UserDefaults {
+    private static let quickFilesKey = "quickFilesKey"
+    var quickFiles: [URL] {
+        get {
+            guard let data = data(forKey: Self.quickFilesKey),
+                  let strings = try? JSONDecoder().decode([String].self, from: data) else { return [] }
+            return strings.compactMap { URL(string: $0) }
+        }
+        set {
+            let strings = newValue.map { $0.absoluteString }
+            if let data = try? JSONEncoder().encode(strings) {
+                set(data, forKey: Self.quickFilesKey)
+            }
+        }
     }
 }
