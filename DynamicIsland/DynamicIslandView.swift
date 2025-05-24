@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DynamicIslandView: View {
     @Environment(\.colorScheme) var colorScheme
+    @State private var showActionsPopover = false
     
     var body: some View {
         ZStack {
@@ -38,6 +39,53 @@ struct DynamicIslandView: View {
                         }
                     }
                     Spacer()
+                    // New icon for actions popover
+                    Button(action: { showActionsPopover.toggle() }) {
+                        Image(systemName: "square.grid.2x2")
+                            .font(.system(size: 20, weight: .regular))
+                            .foregroundStyle(Color.accentColor)
+                            .background(Color.clear)
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Circle())
+                    .popover(isPresented: $showActionsPopover, arrowEdge: .top) {
+                        VStack(spacing: 0) {
+                            Text("Quick Actions")
+                                .font(.headline)
+                                .padding(.top, 16)
+                                .padding(.bottom, 8)
+                            Divider()
+                            VStack(spacing: 8) {
+                                quickActionRow(
+                                    "System Settings",
+                                    icon: "gearshape.fill",
+                                    color: LinearGradient(colors: [.blue, .cyan], startPoint: .top, endPoint: .bottom)
+                                ) {
+                                    openSystemSettings()
+                                    showActionsPopover = false
+                                }
+                                quickActionRow(
+                                    "Activity Monitor",
+                                    icon: "speedometer",
+                                    color: LinearGradient(colors: [.green, .mint], startPoint: .top, endPoint: .bottom)
+                                ) {
+                                    openActivityMonitor()
+                                    showActionsPopover = false
+                                }
+                                quickActionRow(
+                                    "Terminal",
+                                    icon: "terminal.fill",
+                                    color: LinearGradient(colors: [.orange, .yellow], startPoint: .top, endPoint: .bottom)
+                                ) {
+                                    openTerminal()
+                                    showActionsPopover = false
+                                }
+                            }
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 12)
+                        }
+                        .frame(width: 220)
+                    }
                     Button(action: closeDynamicIsland) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 20, weight: .regular))
@@ -58,33 +106,8 @@ struct DynamicIslandView: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 8)
                 
-                // Quick Actions
-                VStack(spacing: 10) {
-                    quickActionRow(
-                        "System Settings",
-                        icon: "gearshape.fill",
-                        color: LinearGradient(colors: [.blue, .cyan], startPoint: .top, endPoint: .bottom)
-                    ) {
-                        openSystemSettings()
-                    }
-                    quickActionRow(
-                        "Activity Monitor",
-                        icon: "speedometer",
-                        color: LinearGradient(colors: [.green, .mint], startPoint: .top, endPoint: .bottom)
-                    ) {
-                        openActivityMonitor()
-                    }
-                    quickActionRow(
-                        "Terminal",
-                        icon: "terminal.fill",
-                        color: LinearGradient(colors: [.orange, .yellow], startPoint: .top, endPoint: .bottom)
-                    ) {
-                        openTerminal()
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 24)
-                .padding(.top, 4)
+                // Main content can go here (empty for now)
+                Spacer()
             }
         }
         .frame(width: 340, height: 240)
