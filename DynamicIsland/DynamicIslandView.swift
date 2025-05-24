@@ -1,163 +1,124 @@
 import SwiftUI
 
 struct DynamicIslandView: View {
-    @State private var isExpanded = false
-    @State private var showContent = false
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         ZStack {
-            // Main island container
-            RoundedRectangle(cornerRadius: isExpanded ? 28 : 18)
+            // Main island container with enhanced blur and shadow
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
                 .fill(.ultraThinMaterial)
-                .overlay {
-                    RoundedRectangle(cornerRadius: isExpanded ? 28 : 18)
-                        .stroke(.primary.opacity(0.1), lineWidth: 0.5)
+                .background(
+                    RoundedRectangle(cornerRadius: 32, style: .continuous)
+                        .fill(Color.black.opacity(colorScheme == .dark ? 0.35 : 0.18))
+                        .blur(radius: 16)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 32, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1.2)
+                )
+                .frame(width: 340, height: 240)
+                .shadow(color: Color.black.opacity(0.25), radius: 32, x: 0, y: 16)
+                .shadow(color: Color.blue.opacity(0.08), radius: 8, x: 0, y: 2)
+            
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    HStack(spacing: 10) {
+                        Image(systemName: "macbook")
+                            .font(.title2)
+                            .foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .top, endPoint: .bottom))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Dynamic Island")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                            Text("macOS Enhanced")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button(action: closeDynamicIsland) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20, weight: .regular))
+                            .foregroundStyle(Color.secondary.opacity(0.7))
+                            .background(Color.clear)
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Circle())
                 }
-                .frame(
-                    width: isExpanded ? 300 : 120,
-                    height: isExpanded ? 200 : 35
-                )
-                .shadow(
-                    color: .black.opacity(colorScheme == .dark ? 0.6 : 0.3),
-                    radius: 15,
-                    x: 0,
-                    y: 8
-                )
-            
-            // Content
-            if showContent {
-                expandedContent
-            }
-        }
-        .onAppear {
-            // withAnimation(.easeOut(duration: 0.3)) {
-            //     showContent = true
-            // }
-            showContent = true
-            isExpanded = true
-            // Auto-expand after showing
-            // DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            //     withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
-            //         isExpanded = true
-            //     }
-            // }
-        }
-        .onTapGesture {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                isExpanded.toggle()
-            }
-        }
-    }
-    
-    private var collapsedContent: some View {
-        HStack(spacing: 8) {
-            // Activity indicator
-            Circle()
-                .fill(.green)
-                .frame(width: 8, height: 8)
-                .scaleEffect(isExpanded ? 0 : 1)
-            
-            // Text("Dynamic Island")
-            //    .font(.system(size: 13, weight: .medium, design: .rounded))
-             //   .foregroundStyle(.primary)
-        }
-        .transition(.opacity)
-    }
-    
-    private var expandedContent: some View {
-        VStack(spacing: 16) {
-            // Header
-            HStack {
-                HStack(spacing: 8) {
-                    Image(systemName: "macbook")
-                        .font(.title2)
-                        .foregroundStyle(.blue)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Dynamic Island")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                        
-                        Text("macOS Enhanced")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                .padding(.horizontal, 24)
+                .padding(.top, 22)
+                .padding(.bottom, 8)
+                
+                // Separator
+                Rectangle()
+                    .fill(Color.primary.opacity(0.08))
+                    .frame(height: 1)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+                
+                // Quick Actions
+                VStack(spacing: 10) {
+                    quickActionRow(
+                        "System Settings",
+                        icon: "gearshape.fill",
+                        color: LinearGradient(colors: [.blue, .cyan], startPoint: .top, endPoint: .bottom)
+                    ) {
+                        openSystemSettings()
+                    }
+                    quickActionRow(
+                        "Activity Monitor",
+                        icon: "speedometer",
+                        color: LinearGradient(colors: [.green, .mint], startPoint: .top, endPoint: .bottom)
+                    ) {
+                        openActivityMonitor()
+                    }
+                    quickActionRow(
+                        "Terminal",
+                        icon: "terminal.fill",
+                        color: LinearGradient(colors: [.orange, .yellow], startPoint: .top, endPoint: .bottom)
+                    ) {
+                        openTerminal()
                     }
                 }
-                
-                Spacer()
-                
-                Button(action: closeDynamicIsland) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                        .background(.clear)
-                }
-                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 24)
+                .padding(.top, 4)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            
-            // Quick Actions
-            VStack(spacing: 8) {
-                quickActionRow(
-                    "System Settings",
-                    icon: "gearshape.fill",
-                    color: .blue
-                ) {
-                    openSystemSettings()
-                }
-                
-                quickActionRow(
-                    "Activity Monitor",
-                    icon: "speedometer",
-                    color: .green
-                ) {
-                    openActivityMonitor()
-                }
-                
-                quickActionRow(
-                    "Terminal",
-                    icon: "terminal.fill",
-                    color: .orange
-                ) {
-                    openTerminal()
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
         }
-        .transition(.opacity.combined(with: .scale(scale: 0.8)))
+        .frame(width: 340, height: 240)
+        .animation(.spring(response: 0.5, dampingFraction: 0.85), value: UUID())
     }
     
     private func quickActionRow(
         _ title: String,
         icon: String,
-        color: Color,
+        color: LinearGradient,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(color)
-                    .frame(width: 24, height: 24)
-                
+        HoverableButton(action: action) {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(color)
+                        .frame(width: 32, height: 32)
+                        .shadow(color: Color.black.opacity(0.08), radius: 2, x: 0, y: 1)
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Color.white)
+                }
                 Text(title)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.primary)
-                
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color.primary)
                 Spacer()
-                
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color.secondary.opacity(0.7))
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 16)
-            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+            .padding(.vertical, 14)
+            .padding(.horizontal, 12)
         }
-        .buttonStyle(.plain)
     }
     
     // MARK: - Actions
@@ -182,5 +143,54 @@ struct DynamicIslandView: View {
         let configuration = NSWorkspace.OpenConfiguration()
         NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app"), configuration: configuration) { _, _ in }
         closeDynamicIsland()
+    }
+}
+
+// Custom button style for scaling effect and hover effect
+struct HoverableButton<Label: View>: View {
+    let action: () -> Void
+    let label: () -> Label
+    @State private var isHovered = false
+    @State private var isPressed = false
+    
+    var body: some View {
+        Button(action: action) {
+            label()
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(isHovered ? Color.primary.opacity(0.10) : Color.primary.opacity(0.04))
+                )
+                .scaleEffect(isPressed ? 0.97 : (isHovered ? 1.03 : 1.0))
+                .opacity(isPressed ? 0.85 : 1.0)
+                .animation(.easeOut(duration: 0.15), value: isPressed)
+                .animation(.easeOut(duration: 0.18), value: isHovered)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .pressAction {
+            isPressed = true
+        } onRelease: {
+            isPressed = false
+        }
+    }
+}
+
+// Helper for press action
+struct PressActionModifier: ViewModifier {
+    let onPress: () -> Void
+    let onRelease: () -> Void
+    func body(content: Content) -> some View {
+        content
+            .simultaneousGesture(DragGesture(minimumDistance: 0)
+                .onChanged { _ in onPress() }
+                .onEnded { _ in onRelease() })
+    }
+}
+
+extension View {
+    func pressAction(onPress: @escaping () -> Void, onRelease: @escaping () -> Void) -> some View {
+        self.modifier(PressActionModifier(onPress: onPress, onRelease: onRelease))
     }
 }
