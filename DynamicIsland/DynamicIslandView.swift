@@ -1,5 +1,7 @@
 import SwiftUI
 import AppKit
+import Darwin
+import IOKit
 
 struct DynamicIslandView: View {
     @Environment(\.colorScheme) var colorScheme
@@ -17,6 +19,7 @@ struct DynamicIslandView: View {
     @State private var carouselArrowHideTask: DispatchWorkItem?
     @State private var isDropTargeted = false
     @State private var showDropPulse = false
+    @State private var selectedView: MainViewType = .systemMonitor
     
     var body: some View {
         ZStack {
@@ -32,7 +35,7 @@ struct DynamicIslandView: View {
                     RoundedRectangle(cornerRadius: 32, style: .continuous)
                         .stroke(Color.white.opacity(0.08), lineWidth: 1.2)
                 )
-                .frame(width: 340, height: 240)
+                .frame(width: 340, height: 380)
                 .shadow(color: Color.black.opacity(0.25), radius: 32, x: 0, y: 16)
                 .shadow(color: Color.blue.opacity(0.08), radius: 8, x: 0, y: 2)
             // Drop feedback overlay
@@ -44,7 +47,7 @@ struct DynamicIslandView: View {
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDropTargeted)
                 .animation(.easeOut(duration: 0.2), value: showDropPulse)
             VStack(spacing: 0) {
-                // Header
+                // Header (restored)
                 HStack(spacing: 16) {
                     Button(action: {
                         if let url = URL(string: "x-apple-weather://"), NSWorkspace.shared.open(url) {
@@ -153,30 +156,37 @@ struct DynamicIslandView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 22)
                 .padding(.bottom, 8)
-                
+                // View switcher
+                HStack(spacing: 16) {
+                    Button(action: { selectedView = .systemMonitor }) {
+                        Image(systemName: "gauge.high")
+                            .font(.title3)
+                            .foregroundColor(selectedView == .systemMonitor ? .accentColor : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    // Add more buttons for other views in the future
+                    Spacer()
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 8)
                 // Separator
                 Rectangle()
                     .fill(Color.primary.opacity(0.08))
                     .frame(height: 1)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 8)
-                
-                // Media Control Section
-                if let mediaInfo = mediaInfo {
-                    MediaControlView(
-                        mediaInfo: mediaInfo,
-                        onPlayPause: { handleMediaControl(.playPause) },
-                        onNext: { handleMediaControl(.next) },
-                        onPrevious: { handleMediaControl(.previous) },
-                        onStop: { handleMediaControl(.stop) }
-                    )
-                    .padding(.bottom, 8)
+                // Main content
+                Group {
+                    switch selectedView {
+                    case .systemMonitor:
+                        SystemMonitorView()
+                    }
                 }
-                
-                Spacer()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Spacer(minLength: 0)
             }
         }
-        .frame(width: 340, height: 240)
+        .frame(width: 340, height: 380)
         .animation(.spring(response: 0.5, dampingFraction: 0.85), value: UUID())
         .onAppear {
             print("Triggering AppleScript for permission prompt")
@@ -633,6 +643,239 @@ extension DynamicIslandView {
             }
             carouselArrowHideTask = task
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: task)
+        }
+    }
+}
+
+// Add MainViewType enum
+enum MainViewType {
+    case systemMonitor
+}
+
+// MARK: - System Stats Helper
+class SystemStatsHelper {
+    // CPU
+    private var prevCpuTicks: [[Int32]]? = nil
+    private var numCpus: UInt32 = 0
+    private let cpuLock = NSLock()
+
+    init() {
+        var ncpu: UInt32 = 0
+        var size = MemoryLayout<UInt32>.size
+        sysctlbyname("hw.ncpu", &ncpu, &size, nil, 0)
+        numCpus = ncpu
+    }
+
+    func getPerCoreCPUUsage() -> [Double] {
+        var coreUsages: [Double] = []
+        var numCPUsU: natural_t = 0
+        var cpuInfo: processor_info_array_t?
+        var numCpuInfo: mach_msg_type_number_t = 0
+        let result = host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &numCPUsU, &cpuInfo, &numCpuInfo)
+        guard result == KERN_SUCCESS, let cpuInfo = cpuInfo else { return Array(repeating: 0, count: Int(numCpus)) }
+        var newTicks: [[Int32]] = []
+        for i in 0..<Int(numCPUsU) {
+            let offset = i * Int(CPU_STATE_MAX)
+            let user = cpuInfo[offset + Int(CPU_STATE_USER)]
+            let system = cpuInfo[offset + Int(CPU_STATE_SYSTEM)]
+            let nice = cpuInfo[offset + Int(CPU_STATE_NICE)]
+            let idle = cpuInfo[offset + Int(CPU_STATE_IDLE)]
+            newTicks.append([user, system, nice, idle])
+        }
+        if let prev = prevCpuTicks, prev.count == newTicks.count {
+            for i in 0..<newTicks.count {
+                let user = Double(newTicks[i][0] - prev[i][0])
+                let system = Double(newTicks[i][1] - prev[i][1])
+                let nice = Double(newTicks[i][2] - prev[i][2])
+                let idle = Double(newTicks[i][3] - prev[i][3])
+                let total = user + system + nice + idle
+                let usage = (total > 0) ? ((user + system + nice) / total) * 100.0 : 0.0
+                coreUsages.append(usage)
+            }
+        } else {
+            // First call, can't calculate delta
+            coreUsages = Array(repeating: 0, count: newTicks.count)
+        }
+        prevCpuTicks = newTicks
+        return coreUsages
+    }
+
+    // RAM
+    func getRAMUsage() -> Double {
+        var stats = vm_statistics64()
+        var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.stride / MemoryLayout<integer_t>.stride)
+        let result = withUnsafeMutablePointer(to: &stats) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &count)
+            }
+        }
+        guard result == KERN_SUCCESS else { return 0 }
+        let used = Double(stats.active_count + stats.inactive_count + stats.wire_count)
+        let total = Double(stats.active_count + stats.inactive_count + stats.wire_count + stats.free_count)
+        return (total > 0) ? (used / total) * 100.0 : 0.0
+    }
+
+    // SSD
+    func getSSDUsage() -> Double {
+        let fileURL = URL(fileURLWithPath: "/")
+        if let values = try? fileURL.resourceValues(forKeys: [.volumeAvailableCapacityKey, .volumeTotalCapacityKey]),
+           let available = values.volumeAvailableCapacity,
+           let total = values.volumeTotalCapacity {
+            let used = Double(Int64(total) - Int64(available))
+            return (Double(total) > 0) ? (used / Double(Int64(total))) * 100.0 : 0.0
+        }
+        return 0
+    }
+}
+
+// Add SystemMonitorView at the bottom
+struct SystemMonitorView: View {
+    @State private var cpuCoreUsages: [Double] = Array(repeating: 0, count: 14) // 10 performance + 4 efficiency
+    @State private var gpuCoreUsages: [Double] = Array(repeating: 0, count: 20) // 20 GPU cores
+    @State private var ramUsage: Double = 0
+    @State private var fanSpeed: Double = 0
+    @State private var ssdUsage: Double = 0
+    @State private var wattage: Double = 0
+    @State private var timer: Timer? = nil
+    private let statsHelper = SystemStatsHelper()
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("System Usage")
+                .font(.headline)
+                .padding(.bottom, 2)
+            // CPU Usage
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("CPU")
+                        .font(.subheadline)
+                    Spacer()
+                    Text(String(format: "%.1f%%", cpuCoreUsages.reduce(0, +) / Double(cpuCoreUsages.count)))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                BarChart(usages: cpuCoreUsages, color: .accentColor, coreTypeProvider: { idx in idx < 10 ? .performance : .efficiency })
+                    .frame(height: 40)
+            }
+            // GPU Usage
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("GPU")
+                        .font(.subheadline)
+                    Spacer()
+                    Text(String(format: "%.1f%%", gpuCoreUsages.reduce(0, +) / Double(gpuCoreUsages.count)))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                BarChart(usages: gpuCoreUsages, color: .purple, coreTypeProvider: { _ in .gpu })
+                    .frame(height: 40)
+            }
+            // RAM Usage
+            HStack {
+                Text("RAM")
+                    .font(.subheadline)
+                Spacer()
+                Text(String(format: "%.1f%%", ramUsage))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            // Fan Speed
+            HStack {
+                Text("Fans")
+                    .font(.subheadline)
+                Spacer()
+                Text(String(format: "%.0f RPM", fanSpeed))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            // SSD Usage
+            HStack {
+                Text("SSD")
+                    .font(.subheadline)
+                Spacer()
+                Text(String(format: "%.1f%%", ssdUsage))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            // Wattage
+            HStack {
+                Text("Wattage")
+                    .font(.subheadline)
+                Spacer()
+                Text(String(format: "%.1f W", wattage))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .onAppear {
+            startMonitoring()
+        }
+        .onDisappear {
+            timer?.invalidate()
+        }
+    }
+    private func startMonitoring() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            // Real per-core CPU usage
+            let cpuUsages = statsHelper.getPerCoreCPUUsage()
+            cpuCoreUsages = cpuUsages.count == 14 ? cpuUsages : Array(cpuUsages.prefix(14)) + Array(repeating: 0, count: max(0, 14 - cpuUsages.count))
+            // GPU usage: No public API for per-core, so keep as placeholder
+            gpuCoreUsages = (0..<gpuCoreUsages.count).map { _ in Double.random(in: 5...100) } // Placeholder
+            ramUsage = statsHelper.getRAMUsage()
+            fanSpeed = Double.random(in: 1200...3500) // Placeholder
+            ssdUsage = statsHelper.getSSDUsage()
+            wattage = Double.random(in: 10...60) // Placeholder
+        }
+    }
+}
+
+// Bar chart for per-core usage
+struct BarChart: View {
+    let usages: [Double] // 0...100
+    let color: Color
+    var coreTypeProvider: ((Int) -> CoreType)? = nil // Optional closure to determine core type
+    enum CoreType { case performance, efficiency, gpu }
+    var body: some View {
+        GeometryReader { geo in
+            let spacing: CGFloat = 4
+            let barCount = usages.count
+            let barWidth = max((geo.size.width - spacing * CGFloat(barCount - 1)) / CGFloat(barCount), 6)
+            HStack(alignment: .bottom, spacing: spacing) {
+                ForEach(usages.indices, id: \ .self) { idx in
+                    let usage = usages[idx]
+                    let barHeight = geo.size.height
+                    let usageHeight = max(barHeight * CGFloat(usage / 100), 4)
+                    let coreType = coreTypeProvider?(idx) ?? .gpu
+                    let bgColor: Color = {
+                        switch coreType {
+                        case .performance: return Color.blue.opacity(0.18)
+                        case .efficiency: return Color.teal.opacity(0.18)
+                        case .gpu: return Color.purple.opacity(0.18)
+                        }
+                    }()
+                    let fgColor: Color = {
+                        switch coreType {
+                        case .performance: return Color.blue
+                        case .efficiency: return Color.teal
+                        case .gpu: return Color.purple
+                        }
+                    }()
+                    ZStack(alignment: .bottom) {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(bgColor)
+                            .frame(width: barWidth, height: barHeight)
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(fgColor)
+                            .frame(width: barWidth, height: usageHeight)
+                            .animation(.easeOut(duration: 0.25), value: usage)
+                    }
+                    .frame(width: barWidth, height: barHeight)
+                    .help("\(Int(usage))%")
+                }
+            }
         }
     }
 }
