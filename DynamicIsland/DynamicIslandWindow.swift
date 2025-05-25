@@ -3,11 +3,13 @@ import Cocoa
 
 class DynamicIslandWindow: NSPanel {
     private var trackingArea: NSTrackingArea?
+    var isDetached: Bool = false
+    private let notchThreshold: CGFloat = 10 // px
     
     init() {
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 320, height: 140),
-            styleMask: [.nonactivatingPanel, .borderless, .fullSizeContentView],
+            styleMask: [.nonactivatingPanel, .borderless, .fullSizeContentView, .resizable],
             backing: .buffered,
             defer: false
         )
@@ -25,7 +27,8 @@ class DynamicIslandWindow: NSPanel {
         // Window behavior
         self.level = .floating
         self.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
-        self.isMovable = false
+        self.isMovable = true
+        self.isMovableByWindowBackground = true
         self.acceptsMouseMovedEvents = true
         
         // Positioning
@@ -79,6 +82,25 @@ class DynamicIslandWindow: NSPanel {
         )
         
         self.setFrameOrigin(newOrigin)
+    }
+    
+    override func setFrameOrigin(_ point: NSPoint) {
+        super.setFrameOrigin(point)
+        // If the window is moved away from the notch area, mark as detached
+        guard let screen = NSScreen.main else { return }
+        let screenFrame = screen.frame
+        let notchX = (screenFrame.width - self.frame.width) / 2
+        let notchY = screenFrame.height - self.frame.height - 40
+        let dx = abs(point.x - notchX)
+        let dy = abs(point.y - notchY)
+        if dx > notchThreshold || dy > notchThreshold {
+            isDetached = true
+        }
+    }
+    
+    func resetToNotch() {
+        isDetached = false
+        positionNearNotch()
     }
 }
 

@@ -20,24 +20,28 @@ struct DynamicIslandView: View {
     @State private var isDropTargeted = false
     @State private var showDropPulse = false
     @State private var selectedView: MainViewType = .systemMonitor
+    @State private var isPopped: Bool = false // For pop animation
     
     var body: some View {
         ZStack {
             // Main island container with enhanced blur and shadow
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
+            RoundedRectangle(cornerRadius: isPopped ? 32 : 60, style: .continuous)
                 .fill(.ultraThinMaterial)
                 .background(
-                    RoundedRectangle(cornerRadius: 32, style: .continuous)
+                    RoundedRectangle(cornerRadius: isPopped ? 32 : 60, style: .continuous)
                         .fill(Color.black.opacity(colorScheme == .dark ? 0.35 : 0.18))
                         .blur(radius: 16)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 32, style: .continuous)
+                    RoundedRectangle(cornerRadius: isPopped ? 32 : 60, style: .continuous)
                         .stroke(Color.white.opacity(0.08), lineWidth: 1.2)
                 )
                 .frame(width: 340, height: 380)
                 .shadow(color: Color.black.opacity(0.25), radius: 32, x: 0, y: 16)
                 .shadow(color: Color.blue.opacity(0.08), radius: 8, x: 0, y: 2)
+                .scaleEffect(isPopped ? 1.0 : 0.7, anchor: .top)
+                .opacity(isPopped ? 1.0 : 0.0)
+                .animation(.spring(response: 0.38, dampingFraction: 0.72), value: isPopped)
             // Drop feedback overlay
             RoundedRectangle(cornerRadius: 32, style: .continuous)
                 .stroke(isDropTargeted ? Color.accentColor.opacity(0.7) : Color.clear, lineWidth: isDropTargeted ? 4 : 0)
@@ -47,148 +51,146 @@ struct DynamicIslandView: View {
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDropTargeted)
                 .animation(.easeOut(duration: 0.2), value: showDropPulse)
             VStack(spacing: 0) {
-                // Header (restored)
-                HStack(spacing: 16) {
-                    Button(action: {
-                        if let url = URL(string: "x-apple-weather://"), NSWorkspace.shared.open(url) {
-                            // Opened Weather app
-                        } else if let webUrl = URL(string: "https://weather.com") {
-                            NSWorkspace.shared.open(webUrl)
-                        }
-                    }) {
-                        Image(systemName: "cloud.sun.fill")
-                            .font(.title2)
-                            .foregroundColor(.accentColor)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Open Weather app")
-                    Button(action: {
-                        let calendarURL = URL(fileURLWithPath: "/System/Applications/Calendar.app")
-                        NSWorkspace.shared.open(calendarURL)
-                    }) {
-                        Image(systemName: "calendar")
-                            .font(.title2)
-                            .foregroundColor(.accentColor)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Open Calendar app")
-                    Button(action: {
-                        if let url = URL(string: "https://www.google.com") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.title2)
-                            .foregroundColor(.accentColor)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Search Google")
-                    Spacer()
-                    // Folder icon for quick file access
-                    Button(action: { showFilesPopover.toggle() }) {
-                        Image(systemName: "folder.fill")
-                            .font(.system(size: 20, weight: .regular))
-                            .foregroundStyle(Color.yellow)
-                            .background(Color.clear)
-                    }
-                    .buttonStyle(.plain)
-                    .contentShape(Circle())
-                    .popover(isPresented: $showFilesPopover, arrowEdge: .top) {
-                        QuickFilesPopover(quickFiles: $quickFiles)
-                            .frame(width: 220, height: 220)
-                    }
-                    // New icon for actions popover
-                    Button(action: { showActionsPopover.toggle() }) {
-                        Image(systemName: "square.grid.2x2")
-                            .font(.system(size: 20, weight: .regular))
-                            .foregroundStyle(Color.accentColor)
-                            .background(Color.clear)
-                    }
-                    .buttonStyle(.plain)
-                    .contentShape(Circle())
-                    .popover(isPresented: $showActionsPopover, arrowEdge: .top) {
-                        VStack(spacing: 0) {
-                            Text("Quick Actions")
-                                .font(.headline)
-                                .padding(.top, 16)
-                                .padding(.bottom, 8)
-                            Divider()
-                            VStack(spacing: 8) {
-                                quickActionRow(
-                                    "System Settings",
-                                    icon: "gearshape.fill",
-                                    color: LinearGradient(colors: [.blue, .cyan], startPoint: .top, endPoint: .bottom)
-                                ) {
-                                    openSystemSettings()
-                                    showActionsPopover = false
-                                }
-                                quickActionRow(
-                                    "Activity Monitor",
-                                    icon: "speedometer",
-                                    color: LinearGradient(colors: [.green, .mint], startPoint: .top, endPoint: .bottom)
-                                ) {
-                                    openActivityMonitor()
-                                    showActionsPopover = false
-                                }
-                                quickActionRow(
-                                    "Terminal",
-                                    icon: "terminal.fill",
-                                    color: LinearGradient(colors: [.orange, .yellow], startPoint: .top, endPoint: .bottom)
-                                ) {
-                                    openTerminal()
-                                    showActionsPopover = false
-                                }
+                // Fixed header
+                VStack(spacing: 0) {
+                    HStack(spacing: 16) {
+                        Button(action: {
+                            if let url = URL(string: "x-apple-weather://"), NSWorkspace.shared.open(url) {
+                                // Opened Weather app
+                            } else if let webUrl = URL(string: "https://weather.com") {
+                                NSWorkspace.shared.open(webUrl)
                             }
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 12)
+                        }) {
+                            Image(systemName: "cloud.sun.fill")
+                                .font(.title2)
+                                .foregroundColor(.accentColor)
                         }
-                        .frame(width: 220)
+                        .buttonStyle(.plain)
+                        .help("Open Weather app")
+                        Button(action: {
+                            let calendarURL = URL(fileURLWithPath: "/System/Applications/Calendar.app")
+                            NSWorkspace.shared.open(calendarURL)
+                        }) {
+                            Image(systemName: "calendar")
+                                .font(.title2)
+                                .foregroundColor(.accentColor)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Open Calendar app")
+                        Button(action: {
+                            if let url = URL(string: "https://www.google.com") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.title2)
+                                .foregroundColor(.accentColor)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Search Google")
+                        Spacer()
+                        // New icon for actions popover
+                        Button(action: { showActionsPopover.toggle() }) {
+                            Image(systemName: "square.grid.2x2")
+                                .font(.system(size: 20, weight: .regular))
+                                .foregroundStyle(Color.accentColor)
+                                .background(Color.clear)
+                        }
+                        .buttonStyle(.plain)
+                        .contentShape(Circle())
+                        .popover(isPresented: $showActionsPopover, arrowEdge: .top) {
+                            VStack(spacing: 0) {
+                                Text("Quick Actions")
+                                    .font(.headline)
+                                    .padding(.top, 16)
+                                    .padding(.bottom, 8)
+                                Divider()
+                                VStack(spacing: 8) {
+                                    quickActionRow(
+                                        "System Settings",
+                                        icon: "gearshape.fill",
+                                        color: LinearGradient(colors: [.blue, .cyan], startPoint: .top, endPoint: .bottom)
+                                    ) {
+                                        openSystemSettings()
+                                        showActionsPopover = false
+                                    }
+                                    quickActionRow(
+                                        "Activity Monitor",
+                                        icon: "speedometer",
+                                        color: LinearGradient(colors: [.green, .mint], startPoint: .top, endPoint: .bottom)
+                                    ) {
+                                        openActivityMonitor()
+                                        showActionsPopover = false
+                                    }
+                                    quickActionRow(
+                                        "Terminal",
+                                        icon: "terminal.fill",
+                                        color: LinearGradient(colors: [.orange, .yellow], startPoint: .top, endPoint: .bottom)
+                                    ) {
+                                        openTerminal()
+                                        showActionsPopover = false
+                                    }
+                                }
+                                .padding(.vertical, 12)
+                                .padding(.horizontal, 12)
+                            }
+                            .frame(width: 220)
+                        }
+                        Button(action: closeDynamicIsland) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 20, weight: .regular))
+                                .foregroundStyle(Color.secondary.opacity(0.7))
+                                .background(Color.clear)
+                        }
+                        .buttonStyle(.plain)
+                        .contentShape(Circle())
                     }
-                    Button(action: closeDynamicIsland) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 20, weight: .regular))
-                            .foregroundStyle(Color.secondary.opacity(0.7))
-                            .background(Color.clear)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 12)
+                    .padding(.bottom, 4)
+                    // View switcher
+                    HStack(spacing: 16) {
+                        Button(action: { selectedView = .systemMonitor }) {
+                            Image(systemName: "gauge.high")
+                                .font(.title3)
+                                .foregroundColor(selectedView == .systemMonitor ? .accentColor : .secondary)
+                        }
+                        .buttonStyle(.plain)
+                        Button(action: { selectedView = .quickFiles }) {
+                            Image(systemName: "folder.fill")
+                                .font(.title3)
+                                .foregroundColor(selectedView == .quickFiles ? .yellow : .secondary)
+                        }
+                        .buttonStyle(.plain)
+                        Spacer()
                     }
-                    .buttonStyle(.plain)
-                    .contentShape(Circle())
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 4)
+                    // Divider between header/switcher and main content
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.08))
+                        .frame(height: 1)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 4)
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 22)
-                .padding(.bottom, 8)
-                // View switcher
-                HStack(spacing: 16) {
-                    Button(action: { selectedView = .systemMonitor }) {
-                        Image(systemName: "gauge.high")
-                            .font(.title3)
-                            .foregroundColor(selectedView == .systemMonitor ? .accentColor : .secondary)
-                    }
-                    .buttonStyle(.plain)
-                    // Add more buttons for other views in the future
-                    Spacer()
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 8)
-                // Separator
-                Rectangle()
-                    .fill(Color.primary.opacity(0.08))
-                    .frame(height: 1)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
-                // Main content
+                .frame(height: 120) // Slightly larger fixed height for header + switcher + divider
+                // Main content area fills the rest of the window
                 Group {
                     switch selectedView {
                     case .systemMonitor:
                         SystemMonitorView()
+                    case .quickFiles:
+                        QuickFilesGallery(quickFiles: $quickFiles)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                Spacer(minLength: 0)
             }
         }
         .frame(width: 340, height: 380)
-        .animation(.spring(response: 0.5, dampingFraction: 0.85), value: UUID())
         .onAppear {
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.72)) {
+                isPopped = true
+            }
             print("Triggering AppleScript for permission prompt")
 //            _ = getSpotifyInfo()
 //            _ = getAppleMusicInfo()
@@ -200,6 +202,12 @@ struct DynamicIslandView: View {
 //                updateMediaInfo()
 //            }
         }
+        .onDisappear {
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.72)) {
+                isPopped = false
+            }
+        }
+        .animation(.spring(response: 0.5, dampingFraction: 0.85), value: UUID())
         // Save quickFiles to UserDefaults whenever it changes
         .onChange(of: quickFiles) { _, newValue in
             UserDefaults.standard.quickFiles = newValue
@@ -650,6 +658,7 @@ extension DynamicIslandView {
 // Add MainViewType enum
 enum MainViewType {
     case systemMonitor
+    case quickFiles
 }
 
 // MARK: - System Stats Helper
@@ -808,7 +817,6 @@ struct SystemMonitorView: View {
             Spacer()
         }
         .padding(.horizontal, 20)
-        .padding(.top, 8)
         .onAppear {
             startMonitoring()
         }
@@ -876,6 +884,102 @@ struct BarChart: View {
                     .help("\(Int(usage))%")
                 }
             }
+        }
+    }
+}
+
+// Add new QuickFilesGallery view:
+struct QuickFilesGallery: View {
+    @Binding var quickFiles: [URL]
+    let columns = [GridItem(.adaptive(minimum: 72, maximum: 96), spacing: 16)]
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Fixed header
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Quick Files Gallery")
+                    .font(.headline)
+                    .padding(.top, 16)
+                    .padding(.bottom, 8)
+                    .padding(.horizontal, 12)
+                Divider()
+            }
+            .background(Color.primary.opacity(0.03))
+            // Scrollable content
+            if quickFiles.isEmpty {
+                ScrollView {
+                    VStack {
+                        Text("Drop files here for quick access.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(16)
+                    }
+                }
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(quickFiles, id: \.self) { url in
+                            ZStack(alignment: .topTrailing) {
+                                VStack(spacing: 6) {
+                                    Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(width: 48, height: 48)
+                                        .cornerRadius(8)
+                                        .shadow(radius: 2, y: 1)
+                                    Text(url.lastPathComponent)
+                                        .font(.caption2)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.center)
+                                        .frame(maxWidth: 80)
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    NSWorkspace.shared.open(url)
+                                }
+                                .onDrag {
+                                    NSItemProvider(object: url as NSURL)
+                                }
+                                Button(action: {
+                                    if let idx = quickFiles.firstIndex(of: url) {
+                                        quickFiles.remove(at: idx)
+                                    }
+                                }) {
+                                    Image(systemName: "trash.circle.fill")
+                                        .foregroundColor(.red)
+                                        .background(Color.white.opacity(0.7))
+                                        .clipShape(Circle())
+                                }
+                                .buttonStyle(.plain)
+                                .offset(x: 6, y: -6)
+                            }
+                        }
+                    }
+                    .padding(16)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in
+            for provider in providers {
+                if provider.hasItemConformingToTypeIdentifier("public.file-url") {
+                    provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { (item, error) in
+                        if let data = item as? Data, let url = URL(dataRepresentation: data, relativeTo: nil) {
+                            DispatchQueue.main.async {
+                                if !quickFiles.contains(url) {
+                                    quickFiles.append(url)
+                                }
+                            }
+                        } else if let url = item as? URL {
+                            DispatchQueue.main.async {
+                                if !quickFiles.contains(url) {
+                                    quickFiles.append(url)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return true
         }
     }
 }

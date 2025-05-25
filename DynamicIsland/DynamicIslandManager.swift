@@ -58,8 +58,13 @@ class DynamicIslandManager: ObservableObject {
     }
     
     func toggleDynamicIsland() {
-        if window != nil {
-            hideDynamicIsland()
+        if let win = window {
+            if win.isDetached {
+                // If detached, just close
+                hideDynamicIsland()
+            } else {
+                hideDynamicIsland()
+            }
         } else {
             showDynamicIsland()
         }
@@ -77,7 +82,9 @@ class DynamicIslandManager: ObservableObject {
         contentView.translatesAutoresizingMaskIntoConstraints = false
         
         window?.contentView = contentView
-        window?.positionNearNotch()
+        if let win = window, !win.isDetached {
+            win.resetToNotch()
+        }
         
         // Show with animation
         window?.alphaValue = 0
@@ -89,8 +96,10 @@ class DynamicIslandManager: ObservableObject {
             window?.animator().alphaValue = 1.0
         }
         
-        // Set up auto-hide timer
-        scheduleAutoHide()
+        // Set up auto-hide timer only if not detached
+        if let win = window, !win.isDetached {
+            scheduleAutoHide()
+        }
     }
     
     func hideDynamicIsland() {
@@ -111,6 +120,8 @@ class DynamicIslandManager: ObservableObject {
     
     private func scheduleAutoHide() {
         hideTimer?.invalidate()
+        // Only auto-hide if not detached
+        if let win = window, win.isDetached { return }
         hideTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
             self?.hideDynamicIsland()
         }
@@ -122,6 +133,8 @@ class DynamicIslandManager: ObservableObject {
     }
     
     private func resumeAutoHide() {
+        // Only auto-hide if not detached
+        if let win = window, win.isDetached { return }
         scheduleAutoHide()
     }
 }
