@@ -15,10 +15,8 @@ struct DynamicIslandView: View {
     @State private var carouselDragOffset: CGFloat = 0
     @State private var showCarouselArrows = false
     @State private var carouselArrowHideTask: DispatchWorkItem?
-    
-    let quickActions: [QuickActionItem] = [
-        .weather, .calendar, .googleSearch, .screenshotPreview
-    ]
+    @State private var isDropTargeted = false
+    @State private var showDropPulse = false
     
     var body: some View {
         ZStack {
@@ -37,23 +35,51 @@ struct DynamicIslandView: View {
                 .frame(width: 340, height: 240)
                 .shadow(color: Color.black.opacity(0.25), radius: 32, x: 0, y: 16)
                 .shadow(color: Color.blue.opacity(0.08), radius: 8, x: 0, y: 2)
-            
+            // Drop feedback overlay
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .stroke(isDropTargeted ? Color.accentColor.opacity(0.7) : Color.clear, lineWidth: isDropTargeted ? 4 : 0)
+                .shadow(color: isDropTargeted ? Color.accentColor.opacity(0.3) : .clear, radius: 16, x: 0, y: 4)
+                .scaleEffect(showDropPulse ? 1.08 : 1.0)
+                .opacity(isDropTargeted || showDropPulse ? 1 : 0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDropTargeted)
+                .animation(.easeOut(duration: 0.2), value: showDropPulse)
             VStack(spacing: 0) {
                 // Header
-                HStack(spacing: 12) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "macbook")
-                            .font(.title2)
-                            .foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .top, endPoint: .bottom))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Dynamic Island")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                            Text("macOS Enhanced")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                HStack(spacing: 16) {
+                    Button(action: {
+                        if let url = URL(string: "x-apple-weather://"), NSWorkspace.shared.open(url) {
+                            // Opened Weather app
+                        } else if let webUrl = URL(string: "https://weather.com") {
+                            NSWorkspace.shared.open(webUrl)
                         }
+                    }) {
+                        Image(systemName: "cloud.sun.fill")
+                            .font(.title2)
+                            .foregroundColor(.accentColor)
                     }
+                    .buttonStyle(.plain)
+                    .help("Open Weather app")
+                    Button(action: {
+                        let calendarURL = URL(fileURLWithPath: "/System/Applications/Calendar.app")
+                        NSWorkspace.shared.open(calendarURL)
+                    }) {
+                        Image(systemName: "calendar")
+                            .font(.title2)
+                            .foregroundColor(.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open Calendar app")
+                    Button(action: {
+                        if let url = URL(string: "https://www.google.com") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.title2)
+                            .foregroundColor(.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Search Google")
                     Spacer()
                     // Folder icon for quick file access
                     Button(action: { showFilesPopover.toggle() }) {
@@ -67,9 +93,6 @@ struct DynamicIslandView: View {
                     .popover(isPresented: $showFilesPopover, arrowEdge: .top) {
                         QuickFilesPopover(quickFiles: $quickFiles)
                             .frame(width: 220, height: 220)
-                    }
-                    .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in
-                        handleFileDrop(providers: providers)
                     }
                     // New icon for actions popover
                     Button(action: { showActionsPopover.toggle() }) {
@@ -138,135 +161,6 @@ struct DynamicIslandView: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 8)
                 
-                // Quick Actions Carousel
-                ZStack {
-                    // Background hover detection (does not block clicks)
-                    HStack(spacing: 0) {
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(width: 48)
-                            .contentShape(Rectangle())
-                            .onHover { hovering in
-                                handleCarouselArrowHover(hovering: hovering)
-                            }
-                            .allowsHitTesting(true)
-                        Spacer(minLength: 0)
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(width: 48)
-                            .contentShape(Rectangle())
-                            .onHover { hovering in
-                                handleCarouselArrowHover(hovering: hovering)
-                            }
-                            .allowsHitTesting(true)
-                    }
-                    .frame(height: 130)
-                    // Arrow buttons overlay (always clickable)
-                    HStack {
-                        if showCarouselArrows {
-                            Button(action: {
-                                guard !isAnimatingQuickAction, !isCarouselCooldown else { return }
-                                carouselDirection = -1
-                                lastQuickActionIndex = quickActionIndex
-                                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
-                                    quickActionIndex = max(0, quickActionIndex - 1)
-                                    isAnimatingQuickAction = true
-                                }
-                                debounceQuickActionAnimation()
-                                startCarouselCooldown()
-                            }) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 22, weight: .bold))
-                                    .foregroundColor(quickActionIndex > 0 ? .accentColor : .gray)
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(quickActionIndex == 0 || isAnimatingQuickAction || isCarouselCooldown)
-                            .padding(.leading, 8)
-                        }
-                        Spacer(minLength: 0)
-                        if showCarouselArrows {
-                            Button(action: {
-                                guard !isAnimatingQuickAction, !isCarouselCooldown else { return }
-                                carouselDirection = 1
-                                lastQuickActionIndex = quickActionIndex
-                                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
-                                    quickActionIndex = min(quickActions.count - 1, quickActionIndex + 1)
-                                    isAnimatingQuickAction = true
-                                }
-                                debounceQuickActionAnimation()
-                                startCarouselCooldown()
-                            }) {
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 22, weight: .bold))
-                                    .foregroundColor(quickActionIndex < quickActions.count - 1 ? .accentColor : .gray)
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(quickActionIndex == quickActions.count - 1 || isAnimatingQuickAction || isCarouselCooldown)
-                            .padding(.trailing, 8)
-                        }
-                    }
-                    .frame(width: 340, height: 130)
-                    // The actual carousel card
-                    ScrollWheelCatcher(
-                        onScrollLeft: {
-                            guard !isAnimatingQuickAction, !isCarouselCooldown, quickActionIndex < quickActions.count - 1 else { return }
-                            isCarouselCooldown = true
-                            carouselDirection = 1
-                            lastQuickActionIndex = quickActionIndex
-                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
-                                quickActionIndex += 1
-                                isAnimatingQuickAction = true
-                            }
-                            debounceQuickActionAnimation()
-                            startCarouselCooldown()
-                        },
-                        onScrollRight: {
-                            guard !isAnimatingQuickAction, !isCarouselCooldown, quickActionIndex > 0 else { return }
-                            isCarouselCooldown = true
-                            carouselDirection = -1
-                            lastQuickActionIndex = quickActionIndex
-                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
-                                quickActionIndex -= 1
-                                isAnimatingQuickAction = true
-                            }
-                            debounceQuickActionAnimation()
-                            startCarouselCooldown()
-                        },
-                        onDragLeft: {
-                            guard !isAnimatingQuickAction, !isCarouselCooldown, quickActionIndex < quickActions.count - 1 else { return }
-                            carouselDirection = 1
-                            lastQuickActionIndex = quickActionIndex
-                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
-                                quickActionIndex += 1
-                                isAnimatingQuickAction = true
-                            }
-                            debounceQuickActionAnimation()
-                            startCarouselCooldown()
-                        },
-                        onDragRight: {
-                            guard !isAnimatingQuickAction, !isCarouselCooldown, quickActionIndex > 0 else { return }
-                            carouselDirection = -1
-                            lastQuickActionIndex = quickActionIndex
-                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
-                                quickActionIndex -= 1
-                                isAnimatingQuickAction = true
-                            }
-                            debounceQuickActionAnimation()
-                            startCarouselCooldown()
-                        }
-                    ) {
-                        ZStack {
-                            QuickActionView(item: quickActions[quickActionIndex])
-                                .id(quickActionIndex)
-                                .transition(carouselDirection == 1 ? .asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity).combined(with: .scale), removal: .move(edge: .leading).combined(with: .opacity).combined(with: .scale)) : .asymmetric(insertion: .move(edge: .leading).combined(with: .opacity).combined(with: .scale), removal: .move(edge: .trailing).combined(with: .opacity).combined(with: .scale)))
-                                .animation(.spring(response: 0.45, dampingFraction: 0.85), value: quickActionIndex)
-                        }
-                        .frame(width: 200, height: 130)
-                        .padding(.horizontal, 8)
-                    }
-                }
-                .padding(.vertical, 8)
-                
                 // Media Control Section
                 if let mediaInfo = mediaInfo {
                     MediaControlView(
@@ -296,14 +190,21 @@ struct DynamicIslandView: View {
 //                updateMediaInfo()
 //            }
         }
-        // Allow dropping files anywhere on the window
-        .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in
-            handleFileDrop(providers: providers)
-        }
         // Save quickFiles to UserDefaults whenever it changes
         .onChange(of: quickFiles) { _, newValue in
             UserDefaults.standard.quickFiles = newValue
         }
+        .onDrop(of: ["public.file-url"], isTargeted: $isDropTargeted) { providers in
+            let result = handleFileDrop(providers: providers)
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                showDropPulse = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                withAnimation { showDropPulse = false }
+            }
+            return result
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
     }
     
     private func handleFileDrop(providers: [NSItemProvider]) -> Bool {
@@ -625,33 +526,35 @@ struct QuickFilesPopover: View {
                 ScrollView {
                     VStack(spacing: 0) {
                         ForEach(quickFiles, id: \.self) { url in
-                            Button(action: {
-                                NSWorkspace.shared.open(url)
-                            }) {
-                                HStack {
-                                    Image(systemName: "doc.fill")
-                                        .foregroundColor(.accentColor)
-                                    Text(url.lastPathComponent)
-                                        .font(.subheadline)
-                                        .lineLimit(1)
-                                        .truncationMode(.middle)
-                                    Spacer()
-                                    Button(action: {
-                                        if let idx = quickFiles.firstIndex(of: url) {
-                                            quickFiles.remove(at: idx)
-                                        }
-                                    }) {
-                                        Image(systemName: "trash")
-                                            .foregroundColor(.red)
+                            HStack {
+                                Image(systemName: "doc.fill")
+                                    .foregroundColor(.accentColor)
+                                Text(url.lastPathComponent)
+                                    .font(.subheadline)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Spacer()
+                                Button(action: {
+                                    if let idx = quickFiles.firstIndex(of: url) {
+                                        quickFiles.remove(at: idx)
                                     }
-                                    .buttonStyle(.plain)
+                                }) {
+                                    Image(systemName: "trash")
+                                        .foregroundColor(.red)
                                 }
-                                .padding(.vertical, 6)
-                                .padding(.horizontal, 8)
-                                .background(Color.primary.opacity(0.03))
-                                .cornerRadius(8)
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(PlainButtonStyle())
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 8)
+                            .background(Color.primary.opacity(0.03))
+                            .cornerRadius(8)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                NSWorkspace.shared.open(url)
+                            }
+                            .onDrag {
+                                NSItemProvider(object: url as NSURL)
+                            }
                         }
                     }
                     .padding(.vertical, 8)
@@ -702,187 +605,6 @@ extension UserDefaults {
         }
     }
 }
-
-// MARK: - Quick Action Carousel Items
-enum QuickActionItem: Int, CaseIterable {
-    case weather, calendar, googleSearch, screenshotPreview
-    
-    var title: String {
-        switch self {
-        case .weather: return "Weather"
-        case .calendar: return "Calendar"
-        case .googleSearch: return "Google Search"
-        case .screenshotPreview: return "Screenshots"
-        }
-    }
-    
-    var icon: String {
-        switch self {
-        case .weather: return "cloud.sun.fill"
-        case .calendar: return "calendar"
-        case .googleSearch: return "magnifyingglass"
-        case .screenshotPreview: return "photo.on.rectangle"
-        }
-    }
-}
-
-struct QuickActionView: View {
-    let item: QuickActionItem
-    
-    var body: some View {
-        VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(Color.accentColor.opacity(0.15))
-                    .frame(width: 64, height: 64)
-                Image(systemName: item.icon)
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundColor(.accentColor)
-            }
-            Text(item.title)
-                .font(.headline)
-                .foregroundColor(.primary)
-            // Placeholder for each quick action's content
-            switch item {
-            case .weather:
-                Text("72°F, Sunny\nSan Francisco")
-                    .font(.caption)
-                    .multilineTextAlignment(.center)
-            case .calendar:
-                Text("No events today")
-                    .font(.caption)
-                    .multilineTextAlignment(.center)
-            case .googleSearch:
-                GoogleSearchBar()
-            case .screenshotPreview:
-                ScreenshotPreview()
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-// MARK: - Google Search Bar
-struct GoogleSearchBar: View {
-    @State private var query: String = ""
-    var body: some View {
-        HStack {
-            TextField("Search Google...", text: $query)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-            Button(action: {
-                let q = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-                if let url = URL(string: "https://www.google.com/search?q=\(q)") {
-                    NSWorkspace.shared.open(url)
-                }
-            }) {
-                Image(systemName: "arrow.right.circle.fill")
-                    .font(.title2)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 8)
-    }
-}
-
-// MARK: - Screenshot Preview (Placeholder)
-struct ScreenshotPreview: View {
-    // For demo, just show a placeholder
-    var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: "photo")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 48, height: 32)
-                .foregroundColor(.secondary)
-            Text("No screenshots yet")
-                .font(.caption2)
-                .foregroundColor(.secondary)
-        }
-    }
-}
-
-// MARK: - ScrollWheelCatcher for macOS
-#if os(macOS)
-import AppKit
-struct ScrollWheelCatcher<Content: View>: NSViewRepresentable {
-    let onScrollLeft: () -> Void
-    let onScrollRight: () -> Void
-    let onDragLeft: () -> Void
-    let onDragRight: () -> Void
-    let content: () -> Content
-    
-    func makeNSView(context: Context) -> NSView {
-        let hosting = NSHostingView(rootView: AnyView(content()))
-        let view = ScrollCatcherView()
-        view.onScrollLeft = onScrollLeft
-        view.onScrollRight = onScrollRight
-        view.onDragLeft = onDragLeft
-        view.onDragRight = onDragRight
-        view.hostingView = hosting
-        view.addSubview(hosting)
-        hosting.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            hosting.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            hosting.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            hosting.topAnchor.constraint(equalTo: view.topAnchor),
-            hosting.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        ])
-        return view
-    }
-    
-    func updateNSView(_ nsView: NSView, context: Context) {
-        if let view = nsView as? ScrollCatcherView {
-            view.onScrollLeft = onScrollLeft
-            view.onScrollRight = onScrollRight
-            view.onDragLeft = onDragLeft
-            view.onDragRight = onDragRight
-            view.hostingView?.rootView = AnyView(content())
-        }
-    }
-    
-    class ScrollCatcherView: NSView {
-        var onScrollLeft: (() -> Void)?
-        var onScrollRight: (() -> Void)?
-        var onDragLeft: (() -> Void)?
-        var onDragRight: (() -> Void)?
-        private var dragStart: NSPoint?
-        var hostingView: NSHostingView<AnyView>?
-        private var isScrollLocked = false
-        override func scrollWheel(with event: NSEvent) {
-            guard !isScrollLocked else { return }
-            if abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) {
-                if event.scrollingDeltaX > 0 {
-                    onScrollRight?()
-                    isScrollLocked = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) { [weak self] in
-                        self?.isScrollLocked = false
-                    }
-                } else if event.scrollingDeltaX < 0 {
-                    onScrollLeft?()
-                    isScrollLocked = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) { [weak self] in
-                        self?.isScrollLocked = false
-                    }
-                }
-            }
-        }
-        override func mouseDown(with event: NSEvent) {
-            dragStart = event.locationInWindow
-        }
-        override func mouseUp(with event: NSEvent) {
-            guard let start = dragStart else { return }
-            let end = event.locationInWindow
-            let dx = end.x - start.x
-            if dx < -30 {
-                onDragLeft?()
-            } else if dx > 30 {
-                onDragRight?()
-            }
-            dragStart = nil
-        }
-    }
-}
-#endif
 
 // Helper for debouncing quick action animation
 extension DynamicIslandView {
