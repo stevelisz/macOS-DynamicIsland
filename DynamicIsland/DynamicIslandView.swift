@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import Darwin
 import IOKit
+import Foundation
 
 struct DynamicIslandView: View {
     @Environment(\.colorScheme) var colorScheme
@@ -709,8 +710,8 @@ class SystemStatsHelper {
         return coreUsages
     }
 
-    // RAM
-    func getRAMUsage() -> Double {
+    // RAM (Activity Monitor style)
+    func getRAMStats() -> (usedGB: Double, availableGB: Double, totalGB: Double) {
         var stats = vm_statistics64()
         var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.stride / MemoryLayout<integer_t>.stride)
         let result = withUnsafeMutablePointer(to: &stats) {
@@ -718,10 +719,21 @@ class SystemStatsHelper {
                 host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &count)
             }
         }
-        guard result == KERN_SUCCESS else { return 0 }
-        let used = Double(stats.active_count + stats.inactive_count + stats.wire_count)
-        let total = Double(stats.active_count + stats.inactive_count + stats.wire_count + stats.free_count)
-        return (total > 0) ? (used / total) * 100.0 : 0.0
+        guard result == KERN_SUCCESS else { return (0, 0, 0) }
+        let pageSize = Double(vm_kernel_page_size)
+        // Get compressed memory
+        var compressed: UInt64 = 0
+        var size = MemoryLayout<UInt64>.size
+        sysctlbyname("vm.compressor_page_count", &compressed, &size, nil, 0)
+        let compressedBytes = Double(compressed) * pageSize
+        // Used = active + wired + compressed
+        let used = (Double(stats.active_count + stats.wire_count) * pageSize) + compressedBytes
+        // Available = free + inactive
+        let available = Double(stats.free_count + stats.inactive_count) * pageSize
+        // Total = all
+        let total = Double(stats.active_count + stats.inactive_count + stats.wire_count + stats.free_count) * pageSize
+        let gb = 1024.0 * 1024.0 * 1024.0
+        return (used / gb, available / gb, total / gb)
     }
 
     // SSD
@@ -740,8 +752,11 @@ class SystemStatsHelper {
 // Add SystemMonitorView at the bottom
 struct SystemMonitorView: View {
     @State private var cpuCoreUsages: [Double] = Array(repeating: 0, count: 14) // 10 performance + 4 efficiency
-    @State private var gpuCoreUsages: [Double] = Array(repeating: 0, count: 20) // 20 GPU cores
-    @State private var ramUsage: Double = 0
+    @State private var gpuUsage: Double = 0
+    @State private var gpuUsageHistory: [Double] = Array(repeating: 0, count: 60)
+    @State private var ramUsedGB: Double = 0
+    @State private var ramAvailableGB: Double = 0
+    @State private var ramTotalGB: Double = 0
     @State private var fanSpeed: Double = 0
     @State private var ssdUsage: Double = 0
     @State private var wattage: Double = 0
@@ -751,6 +766,7 @@ struct SystemMonitorView: View {
         VStack(alignment: .leading, spacing: 18) {
             Text("System Usage")
                 .font(.headline)
+                .padding(.top, 16)
                 .padding(.bottom, 2)
             // CPU Usage
             VStack(alignment: .leading, spacing: 4) {
@@ -765,37 +781,50 @@ struct SystemMonitorView: View {
                 BarChart(usages: cpuCoreUsages, color: .accentColor, coreTypeProvider: { idx in idx < 10 ? .performance : .efficiency })
                     .frame(height: 40)
             }
-            // GPU Usage
+            // GPU Usage (single value + line chart)
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text("GPU")
                         .font(.subheadline)
                     Spacer()
-                    Text(String(format: "%.1f%%", gpuCoreUsages.reduce(0, +) / Double(gpuCoreUsages.count)))
+                    Text(String(format: "%.1f%%", gpuUsage))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                BarChart(usages: gpuCoreUsages, color: .purple, coreTypeProvider: { _ in .gpu })
-                    .frame(height: 40)
+                LineGraph(data: gpuUsageHistory, color: .purple)
+                    .frame(height: 32)
             }
-            // RAM Usage
-            HStack {
-                Text("RAM")
-                    .font(.subheadline)
-                Spacer()
-                Text(String(format: "%.1f%%", ramUsage))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            // RAM Usage (Activity Monitor style)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("RAM")
+                        .font(.subheadline)
+                    Spacer()
+                    Text(String(format: "Used: %.2f GB", ramUsedGB))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(String(format: "Available: %.2f GB", ramAvailableGB))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                HStack(spacing: 10) {
+                    HorizontalBarChart(used: ramUsedGB, total: ramTotalGB)
+                        .frame(height: 16)
+                    Text(String(format: "%.0f%%", (ramTotalGB > 0 ? (ramUsedGB / ramTotalGB) * 100 : 0)))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .frame(width: 36, alignment: .trailing)
+                }
             }
             // Fan Speed
-            HStack {
-                Text("Fans")
-                    .font(.subheadline)
-                Spacer()
-                Text(String(format: "%.0f RPM", fanSpeed))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+//            HStack {
+//                Text("Fans")
+//                    .font(.subheadline)
+//                Spacer()
+//                Text(String(format: "%.0f RPM", fanSpeed))
+//                    .font(.caption)
+//                    .foregroundColor(.secondary)
+//            }
             // SSD Usage
             HStack {
                 Text("SSD")
@@ -805,18 +834,10 @@ struct SystemMonitorView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            // Wattage
-            HStack {
-                Text("Wattage")
-                    .font(.subheadline)
-                Spacer()
-                Text(String(format: "%.1f W", wattage))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
             Spacer()
         }
         .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             startMonitoring()
         }
@@ -830,9 +851,20 @@ struct SystemMonitorView: View {
             // Real per-core CPU usage
             let cpuUsages = statsHelper.getPerCoreCPUUsage()
             cpuCoreUsages = cpuUsages.count == 14 ? cpuUsages : Array(cpuUsages.prefix(14)) + Array(repeating: 0, count: max(0, 14 - cpuUsages.count))
-            // GPU usage: No public API for per-core, so keep as placeholder
-            gpuCoreUsages = (0..<gpuCoreUsages.count).map { _ in Double.random(in: 5...100) } // Placeholder
-            ramUsage = statsHelper.getRAMUsage()
+            // GPU usage: powermetrics
+            getGPUUsageFromPowermetrics { value in
+                DispatchQueue.main.async {
+                    if let value = value {
+                        gpuUsage = value
+                        gpuUsageHistory.append(value)
+                        if gpuUsageHistory.count > 60 { gpuUsageHistory.removeFirst() }
+                    }
+                }
+            }
+            let ramStats = statsHelper.getRAMStats()
+            ramUsedGB = ramStats.usedGB
+            ramAvailableGB = ramStats.availableGB
+            ramTotalGB = ramStats.totalGB
             fanSpeed = Double.random(in: 1200...3500) // Placeholder
             ssdUsage = statsHelper.getSSDUsage()
             wattage = Double.random(in: 10...60) // Placeholder
@@ -980,6 +1012,82 @@ struct QuickFilesGallery: View {
                 }
             }
             return true
+        }
+    }
+}
+
+// Add getGPUUsageFromPowermetrics helper:
+func getGPUUsageFromPowermetrics(completion: @escaping (Double?) -> Void) {
+    let task = Process()
+    task.launchPath = "/usr/bin/sudo"
+    task.arguments = ["powermetrics", "--samplers", "gpusched", "-n", "1"]
+    let pipe = Pipe()
+    task.standardOutput = pipe
+    task.standardError = pipe
+    task.terminationHandler = { _ in
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        if let output = String(data: data, encoding: .utf8) {
+            // Parse for "GPU Active: xx.x%"
+            if let match = output.range(of: #"GPU Active:\s*([0-9.]+)%"#, options: .regularExpression) {
+                let valueString = output[match].replacingOccurrences(of: "GPU Active:", with: "").replacingOccurrences(of: "%", with: "").trimmingCharacters(in: .whitespaces)
+                if let value = Double(valueString) {
+                    completion(value)
+                    return
+                }
+            }
+        }
+        completion(nil)
+    }
+    do {
+        try task.run()
+    } catch {
+        completion(nil)
+    }
+}
+
+// Add LineGraph view if not present:
+struct LineGraph: View {
+    let data: [Double]
+    let color: Color
+    func normalizedData() -> [Double] {
+        guard let min = data.min(), let max = data.max(), max > min else {
+            return data.map { _ in 0.5 }
+        }
+        return data.map { ($0 - min) / (max - min) }
+    }
+    var body: some View {
+        GeometryReader { geo in
+            Path { path in
+                let points = normalizedData()
+                guard points.count > 1 else { return }
+                let step = geo.size.width / CGFloat(points.count - 1)
+                path.move(to: CGPoint(x: 0, y: geo.size.height * (1 - points[0])))
+                for i in 1..<points.count {
+                    let x = CGFloat(i) * step
+                    let y = geo.size.height * (1 - points[i])
+                    path.addLine(to: CGPoint(x: x, y: y))
+                }
+            }
+            .stroke(color, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+        }
+    }
+}
+
+// Add HorizontalBarChart view:
+struct HorizontalBarChart: View {
+    let used: Double
+    let total: Double
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.gray.opacity(0.18))
+                    .frame(height: geo.size.height)
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.green)
+                    .frame(width: CGFloat(total > 0 ? (used / total) : 0) * geo.size.width, height: geo.size.height)
+                    .animation(.easeOut(duration: 0.25), value: used)
+            }
         }
     }
 }
