@@ -5,6 +5,7 @@ class DynamicIslandWindow: NSPanel {
     private var trackingArea: NSTrackingArea?
     var isDetached: Bool = false
     private let notchThreshold: CGFloat = 10 // px
+    private let headerHeight: CGFloat = 110 // Should match SwiftUI header
     
     init() {
         super.init(
@@ -28,7 +29,7 @@ class DynamicIslandWindow: NSPanel {
         self.level = .floating
         self.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         self.isMovable = true
-        self.isMovableByWindowBackground = true
+        self.isMovableByWindowBackground = false
         self.acceptsMouseMovedEvents = true
         
         // Positioning
@@ -37,6 +38,11 @@ class DynamicIslandWindow: NSPanel {
         
         // Make sure it appears above everything
         self.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.modalPanelWindow)) + 1)
+
+        // Add draggable header view
+        let dragView = DraggableHeaderView(frame: NSRect(x: 0, y: self.frame.height - headerHeight, width: self.frame.width, height: headerHeight))
+        dragView.autoresizingMask = [.width, .minYMargin]
+        self.contentView?.addSubview(dragView)
     }
     
     override func makeKeyAndOrderFront(_ sender: Any?) {
@@ -107,4 +113,18 @@ class DynamicIslandWindow: NSPanel {
 extension Notification.Name {
     static let dynamicIslandMouseEntered = Notification.Name("dynamicIslandMouseEntered")
     static let dynamicIslandMouseExited = Notification.Name("dynamicIslandMouseExited")
+}
+
+// Transparent NSView for header drag region
+class DraggableHeaderView: NSView {
+    override func mouseDown(with event: NSEvent) {
+        self.window?.performDrag(with: event)
+    }
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        // Always allow mouse events to pass through except for drag
+        return self
+    }
+    override func draw(_ dirtyRect: NSRect) {
+        // Transparent
+    }
 }

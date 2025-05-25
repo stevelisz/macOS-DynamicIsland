@@ -52,7 +52,7 @@ struct DynamicIslandView: View {
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDropTargeted)
                 .animation(.easeOut(duration: 0.2), value: showDropPulse)
             VStack(spacing: 0) {
-                // Fixed header
+                // Header area (draggable region)
                 VStack(spacing: 0) {
                     HStack(spacing: 16) {
                         Button(action: {
@@ -147,8 +147,8 @@ struct DynamicIslandView: View {
                         .contentShape(Circle())
                     }
                     .padding(.horizontal, 24)
-                    .padding(.top, 12)
-                    .padding(.bottom, 4)
+                    .padding(.top, 0)
+                    .padding(.bottom, 2)
                     // View switcher
                     HStack(spacing: 16) {
                         Button(action: { selectedView = .systemMonitor }) {
@@ -172,10 +172,28 @@ struct DynamicIslandView: View {
                         .fill(Color.primary.opacity(0.08))
                         .frame(height: 1)
                         .padding(.horizontal, 16)
-                        .padding(.bottom, 4)
+                        .padding(.bottom, 0)
+                    // Section title
+                    HStack {
+                        Text(selectedView == .systemMonitor ? "System Usage" : "Quick Files Gallery")
+                            .font(.headline)
+                            .padding(.leading, 16)
+                            .padding(.top, 0)
+                            .padding(.bottom, 2)
+                        Spacer()
+                    }
                 }
-                .frame(height: 120) // Slightly larger fixed height for header + switcher + divider
-                // Main content area fills the rest of the window
+                .frame(height: 110)
+                .background(Color.clear)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            // Post notification or call window drag logic here
+                            NotificationCenter.default.post(name: NSNotification.Name("DynamicIslandDragWindow"), object: value)
+                        }
+                )
+                // Main content area (not draggable)
                 Group {
                     switch selectedView {
                     case .systemMonitor:
@@ -185,6 +203,7 @@ struct DynamicIslandView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal, 20)
             }
         }
         .frame(width: 340, height: 380)
@@ -764,10 +783,6 @@ struct SystemMonitorView: View {
     private let statsHelper = SystemStatsHelper()
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("System Usage")
-                .font(.headline)
-                .padding(.top, 16)
-                .padding(.bottom, 2)
             // CPU Usage
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -816,15 +831,6 @@ struct SystemMonitorView: View {
                         .frame(width: 36, alignment: .trailing)
                 }
             }
-            // Fan Speed
-//            HStack {
-//                Text("Fans")
-//                    .font(.subheadline)
-//                Spacer()
-//                Text(String(format: "%.0f RPM", fanSpeed))
-//                    .font(.caption)
-//                    .foregroundColor(.secondary)
-//            }
             // SSD Usage
             HStack {
                 Text("SSD")
@@ -836,7 +842,6 @@ struct SystemMonitorView: View {
             }
             Spacer()
         }
-        .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             startMonitoring()
@@ -925,93 +930,57 @@ struct QuickFilesGallery: View {
     @Binding var quickFiles: [URL]
     let columns = [GridItem(.adaptive(minimum: 72, maximum: 96), spacing: 16)]
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Fixed header
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Quick Files Gallery")
-                    .font(.headline)
-                    .padding(.top, 16)
-                    .padding(.bottom, 8)
-                    .padding(.horizontal, 12)
-                Divider()
-            }
-            .background(Color.primary.opacity(0.03))
-            // Scrollable content
-            if quickFiles.isEmpty {
-                ScrollView {
-                    VStack {
-                        Text("Drop files here for quick access.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(16)
-                    }
-                }
-            } else {
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(quickFiles, id: \.self) { url in
-                            ZStack(alignment: .topTrailing) {
-                                VStack(spacing: 6) {
-                                    Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .frame(width: 48, height: 48)
-                                        .cornerRadius(8)
-                                        .shadow(radius: 2, y: 1)
-                                    Text(url.lastPathComponent)
-                                        .font(.caption2)
-                                        .lineLimit(2)
-                                        .multilineTextAlignment(.center)
-                                        .frame(maxWidth: 80)
-                                }
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    NSWorkspace.shared.open(url)
-                                }
-                                .onDrag {
-                                    NSItemProvider(object: url as NSURL)
-                                }
-                                Button(action: {
-                                    if let idx = quickFiles.firstIndex(of: url) {
-                                        quickFiles.remove(at: idx)
-                                    }
-                                }) {
-                                    Image(systemName: "trash.circle.fill")
-                                        .foregroundColor(.red)
-                                        .background(Color.white.opacity(0.7))
-                                        .clipShape(Circle())
-                                }
-                                .buttonStyle(.plain)
-                                .offset(x: 6, y: -6)
-                            }
-                        }
-                    }
-                    .padding(16)
+        if quickFiles.isEmpty {
+            ScrollView {
+                VStack {
+                    Text("Drop files here for quick access.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(16)
                 }
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in
-            for provider in providers {
-                if provider.hasItemConformingToTypeIdentifier("public.file-url") {
-                    provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { (item, error) in
-                        if let data = item as? Data, let url = URL(dataRepresentation: data, relativeTo: nil) {
-                            DispatchQueue.main.async {
-                                if !quickFiles.contains(url) {
-                                    quickFiles.append(url)
-                                }
+        } else {
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(quickFiles, id: \.self) { url in
+                        ZStack(alignment: .topTrailing) {
+                            VStack(spacing: 6) {
+                                Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 48, height: 48)
+                                    .cornerRadius(8)
+                                    .shadow(radius: 2, y: 1)
+                                Text(url.lastPathComponent)
+                                    .font(.caption2)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
+                                    .frame(maxWidth: 80)
                             }
-                        } else if let url = item as? URL {
-                            DispatchQueue.main.async {
-                                if !quickFiles.contains(url) {
-                                    quickFiles.append(url)
-                                }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                NSWorkspace.shared.open(url)
                             }
+                            .onDrag {
+                                NSItemProvider(object: url as NSURL)
+                            }
+                            Button(action: {
+                                if let idx = quickFiles.firstIndex(of: url) {
+                                    quickFiles.remove(at: idx)
+                                }
+                            }) {
+                                Image(systemName: "trash.circle.fill")
+                                    .foregroundColor(.red)
+                                    .background(Color.white.opacity(0.7))
+                                    .clipShape(Circle())
+                            }
+                            .buttonStyle(.plain)
+                            .offset(x: 6, y: -6)
                         }
                     }
                 }
+                .padding(16)
             }
-            return true
         }
     }
 }
