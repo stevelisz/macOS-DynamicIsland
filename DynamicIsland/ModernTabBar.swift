@@ -7,7 +7,8 @@ struct ModernTabBar: View {
     private let tabs: [(MainViewType, String, String, Color)] = [
         (.clipboard, "doc.on.clipboard.fill", "Clipboard", DesignSystem.Colors.clipboard),
         (.quickApp, "app.fill", "Apps", DesignSystem.Colors.apps),
-        (.systemMonitor, "gauge.high", "System", DesignSystem.Colors.system)
+        (.systemMonitor, "gauge.high", "System", DesignSystem.Colors.system),
+        (.weather, "cloud.sun.fill", "Weather", DesignSystem.Colors.primary)
     ]
     
     var body: some View {
