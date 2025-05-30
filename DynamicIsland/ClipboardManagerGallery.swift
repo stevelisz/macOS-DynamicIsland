@@ -8,6 +8,8 @@ struct ClipboardManagerGallery: View {
     @Binding var clipboardItems: [ClipboardItem]
     @State private var searchText: String = ""
     @State private var justCopiedId: UUID? = nil // Track which card was just copied
+    @State private var hoveredItemId: UUID? = nil
+    
     private func clearAll() { clipboardItems.removeAll() }
     private func pin(_ item: ClipboardItem) {
         if let idx = clipboardItems.firstIndex(of: item) {
@@ -64,151 +66,225 @@ struct ClipboardManagerGallery: View {
         let unpinned = filtered.filter { !$0.pinned }
         return pinned + unpinned
     }
-    let cardWidth: CGFloat = 160
-    let cardHeight: CGFloat = 72
+    
     let columns = [GridItem(.flexible())]
+    
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Search bar
             HStack {
-                TextField("Search clipboard...", text: $searchText)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding(.horizontal, 12)
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: "magnifyingglass")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                    
+                    TextField("Search clipboard...", text: $searchText)
+                        .font(DesignSystem.Typography.body)
+                        .textFieldStyle(.plain)
+                }
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .padding(.vertical, DesignSystem.Spacing.sm)
+                .background(DesignSystem.Colors.surface)
+                .cornerRadius(DesignSystem.BorderRadius.md)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                        .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                )
+                
                 Spacer()
+                
+                // Clear all button
+                if !clipboardItems.isEmpty {
+                    Button(action: clearAll) {
+                        Image(systemName: "trash")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.error)
+                    }
+                    .buttonStyle_custom(.ghost)
+                }
             }
-            .padding(.top, 2)
-            .padding(.bottom, 8)
+            
             if filteredItems.isEmpty {
-                Spacer()
-                HStack {
+                // Empty state
+                VStack(spacing: DesignSystem.Spacing.md) {
                     Spacer()
-                    Text("Clipboard is empty.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(16)
+                    
+                    Image(systemName: "doc.on.clipboard")
+                        .font(.system(size: 32, weight: .light))
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    
+                    Text("Clipboard is empty")
+                        .font(DesignSystem.Typography.headline3)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                    
+                    Text("Copy something to see it here")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    
                     Spacer()
                 }
-                Spacer()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVGrid(columns: columns, spacing: 12) {
+                    LazyVGrid(columns: columns, spacing: DesignSystem.Spacing.md) {
                         ForEach(filteredItems) { item in
-                            ZStack(alignment: .topTrailing) {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack(alignment: .top) {
-                                        if item.pinned {
-                                            Image(systemName: "star.fill").foregroundColor(.yellow)
-                                        }
-                                        Spacer()
-                                        if item.type == .text {
-                                            Image(systemName: "doc.text")
-                                                .font(.title3)
-                                                .foregroundColor(.accentColor)
-                                        } else if item.type == .image {
-                                            Image(systemName: "photo")
-                                                .font(.title3)
-                                                .foregroundColor(.accentColor)
-                                        } else if item.type == .file {
-                                            Image(systemName: "doc")
-                                                .font(.title3)
-                                                .foregroundColor(.accentColor)
-                                        }
-                                        Text(item.date, style: .time)
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    if item.type == .text, let text = item.content {
-                                        ScrollView(.horizontal, showsIndicators: false) {
-                                            Text(text)
-                                                .font(.body)
-                                                .lineLimit(2)
-                                                .truncationMode(.tail)
-                                                .padding(.top, 2)
-                                        }
-                                    } else if item.type == .image, let data = item.imageData, let img = NSImage(data: data) {
-                                        Image(nsImage: img)
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            .frame(height: 40)
-                                            .cornerRadius(8)
-                                            .shadow(radius: 2, y: 1)
-                                    } else if item.type == .file, let url = item.fileURL {
-                                        HStack(alignment: .center, spacing: 8) {
-                                            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fit)
-                                                .frame(width: 24, height: 24)
-                                                .cornerRadius(6)
-                                            Text(url.lastPathComponent)
-                                                .font(.body)
-                                                .lineLimit(1)
-                                                .truncationMode(.middle)
-                                                .multilineTextAlignment(.leading)
-                                                .frame(maxWidth: 180, alignment: .leading)
-                                        }
-                                    }
-                                }
-                                .padding(10)
-                                .frame(maxWidth: .infinity, minHeight: cardHeight, maxHeight: cardHeight, alignment: .topLeading)
-                                .background(Color.primary.opacity(0.04))
-                                .cornerRadius(12)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    copyToClipboard(item)
-                                }
-                                .overlay(
-                                    Group {
-                                        if justCopiedId == item.id {
-                                            ZStack {
-                                                Color.black.opacity(0.35)
-                                                    .cornerRadius(12)
-                                                VStack {
-                                                    Image(systemName: "checkmark.circle.fill")
-                                                        .font(.system(size: 32))
-                                                        .foregroundColor(.green)
-                                                    Text("Copied!")
-                                                        .font(.caption)
-                                                        .foregroundColor(.white)
-                                                }
-                                            }
-                                            .transition(.opacity)
-                                        }
-                                    }
-                                )
-                                .animation(.easeInOut(duration: 0.2), value: justCopiedId)
-                                .contextMenu {
-                                    if item.pinned {
-                                        Button("Unpin") { unpin(item) }
-                                    } else {
-                                        Button("Pin") { pin(item) }
-                                    }
-                                    Button("Copy") { copyToClipboard(item) }
-                                    if item.type == .file || item.type == .image {
-                                        Button("Open") { openItem(item) }
-                                    }
-                                    Divider()
-                                    Button(role: .destructive) {
-                                        if let idx = clipboardItems.firstIndex(of: item) {
-                                            clipboardItems.remove(at: idx)
-                                        }
-                                    } label: {
-                                        Label("Remove", systemImage: "trash")
-                                    }
+                            ClipboardItemCard(
+                                item: item,
+                                isHovered: hoveredItemId == item.id,
+                                justCopied: justCopiedId == item.id,
+                                onCopy: { copyToClipboard(item) },
+                                onPin: { item.pinned ? unpin(item) : pin(item) },
+                                onOpen: { openItem(item) }
+                            )
+                            .onHover { isHovered in
+                                withAnimation(DesignSystem.Animation.gentle) {
+                                    hoveredItemId = isHovered ? item.id : nil
                                 }
                             }
                         }
                     }
-                    .padding(12)
-                }
-                .contextMenu {
-                    if !clipboardItems.isEmpty {
-                        Button(role: .destructive) {
-                            clearAll()
-                        } label: {
-                            Label("Remove All", systemImage: "trash")
-                        }
-                    }
                 }
             }
+        }
+        .padding(.top, DesignSystem.Spacing.xs)
+    }
+}
+
+struct ClipboardItemCard: View {
+    let item: ClipboardItem
+    let isHovered: Bool
+    let justCopied: Bool
+    let onCopy: () -> Void
+    let onPin: () -> Void
+    let onOpen: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            // Header with type icon and timestamp
+            HStack(alignment: .top) {
+                // Pin indicator
+                if item.pinned {
+                    Image(systemName: "star.fill")
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(DesignSystem.Colors.warning)
+                }
+                
+                Spacer()
+                
+                // Type icon
+                Image(systemName: typeIcon)
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(typeColor)
+                
+                // Timestamp
+                Text(item.date, style: .time)
+                    .font(DesignSystem.Typography.micro)
+                    .foregroundColor(DesignSystem.Colors.textTertiary)
+            }
+            
+            // Content
+            contentView
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            // Actions (shown on hover)
+            if isHovered || justCopied {
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Button(action: onCopy) {
+                        HStack(spacing: DesignSystem.Spacing.xxs) {
+                            Image(systemName: justCopied ? "checkmark" : "doc.on.doc")
+                                .font(DesignSystem.Typography.micro)
+                            Text(justCopied ? "Copied!" : "Copy")
+                                .font(DesignSystem.Typography.micro)
+                        }
+                        .foregroundColor(justCopied ? DesignSystem.Colors.success : DesignSystem.Colors.textPrimary)
+                    }
+                    .buttonStyle_custom(.secondary)
+                    
+                    Button(action: onPin) {
+                        Image(systemName: item.pinned ? "star.slash" : "star")
+                            .font(DesignSystem.Typography.micro)
+                    }
+                    .buttonStyle_custom(.ghost)
+                    
+                    if item.type == .file || item.type == .image {
+                        Button(action: onOpen) {
+                            Image(systemName: "arrow.up.right.square")
+                                .font(DesignSystem.Typography.micro)
+                        }
+                        .buttonStyle_custom(.ghost)
+                    }
+                    
+                    Spacer()
+                }
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .opacity
+                ))
+            }
+        }
+        .padding(DesignSystem.Spacing.md)
+        .cardStyle(isHovered: isHovered)
+        .animation(DesignSystem.Animation.gentle, value: isHovered)
+        .animation(DesignSystem.Animation.gentle, value: justCopied)
+    }
+    
+    @ViewBuilder
+    private var contentView: some View {
+        switch item.type {
+        case .text:
+            if let text = item.content {
+                Text(text)
+                    .font(DesignSystem.Typography.body)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .lineLimit(3)
+                    .truncationMode(.tail)
+            }
+        case .image:
+            if let data = item.imageData, let img = NSImage(data: data) {
+                Image(nsImage: img)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxHeight: 60)
+                    .cornerRadius(DesignSystem.BorderRadius.sm)
+            }
+        case .file:
+            if let url = item.fileURL {
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: "doc")
+                        .font(DesignSystem.Typography.captionMedium)
+                        .foregroundColor(DesignSystem.Colors.files)
+                    
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.micro) {
+                        Text(url.lastPathComponent)
+                            .font(DesignSystem.Typography.body)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .lineLimit(1)
+                        
+                        Text(url.deletingLastPathComponent().path)
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textTertiary)
+                            .lineLimit(1)
+                    }
+                    
+                    Spacer()
+                }
+            }
+        }
+    }
+    
+    private var typeIcon: String {
+        switch item.type {
+        case .text: return "doc.text"
+        case .image: return "photo"
+        case .file: return "doc"
+        }
+    }
+    
+    private var typeColor: Color {
+        switch item.type {
+        case .text: return DesignSystem.Colors.clipboard
+        case .image: return DesignSystem.Colors.apps
+        case .file: return DesignSystem.Colors.files
         }
     }
 } 

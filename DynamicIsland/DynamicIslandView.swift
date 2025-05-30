@@ -18,37 +18,52 @@ struct DynamicIslandView: View {
     
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: isPopped ? 32 : 60, style: .continuous)
+            // Main container with improved glassmorphism
+            RoundedRectangle(cornerRadius: isPopped ? DesignSystem.BorderRadius.xxl : 60, style: .continuous)
                 .fill(.ultraThinMaterial)
                 .background(
-                    RoundedRectangle(cornerRadius: isPopped ? 32 : 60, style: .continuous)
+                    RoundedRectangle(cornerRadius: isPopped ? DesignSystem.BorderRadius.xxl : 60, style: .continuous)
                         .fill(Color.black.opacity(colorScheme == .dark ? 0.35 : 0.18))
-                        .blur(radius: 16)
+                        .blur(radius: DesignSystem.Spacing.lg)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: isPopped ? 32 : 60, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1.2)
+                    RoundedRectangle(cornerRadius: isPopped ? DesignSystem.BorderRadius.xxl : 60, style: .continuous)
+                        .stroke(DesignSystem.Colors.border, lineWidth: 1.2)
                 )
                 .frame(width: 340, height: 380)
-                .shadow(color: Color.black.opacity(0.25), radius: 32, x: 0, y: 16)
-                .shadow(color: Color.blue.opacity(0.08), radius: 8, x: 0, y: 2)
+                .shadow(
+                    color: DesignSystem.Shadows.xl.color,
+                    radius: DesignSystem.Shadows.xl.radius,
+                    x: DesignSystem.Shadows.xl.x,
+                    y: DesignSystem.Shadows.xl.y
+                )
+                .shadow(color: DesignSystem.Colors.primary.opacity(0.08), radius: 8, x: 0, y: 2)
                 .scaleEffect(isPopped ? 1.0 : 0.7, anchor: .top)
                 .opacity(isPopped ? 1.0 : 0.0)
-                .animation(.spring(response: 0.38, dampingFraction: 0.72), value: isPopped)
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .stroke(isDropTargeted ? Color.accentColor.opacity(0.7) : Color.clear, lineWidth: isDropTargeted ? 4 : 0)
-                .shadow(color: isDropTargeted ? Color.accentColor.opacity(0.3) : .clear, radius: 16, x: 0, y: 4)
+                .animation(DesignSystem.Animation.bounce, value: isPopped)
+            
+            // Drop target indicator
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xxl, style: .continuous)
+                .stroke(isDropTargeted ? DesignSystem.Colors.primary.opacity(0.7) : Color.clear, lineWidth: isDropTargeted ? 4 : 0)
+                .shadow(color: isDropTargeted ? DesignSystem.Colors.primary.opacity(0.3) : .clear, radius: DesignSystem.Spacing.lg, x: 0, y: 4)
                 .scaleEffect(showDropPulse ? 1.08 : 1.0)
                 .opacity(isDropTargeted || showDropPulse ? 1 : 0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDropTargeted)
-                .animation(.easeOut(duration: 0.2), value: showDropPulse)
+                .animation(DesignSystem.Animation.bounce, value: isDropTargeted)
+                .animation(DesignSystem.Animation.smooth, value: showDropPulse)
+            
             VStack(spacing: 0) {
+                // Header Section
                 VStack(spacing: 0) {
+                    // Drag area
                     Rectangle()
                         .fill(Color.clear)
-                        .frame(height: 16)
-                    HStack(spacing: 16) {
+                        .frame(height: DesignSystem.Spacing.lg)
+                    
+                    // Top controls
+                    HStack(spacing: DesignSystem.Spacing.lg) {
                         Spacer()
+                        
+                        // Quick Actions Menu
                         Menu {
                             Button(action: {
                                 if let url = URL(string: "x-apple.systempreferences:") {
@@ -60,8 +75,9 @@ struct DynamicIslandView: View {
                             }) {
                                 HStack {
                                     Image(systemName: "gearshape.fill")
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(DesignSystem.Colors.system)
                                     Text("System Settings")
+                                        .font(DesignSystem.Typography.body)
                                 }
                             }
                             
@@ -71,8 +87,9 @@ struct DynamicIslandView: View {
                             }) {
                                 HStack {
                                     Image(systemName: "chart.bar.fill")
-                                        .foregroundColor(.green)
+                                        .foregroundColor(DesignSystem.Colors.success)
                                     Text("Activity Monitor")
+                                        .font(DesignSystem.Typography.body)
                                 }
                             }
                             
@@ -82,76 +99,61 @@ struct DynamicIslandView: View {
                             }) {
                                 HStack {
                                     Image(systemName: "terminal.fill")
-                                        .foregroundColor(.primary)
+                                        .foregroundColor(DesignSystem.Colors.textPrimary)
                                     Text("Terminal")
+                                        .font(DesignSystem.Typography.body)
                                 }
                             }
                         } label: {
                             Image(systemName: "square.grid.2x2")
-                                .font(.system(size: 20, weight: .regular))
-                                .foregroundStyle(Color.accentColor)
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundStyle(DesignSystem.Colors.primary)
                                 .background(Color.clear)
                         }
                         .buttonStyle(.plain)
                         .contentShape(Circle())
+                        
+                        // Close button
                         Button(action: closeDynamicIsland) {
                             Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 20, weight: .regular))
-                                .foregroundStyle(Color.secondary.opacity(0.7))
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundStyle(DesignSystem.Colors.textSecondary.opacity(0.7))
                                 .background(Color.clear)
                         }
                         .buttonStyle(.plain)
                         .contentShape(Circle())
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 0)
-                    .padding(.bottom, 2)
-                    HStack(spacing: 16) {
-                        Button(action: { selectedView = .clipboard }) {
-                            Image(systemName: "doc.on.clipboard.fill")
-                                .font(.title3)
-                                .foregroundColor(selectedView == .clipboard ? .green : .secondary)
-                        }
-                        .buttonStyle(.plain)
-                        Button(action: { selectedView = .quickApp }) {
-                            Image(systemName: "app.fill")
-                                .font(.title3)
-                                .foregroundColor(selectedView == .quickApp ? .purple : .secondary)
-                        }
-                        .buttonStyle(.plain)
-                        Button(action: { selectedView = .quickFiles }) {
-                            Image(systemName: "folder.fill")
-                                .font(.title3)
-                                .foregroundColor(selectedView == .quickFiles ? .yellow : .secondary)
-                        }
-                        .buttonStyle(.plain)
-                        Button(action: { selectedView = .systemMonitor }) {
-                            Image(systemName: "gauge.high")
-                                .font(.title3)
-                                .foregroundColor(selectedView == .systemMonitor ? .accentColor : .secondary)
-                        }
-                        .buttonStyle(.plain)
-                        Spacer()
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 8)
+                    .padding(.horizontal, DesignSystem.Spacing.xxl)
+                    .padding(.bottom, DesignSystem.Spacing.xs)
+                    
+                    // Enhanced Tab Navigation
+                    ModernTabBar(selectedView: $selectedView)
+                        .padding(.horizontal, DesignSystem.Spacing.xxl)
+                        .padding(.bottom, DesignSystem.Spacing.sm)
+                    
+                    // Separator
                     Rectangle()
-                        .fill(Color.primary.opacity(0.08))
+                        .fill(DesignSystem.Colors.border)
                         .frame(height: 1)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 8)
+                        .padding(.horizontal, DesignSystem.Spacing.lg)
+                        .padding(.bottom, DesignSystem.Spacing.sm)
+                    
+                    // Section title
                     HStack {
-                        Text(selectedView == .clipboard ? "Clipboard" : selectedView == .quickApp ? "Quick App" : selectedView == .systemMonitor ? "System Usage" : "Quick Files Gallery")
-                            .font(.headline)
+                        Text(sectionTitle)
+                            .font(DesignSystem.Typography.headline3)
                             .fontWeight(.medium)
-                            .padding(.leading, 16)
-                            .padding(.top, 4)
-                            .padding(.bottom, 6)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .padding(.leading, DesignSystem.Spacing.lg)
+                            .padding(.top, DesignSystem.Spacing.xxs)
+                            .padding(.bottom, DesignSystem.Spacing.xs)
                         Spacer()
                     }
                 }
                 .frame(height: 110)
                 .background(Color.clear)
+                
+                // Content Area
                 Group {
                     switch selectedView {
                     case .clipboard:
@@ -168,12 +170,13 @@ struct DynamicIslandView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, DesignSystem.Spacing.xl)
+                .animation(DesignSystem.Animation.smooth, value: selectedView)
             }
         }
         .frame(width: 340, height: 380)
         .onAppear {
-            withAnimation(.spring(response: 0.38, dampingFraction: 0.72)) {
+            withAnimation(DesignSystem.Animation.bounce) {
                 isPopped = true
             }
             quickFiles = UserDefaults.standard.quickFiles
@@ -181,7 +184,7 @@ struct DynamicIslandView: View {
             clipboardWatcher.start()
         }
         .onDisappear {
-            withAnimation(.spring(response: 0.38, dampingFraction: 0.72)) {
+            withAnimation(DesignSystem.Animation.bounce) {
                 isPopped = false
             }
             clipboardWatcher.stop()
@@ -194,7 +197,7 @@ struct DynamicIslandView: View {
         }
         .onDrop(of: ["public.file-url"], isTargeted: $isDropTargeted) { providers in
             let result = handleFileDrop(providers: providers)
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            withAnimation(DesignSystem.Animation.bounce) {
                 showDropPulse = true
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
@@ -202,8 +205,18 @@ struct DynamicIslandView: View {
             }
             return result
         }
-        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xxl, style: .continuous))
     }
+    
+    private var sectionTitle: String {
+        switch selectedView {
+        case .clipboard: return "Clipboard"
+        case .quickApp: return "Quick Apps"
+        case .quickFiles: return "Quick Files"
+        case .systemMonitor: return "System Usage"
+        }
+    }
+    
     private func handleFileDrop(providers: [NSItemProvider]) -> Bool {
         for provider in providers {
             if provider.hasItemConformingToTypeIdentifier("public.file-url") {
