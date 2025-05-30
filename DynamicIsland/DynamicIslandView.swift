@@ -156,11 +156,11 @@ struct DynamicIslandView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, DesignSystem.Spacing.xl)
-                    .padding(.bottom, DesignSystem.Spacing.lg)
+                    .padding(.bottom, DesignSystem.Spacing.micro)
                     .animation(DesignSystem.Animation.smooth, value: selectedView)
                 }
                 .scrollIndicators(.hidden)
-                .frame(maxHeight: 280)
+                .frame(maxHeight: 310)
             }
         }
         .frame(width: 360, height: 450)
