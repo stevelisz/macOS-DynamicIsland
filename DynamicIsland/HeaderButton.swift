@@ -13,18 +13,18 @@ struct HeaderButton: View {
                 // Background circle (subtle, appears on hover) - constrained size
                 Circle()
                     .fill(isHovered ? DesignSystem.Colors.surface : Color.clear)
-                    .frame(width: 32, height: 32)
+                    .frame(width: 24, height: 24)
                 
                 // Icon
                 Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundColor(isHovered ? DesignSystem.Colors.textPrimary : color)
             }
             .scaleEffect(isHovered ? 1.02 : 1.0)
             .animation(DesignSystem.Animation.gentle, value: isHovered)
         }
         .buttonStyle(.plain)
-        .frame(width: 36, height: 36)
+        .frame(width: 28, height: 28)
         .clipped()
         .onHover { isHovered = $0 }
     }
@@ -52,11 +52,11 @@ struct HeaderMenuButton<MenuContent: View>: View {
                 // Background circle (subtle, appears on hover) - constrained size
                 Circle()
                     .fill(isHovered ? DesignSystem.Colors.surface : Color.clear)
-                    .frame(width: 32, height: 32)
+                    .frame(width: 24, height: 24)
                 
                 // Icon
                 Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundColor(isHovered ? DesignSystem.Colors.textPrimary : color)
             }
             .scaleEffect(isPressed ? 0.95 : (isHovered ? 1.02 : 1.0))
@@ -64,7 +64,7 @@ struct HeaderMenuButton<MenuContent: View>: View {
             .animation(DesignSystem.Animation.gentle, value: isPressed)
         }
         .menuStyle(.borderlessButton)
-        .frame(width: 36, height: 36)
+        .frame(width: 28, height: 28)
         .clipped()
         .onHover { isHovered = $0 }
         .simultaneousGesture(

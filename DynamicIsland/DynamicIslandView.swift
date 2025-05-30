@@ -17,7 +17,7 @@ struct DynamicIslandView: View {
     @StateObject private var clipboardWatcher = GlobalClipboardWatcher.shared
     
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             // Main container with improved glassmorphism
             RoundedRectangle(cornerRadius: isPopped ? DesignSystem.BorderRadius.xxl : 60, style: .continuous)
                 .fill(.ultraThinMaterial)
@@ -51,98 +51,90 @@ struct DynamicIslandView: View {
                 .animation(DesignSystem.Animation.smooth, value: showDropPulse)
             
             VStack(spacing: 0) {
-                // Header Section - Dynamic height
-                VStack(spacing: 0) {
-                    // Drag area
-                    Rectangle()
-                        .fill(Color.clear)
-                        .frame(height: DesignSystem.Spacing.lg)
+                // Top controls - positioned at the very top with safe padding
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    Spacer()
                     
-                    // Top controls
-                    HStack(spacing: DesignSystem.Spacing.md) {
-                        Spacer()
-                        
-                        // Quick Actions Menu - Single button only
-                        HeaderMenuButton(
-                            icon: "ellipsis.circle",
-                            color: DesignSystem.Colors.textSecondary
-                        ) {
-                            Button(action: {
-                                if let url = URL(string: "x-apple.systempreferences:") {
-                                    NSWorkspace.shared.open(url)
-                                } else {
-                                    let settingsURL = URL(fileURLWithPath: "/System/Applications/System Preferences.app")
-                                    NSWorkspace.shared.open(settingsURL)
-                                }
-                            }) {
-                                HStack {
-                                    Image(systemName: "gearshape.fill")
-                                        .foregroundColor(DesignSystem.Colors.system)
-                                    Text("System Settings")
-                                        .font(DesignSystem.Typography.body)
-                                }
+                    // Quick Actions Menu - Single button only
+                    HeaderMenuButton(
+                        icon: "ellipsis.circle",
+                        color: DesignSystem.Colors.textSecondary
+                    ) {
+                        Button(action: {
+                            if let url = URL(string: "x-apple.systempreferences:") {
+                                NSWorkspace.shared.open(url)
+                            } else {
+                                let settingsURL = URL(fileURLWithPath: "/System/Applications/System Preferences.app")
+                                NSWorkspace.shared.open(settingsURL)
                             }
-                            
-                            Button(action: {
-                                let activityMonitorURL = URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app")
-                                NSWorkspace.shared.open(activityMonitorURL)
-                            }) {
-                                HStack {
-                                    Image(systemName: "chart.bar.fill")
-                                        .foregroundColor(DesignSystem.Colors.success)
-                                    Text("Activity Monitor")
-                                        .font(DesignSystem.Typography.body)
-                                }
-                            }
-                            
-                            Button(action: {
-                                let terminalURL = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
-                                NSWorkspace.shared.open(terminalURL)
-                            }) {
-                                HStack {
-                                    Image(systemName: "terminal.fill")
-                                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                                    Text("Terminal")
-                                        .font(DesignSystem.Typography.body)
-                                }
+                        }) {
+                            HStack {
+                                Image(systemName: "gearshape.fill")
+                                    .foregroundColor(DesignSystem.Colors.system)
+                                Text("System Settings")
+                                    .font(DesignSystem.Typography.body)
                             }
                         }
                         
-                        // Close button - properly spaced
-                        HeaderButton(
-                            icon: "xmark",
-                            color: DesignSystem.Colors.textSecondary,
-                            action: closeDynamicIsland
-                        )
+                        Button(action: {
+                            let activityMonitorURL = URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app")
+                            NSWorkspace.shared.open(activityMonitorURL)
+                        }) {
+                            HStack {
+                                Image(systemName: "chart.bar.fill")
+                                    .foregroundColor(DesignSystem.Colors.success)
+                                Text("Activity Monitor")
+                                    .font(DesignSystem.Typography.body)
+                            }
+                        }
+                        
+                        Button(action: {
+                            let terminalURL = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
+                            NSWorkspace.shared.open(terminalURL)
+                        }) {
+                            HStack {
+                                Image(systemName: "terminal.fill")
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                                Text("Terminal")
+                                    .font(DesignSystem.Typography.body)
+                            }
+                        }
                     }
-                    .padding(.horizontal, DesignSystem.Spacing.xxl)
-                    .padding(.bottom, DesignSystem.Spacing.lg)
                     
-                    // Enhanced Tab Navigation
-                    ModernTabBar(selectedView: $selectedView)
-                        .padding(.horizontal, DesignSystem.Spacing.xxl)
-                        .padding(.bottom, DesignSystem.Spacing.lg)
-                    
-                    // Separator
-                    Rectangle()
-                        .fill(DesignSystem.Colors.border)
-                        .frame(height: 1)
-                        .padding(.horizontal, DesignSystem.Spacing.lg)
-                        .padding(.bottom, DesignSystem.Spacing.sm)
-                    
-                    // Section title with better spacing
-                    HStack {
-                        Text(sectionTitle)
-                            .font(DesignSystem.Typography.headline3)
-                            .fontWeight(.medium)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                            .padding(.leading, DesignSystem.Spacing.xl)
-                            .padding(.top, DesignSystem.Spacing.xs)
-                            .padding(.bottom, DesignSystem.Spacing.xxxl)
-                        Spacer()
-                    }
+                    // Close button - properly spaced
+                    HeaderButton(
+                        icon: "xmark",
+                        color: DesignSystem.Colors.textSecondary,
+                        action: closeDynamicIsland
+                    )
                 }
-                .background(Color.clear)
+                .padding(.horizontal, DesignSystem.Spacing.lg)
+                .padding(.top, DesignSystem.Spacing.micro)
+                .padding(.bottom, DesignSystem.Spacing.xs)
+                
+                // Enhanced Tab Navigation
+                ModernTabBar(selectedView: $selectedView)
+                    .padding(.horizontal, DesignSystem.Spacing.xxl)
+                    .padding(.bottom, DesignSystem.Spacing.xs)
+                
+                // Separator
+                Rectangle()
+                    .fill(DesignSystem.Colors.border)
+                    .frame(height: 1)
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                    .padding(.bottom, DesignSystem.Spacing.micro)
+                
+                // Section title with minimal spacing
+                HStack {
+                    Text(sectionTitle)
+                        .font(DesignSystem.Typography.headline3)
+                        .fontWeight(.medium)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .padding(.leading, DesignSystem.Spacing.xl)
+                        .padding(.top, DesignSystem.Spacing.micro)
+                        .padding(.bottom, DesignSystem.Spacing.sm)
+                    Spacer()
+                }
                 
                 // Content Area with scroll capability
                 ScrollView {
