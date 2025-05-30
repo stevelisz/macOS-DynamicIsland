@@ -11,7 +11,7 @@ struct DynamicIslandView: View {
     @State private var clipboardItems: [ClipboardItem] = []
     @State private var isDropTargeted = false
     @State private var showDropPulse = false
-    @State private var selectedView: MainViewType = .clipboard
+    @State private var selectedView: MainViewType = UserDefaults.standard.lastSelectedTab
     @State private var isPopped: Bool = false
     @StateObject private var clipboardWatcher = GlobalClipboardWatcher.shared
     
@@ -180,6 +180,9 @@ struct DynamicIslandView: View {
         }
         .onChange(of: quickApps) { _, newValue in
             UserDefaults.standard.quickApps = newValue
+        }
+        .onChange(of: selectedView) { _, newValue in
+            UserDefaults.standard.lastSelectedTab = newValue
         }
     }
     
