@@ -9,6 +9,32 @@ struct ClipboardManagerGallery: View {
     @State private var searchText: String = ""
     @State private var justCopiedId: UUID? = nil // Track which card was just copied
     @State private var hoveredItemId: UUID? = nil
+    @State private var selectedFilter: ClipboardFilter = .all
+    
+    enum ClipboardFilter: String, CaseIterable {
+        case all = "All"
+        case text = "Text"
+        case image = "Images"
+        case file = "Files"
+        
+        var icon: String {
+            switch self {
+            case .all: return "square.grid.2x2"
+            case .text: return "doc.text"
+            case .image: return "photo"
+            case .file: return "doc"
+            }
+        }
+        
+        var color: Color {
+            switch self {
+            case .all: return DesignSystem.Colors.textSecondary
+            case .text: return DesignSystem.Colors.clipboard
+            case .image: return DesignSystem.Colors.apps
+            case .file: return DesignSystem.Colors.files
+            }
+        }
+    }
     
     private func clearAll() { clipboardItems.removeAll() }
     private func pin(_ item: ClipboardItem) {
@@ -57,11 +83,11 @@ struct ClipboardManagerGallery: View {
         switch item.type {
         case .file:
             // Use secure file access to open files
-            item.accessFile { url in
+            _ = item.accessFile { url in
                 NSWorkspace.shared.open(url)
             }
         case .image:
-            if let data = item.imageData, let img = NSImage(data: data) {
+            if let data = item.imageData, let _ = NSImage(data: data) {
                 let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".png")
                 try? data.write(to: tmp)
                 NSWorkspace.shared.open(tmp)
@@ -71,13 +97,37 @@ struct ClipboardManagerGallery: View {
     }
     var filteredItems: [ClipboardItem] {
         let filtered = clipboardItems.filter { item in
-            if searchText.isEmpty { return true }
-            switch item.type {
-            case .text: return item.content?.localizedCaseInsensitiveContains(searchText) ?? false
-            case .file: return item.fileURL?.lastPathComponent.localizedCaseInsensitiveContains(searchText) ?? false
-            case .image: return false // skip for now
+            // Apply category filter
+            let matchesCategory: Bool
+            switch selectedFilter {
+            case .all:
+                matchesCategory = true
+            case .text:
+                matchesCategory = item.type == .text
+            case .image:
+                matchesCategory = item.type == .image
+            case .file:
+                matchesCategory = item.type == .file
             }
+            
+            // Apply search filter
+            let matchesSearch: Bool
+            if searchText.isEmpty {
+                matchesSearch = true
+            } else {
+                switch item.type {
+                case .text: 
+                    matchesSearch = item.content?.localizedCaseInsensitiveContains(searchText) ?? false
+                case .file: 
+                    matchesSearch = item.fileURL?.lastPathComponent.localizedCaseInsensitiveContains(searchText) ?? false
+                case .image: 
+                    matchesSearch = false // Images don't have searchable text
+                }
+            }
+            
+            return matchesCategory && matchesSearch
         }
+        
         let pinned = filtered.filter { $0.pinned }
         let unpinned = filtered.filter { !$0.pinned }
         return pinned + unpinned
@@ -120,20 +170,44 @@ struct ClipboardManagerGallery: View {
                 }
             }
             
+            // Category Filter
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ForEach(ClipboardFilter.allCases, id: \.self) { filter in
+                    FilterChip(
+                        filter: filter,
+                        isSelected: selectedFilter == filter,
+                        count: clipboardItems.filter { item in
+                            switch filter {
+                            case .all: return true
+                            case .text: return item.type == .text
+                            case .image: return item.type == .image
+                            case .file: return item.type == .file
+                            }
+                        }.count
+                    ) {
+                        withAnimation(DesignSystem.Animation.gentle) {
+                            selectedFilter = filter
+                        }
+                    }
+                }
+                
+                Spacer()
+            }
+            
             if filteredItems.isEmpty {
                 // Empty state
                 VStack(spacing: DesignSystem.Spacing.md) {
                     Spacer()
                     
-                    Image(systemName: "doc.on.clipboard")
+                    Image(systemName: selectedFilter == .all ? "doc.on.clipboard" : selectedFilter.icon)
                         .font(.system(size: 32, weight: .light))
                         .foregroundColor(DesignSystem.Colors.textTertiary)
                     
-                    Text("Clipboard is empty")
+                    Text(emptyStateTitle)
                         .font(DesignSystem.Typography.headline3)
                         .foregroundColor(DesignSystem.Colors.textSecondary)
                     
-                    Text("Copy something to see it here")
+                    Text(emptyStateSubtitle)
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.textTertiary)
                     
@@ -172,6 +246,33 @@ struct ClipboardManagerGallery: View {
                     }
                 }
             }
+        }
+    }
+    
+    // MARK: - Computed Properties
+    private var emptyStateTitle: String {
+        switch selectedFilter {
+        case .all:
+            return clipboardItems.isEmpty ? "Clipboard is empty" : "No items found"
+        case .text:
+            return "No text items"
+        case .image:
+            return "No images"
+        case .file:
+            return "No files"
+        }
+    }
+    
+    private var emptyStateSubtitle: String {
+        switch selectedFilter {
+        case .all:
+            return clipboardItems.isEmpty ? "Copy something to see it here" : "Try adjusting your search or filter"
+        case .text:
+            return "Copy some text to see it here"
+        case .image:
+            return "Copy images to see them here"
+        case .file:
+            return "Copy files to see them here"
         }
     }
 }
@@ -319,6 +420,97 @@ struct ClipboardItemCard: View {
         case .text: return DesignSystem.Colors.clipboard
         case .image: return DesignSystem.Colors.apps
         case .file: return DesignSystem.Colors.files
+        }
+    }
+}
+
+// MARK: - Filter Chip Component
+struct FilterChip: View {
+    let filter: ClipboardManagerGallery.ClipboardFilter
+    let isSelected: Bool
+    let count: Int
+    let action: () -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: DesignSystem.Spacing.xxs) {
+                Text(filter.rawValue)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(textColor)
+                
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(badgeTextColor)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(badgeBackground)
+                        .cornerRadius(DesignSystem.BorderRadius.round)
+                        .fixedSize()
+                }
+            }
+            .padding(.horizontal, DesignSystem.Spacing.sm)
+            .padding(.vertical, 4)
+            .frame(minWidth: 50)
+            .background(backgroundColor)
+            .cornerRadius(DesignSystem.BorderRadius.md)
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                    .stroke(borderColor, lineWidth: 0.5)
+            )
+            .scaleEffect(isHovered ? 1.02 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(DesignSystem.Animation.gentle) {
+                isHovered = hovering
+            }
+        }
+        .animation(DesignSystem.Animation.gentle, value: isSelected)
+    }
+    
+    // MARK: - Computed Properties
+    private var backgroundColor: Color {
+        if isSelected {
+            return filter.color.opacity(0.15)
+        } else if isHovered {
+            return DesignSystem.Colors.surface.opacity(0.6)
+        } else {
+            return DesignSystem.Colors.surface.opacity(0.3)
+        }
+    }
+    
+    private var borderColor: Color {
+        if isSelected {
+            return filter.color.opacity(0.4)
+        } else {
+            return DesignSystem.Colors.border.opacity(0.2)
+        }
+    }
+    
+    private var textColor: Color {
+        if isSelected {
+            return filter.color
+        } else {
+            return DesignSystem.Colors.textSecondary
+        }
+    }
+    
+    private var badgeBackground: Color {
+        if isSelected {
+            return filter.color.opacity(0.2)
+        } else {
+            return DesignSystem.Colors.border.opacity(0.2)
+        }
+    }
+    
+    private var badgeTextColor: Color {
+        if isSelected {
+            return filter.color
+        } else {
+            return DesignSystem.Colors.textTertiary
         }
     }
 } 
