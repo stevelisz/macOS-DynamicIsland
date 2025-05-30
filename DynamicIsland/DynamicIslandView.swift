@@ -300,12 +300,19 @@ class ClipboardWatcher: ObservableObject {
         guard pb.changeCount != lastChangeCount else { return }
         lastChangeCount = pb.changeCount
         if let types = pb.types {
-            if types.contains(.string), let str = pb.string(forType: .string), !str.isEmpty {
-                addItem(.init(id: UUID(), type: .text, content: str, imageData: nil, fileURL: nil, date: Date(), pinned: false))
-            } else if types.contains(.tiff), let data = pb.data(forType: .tiff) {
+            // 1. File URLs
+            if let urls = pb.readObjects(forClasses: [NSURL.self], options: nil) as? [URL], !urls.isEmpty {
+                for url in urls {
+                    addItem(.init(id: UUID(), type: .file, content: nil, imageData: nil, fileURL: url, date: Date(), pinned: false))
+                }
+            }
+            // 2. Images
+            else if types.contains(.tiff), let data = pb.data(forType: .tiff) {
                 addItem(.init(id: UUID(), type: .image, content: nil, imageData: data, fileURL: nil, date: Date(), pinned: false))
-            } else if types.contains(.fileURL), let file = pb.propertyList(forType: .fileURL) as? String, let url = URL(string: file) {
-                addItem(.init(id: UUID(), type: .file, content: nil, imageData: nil, fileURL: url, date: Date(), pinned: false))
+            }
+            // 3. Text
+            else if types.contains(.string), let str = pb.string(forType: .string), !str.isEmpty {
+                addItem(.init(id: UUID(), type: .text, content: str, imageData: nil, fileURL: nil, date: Date(), pinned: false))
             }
         }
     }
