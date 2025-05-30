@@ -21,6 +21,9 @@ struct ClipboardManagerGallery: View {
             clipboardItems[idx].pinned = false
         }
     }
+    private func remove(_ item: ClipboardItem) {
+        clipboardItems.removeAll { $0.id == item.id }
+    }
     private func copyToClipboard(_ item: ClipboardItem) {
         let pb = NSPasteboard.general
         pb.clearContents()
@@ -83,7 +86,7 @@ struct ClipboardManagerGallery: View {
                         .textFieldStyle(.plain)
                 }
                 .padding(.horizontal, DesignSystem.Spacing.md)
-                .padding(.vertical, DesignSystem.Spacing.sm)
+                .padding(.vertical, DesignSystem.Spacing.xs)
                 .background(DesignSystem.Colors.surface)
                 .cornerRadius(DesignSystem.BorderRadius.md)
                 .overlay(
@@ -134,12 +137,24 @@ struct ClipboardManagerGallery: View {
                                 justCopied: justCopiedId == item.id,
                                 onCopy: { copyToClipboard(item) },
                                 onPin: { item.pinned ? unpin(item) : pin(item) },
-                                onOpen: { openItem(item) }
+                                onOpen: { openItem(item) },
+                                onDelete: { remove(item) }
                             )
                             .onHover { isHovered in
                                 withAnimation(DesignSystem.Animation.gentle) {
                                     hoveredItemId = isHovered ? item.id : nil
                                 }
+                            }
+                            .contextMenu {
+                                Button("Copy") { copyToClipboard(item) }
+                                Button(item.pinned ? "Unpin" : "Pin") { 
+                                    item.pinned ? unpin(item) : pin(item) 
+                                }
+                                if item.type == .file || item.type == .image {
+                                    Button("Open") { openItem(item) }
+                                }
+                                Divider()
+                                Button("Delete", role: .destructive) { remove(item) }
                             }
                         }
                     }
@@ -157,6 +172,7 @@ struct ClipboardItemCard: View {
     let onCopy: () -> Void
     let onPin: () -> Void
     let onOpen: () -> Void
+    let onDelete: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -213,6 +229,13 @@ struct ClipboardItemCard: View {
                         }
                         .buttonStyle_custom(.ghost)
                     }
+                    
+                    Button(action: onDelete) {
+                        Image(systemName: "trash")
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.error)
+                    }
+                    .buttonStyle_custom(.ghost)
                     
                     Spacer()
                 }

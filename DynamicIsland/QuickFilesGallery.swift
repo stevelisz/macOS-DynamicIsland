@@ -4,60 +4,74 @@ import Foundation
 
 struct QuickFilesGallery: View {
     @Binding var quickFiles: [URL]
-    let columns = [GridItem(.adaptive(minimum: 72, maximum: 96), spacing: 16)]
+    let columns = [GridItem(.adaptive(minimum: 72, maximum: 96), spacing: DesignSystem.Spacing.lg)]
+    
     private func clearAll() {
         quickFiles.removeAll()
     }
+    
     var body: some View {
-        if quickFiles.isEmpty {
-            ScrollView {
-                VStack {
-                    Text("Drop files here for quick access.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(16)
+        VStack(spacing: DesignSystem.Spacing.md) {
+            if quickFiles.isEmpty {
+                // Empty state matching clipboard style
+                VStack(spacing: DesignSystem.Spacing.md) {
+                    Spacer()
+                    
+                    Image(systemName: "folder")
+                        .font(.system(size: 32, weight: .light))
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    
+                    Text("No quick files")
+                        .font(DesignSystem.Typography.headline3)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                    
+                    Text("Drop files here for quick access")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    
+                    Spacer()
                 }
-            }
-        } else {
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(quickFiles, id: \ .self) { url in
-                        VStack(spacing: 6) {
-                            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 48, height: 48)
-                                .cornerRadius(8)
-                                .shadow(radius: 2, y: 1)
-                            Text(url.lastPathComponent)
-                                .font(.caption2)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.center)
-                                .frame(maxWidth: 80)
-                        }
-                        .contentShape(Rectangle())
-                        .onTapGesture { NSWorkspace.shared.open(url) }
-                        .onDrag { NSItemProvider(object: url as NSURL) }
-                        .contextMenu {
-                            Button(role: .destructive) {
-                                if let idx = quickFiles.firstIndex(of: url) {
-                                    quickFiles.remove(at: idx)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: DesignSystem.Spacing.lg) {
+                        ForEach(quickFiles, id: \.self) { url in
+                            VStack(spacing: DesignSystem.Spacing.xs) {
+                                Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 48, height: 48)
+                                    .cornerRadius(DesignSystem.BorderRadius.sm)
+                                    .shadow(
+                                        color: DesignSystem.Shadows.sm.color,
+                                        radius: DesignSystem.Shadows.sm.radius,
+                                        x: DesignSystem.Shadows.sm.x,
+                                        y: DesignSystem.Shadows.sm.y
+                                    )
+                                
+                                Text(url.lastPathComponent)
+                                    .font(DesignSystem.Typography.micro)
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
+                                    .frame(maxWidth: 80)
+                            }
+                            .padding(DesignSystem.Spacing.sm)
+                            .contentShape(Rectangle())
+                            .onTapGesture { NSWorkspace.shared.open(url) }
+                            .onDrag { NSItemProvider(object: url as NSURL) }
+                            .contextMenu {
+                                Button("Open") { NSWorkspace.shared.open(url) }
+                                Divider()
+                                Button("Remove", role: .destructive) {
+                                    if let idx = quickFiles.firstIndex(of: url) {
+                                        quickFiles.remove(at: idx)
+                                    }
                                 }
-                            } label: {
-                                Label("Remove File", systemImage: "trash")
                             }
                         }
                     }
-                }
-                .padding(16)
-            }
-            .contextMenu {
-                if !quickFiles.isEmpty {
-                    Button(role: .destructive) {
-                        clearAll()
-                    } label: {
-                        Label("Remove All Files", systemImage: "trash")
-                    }
+                    .padding(DesignSystem.Spacing.sm)
                 }
             }
         }

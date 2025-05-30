@@ -5,7 +5,7 @@ struct ModernTabBar: View {
     @State private var hoveredTab: MainViewType? = nil
     
     private let tabs: [(MainViewType, String, String, Color)] = [
-        (.clipboard, "doc.on.clipboard.fill", "Clipboard", DesignSystem.Colors.clipboard),
+        (.clipboard, "doc.on.clipboard.fill", "History", DesignSystem.Colors.clipboard),
         (.quickApp, "app.fill", "Apps", DesignSystem.Colors.apps),
         (.quickFiles, "folder.fill", "Files", DesignSystem.Colors.files),
         (.systemMonitor, "gauge.high", "System", DesignSystem.Colors.system)

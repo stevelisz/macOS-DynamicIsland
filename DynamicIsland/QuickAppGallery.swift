@@ -4,65 +4,76 @@ import Foundation
 
 struct QuickAppGallery: View {
     @Binding var quickApps: [URL]
-    let columns = [GridItem(.adaptive(minimum: 72, maximum: 96), spacing: 16)]
+    let columns = [GridItem(.adaptive(minimum: 72, maximum: 96), spacing: DesignSystem.Spacing.lg)]
+    
     private func clearAll() {
         quickApps.removeAll()
     }
+    
     var body: some View {
-        if quickApps.isEmpty {
-            ScrollView {
-                VStack {
-                    Text("Drop applications here for quick access.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(16)
+        VStack(spacing: DesignSystem.Spacing.md) {
+            if quickApps.isEmpty {
+                // Empty state matching clipboard style
+                VStack(spacing: DesignSystem.Spacing.md) {
+                    Spacer()
+                    
+                    Image(systemName: "app")
+                        .font(.system(size: 32, weight: .light))
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    
+                    Text("No quick apps")
+                        .font(DesignSystem.Typography.headline3)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                    
+                    Text("Drop applications here for quick access")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    
+                    Spacer()
                 }
-            }
-        } else {
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(quickApps, id: \.self) { url in
-                        ZStack(alignment: .topTrailing) {
-                            VStack(spacing: 6) {
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: DesignSystem.Spacing.lg) {
+                        ForEach(quickApps, id: \.self) { url in
+                            VStack(spacing: DesignSystem.Spacing.xs) {
                                 Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
                                     .frame(width: 48, height: 48)
-                                    .cornerRadius(8)
-                                    .shadow(radius: 2, y: 1)
+                                    .cornerRadius(DesignSystem.BorderRadius.sm)
+                                    .shadow(
+                                        color: DesignSystem.Shadows.sm.color,
+                                        radius: DesignSystem.Shadows.sm.radius,
+                                        x: DesignSystem.Shadows.sm.x,
+                                        y: DesignSystem.Shadows.sm.y
+                                    )
+                                
                                 Text(url.deletingPathExtension().lastPathComponent)
-                                    .font(.caption2)
+                                    .font(DesignSystem.Typography.micro)
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
                                     .lineLimit(2)
                                     .multilineTextAlignment(.center)
                                     .frame(maxWidth: 80)
                             }
+                            .padding(DesignSystem.Spacing.sm)
                             .contentShape(Rectangle())
-                            .onTapGesture {
-                                NSWorkspace.shared.open(url)
-                            }
+                            .onTapGesture { NSWorkspace.shared.open(url) }
                             .contextMenu {
-                                Button(role: .destructive) {
+                                Button("Open") { NSWorkspace.shared.open(url) }
+                                Divider()
+                                Button("Remove", role: .destructive) {
                                     if let idx = quickApps.firstIndex(of: url) {
                                         quickApps.remove(at: idx)
                                     }
-                                } label: {
-                                    Label("Remove App", systemImage: "trash")
                                 }
                             }
                         }
                     }
-                }
-                .padding(16)
-            }
-            .contextMenu {
-                if !quickApps.isEmpty {
-                    Button(role: .destructive) {
-                        clearAll()
-                    } label: {
-                        Label("Remove All Apps", systemImage: "trash")
-                    }
+                    .padding(DesignSystem.Spacing.sm)
                 }
             }
         }
     }
-} 
+}
+

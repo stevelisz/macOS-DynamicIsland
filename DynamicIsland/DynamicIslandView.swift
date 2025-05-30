@@ -146,7 +146,7 @@ struct DynamicIslandView: View {
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                             .padding(.leading, DesignSystem.Spacing.lg)
                             .padding(.top, DesignSystem.Spacing.xxs)
-                            .padding(.bottom, DesignSystem.Spacing.xs)
+                            .padding(.bottom, DesignSystem.Spacing.md)
                         Spacer()
                     }
                 }
@@ -210,7 +210,7 @@ struct DynamicIslandView: View {
     
     private var sectionTitle: String {
         switch selectedView {
-        case .clipboard: return "Clipboard"
+        case .clipboard: return "History"
         case .quickApp: return "Quick Apps"
         case .quickFiles: return "Quick Files"
         case .systemMonitor: return "System Usage"
