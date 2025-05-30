@@ -7,7 +7,6 @@ struct DynamicIslandView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var showFilesPopover = false
     @State private var mediaInfo: MediaInfo? = nil
-    @State private var quickFiles: [URL] = UserDefaults.standard.quickFiles
     @State private var quickApps: [URL] = UserDefaults.standard.quickApps
     @State private var clipboardItems: [ClipboardItem] = []
     @State private var isDropTargeted = false
@@ -148,8 +147,6 @@ struct DynamicIslandView: View {
                                 .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in
                                     handleAppDrop(providers: providers)
                                 }
-                        case .quickFiles:
-                            QuickFilesGallery(quickFiles: $quickFiles)
                         case .systemMonitor:
                             SystemMonitorView()
                         }
@@ -170,7 +167,6 @@ struct DynamicIslandView: View {
             withAnimation(DesignSystem.Animation.bounce) {
                 isPopped = true
             }
-            quickFiles = UserDefaults.standard.quickFiles
             quickApps = UserDefaults.standard.quickApps
             clipboardWatcher.start()
         }
@@ -180,21 +176,8 @@ struct DynamicIslandView: View {
             }
             clipboardWatcher.stop()
         }
-        .onChange(of: quickFiles) { _, newValue in
-            UserDefaults.standard.quickFiles = newValue
-        }
         .onChange(of: quickApps) { _, newValue in
             UserDefaults.standard.quickApps = newValue
-        }
-        .onDrop(of: ["public.file-url"], isTargeted: $isDropTargeted) { providers in
-            let result = handleFileDrop(providers: providers)
-            withAnimation(DesignSystem.Animation.bounce) {
-                showDropPulse = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                withAnimation { showDropPulse = false }
-            }
-            return result
         }
     }
     
@@ -202,39 +185,10 @@ struct DynamicIslandView: View {
         switch selectedView {
         case .clipboard: return "History"
         case .quickApp: return "Quick Apps"
-        case .quickFiles: return "Quick Files"
         case .systemMonitor: return "System Usage"
         }
     }
     
-    private func handleFileDrop(providers: [NSItemProvider]) -> Bool {
-        for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier("public.file-url") {
-                provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { (item, error) in
-                    if let data = item as? Data, let url = URL(dataRepresentation: data, relativeTo: nil), url.pathExtension == "app" {
-                        // ignore .app here, only for quickApps
-                        return
-                    } else if let url = item as? URL, url.pathExtension == "app" {
-                        // ignore .app here, only for quickApps
-                        return
-                    } else if let data = item as? Data, let url = URL(dataRepresentation: data, relativeTo: nil) {
-                        DispatchQueue.main.async {
-                            if !quickFiles.contains(url) {
-                                quickFiles.append(url)
-                            }
-                        }
-                    } else if let url = item as? URL {
-                        DispatchQueue.main.async {
-                            if !quickFiles.contains(url) {
-                                quickFiles.append(url)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return true
-    }
     private func handleAppDrop(providers: [NSItemProvider]) -> Bool {
         for provider in providers {
             if provider.hasItemConformingToTypeIdentifier("public.file-url") {
@@ -265,7 +219,6 @@ struct DynamicIslandView: View {
 enum MainViewType {
     case clipboard
     case quickApp
-    case quickFiles
     case systemMonitor
 }
 
