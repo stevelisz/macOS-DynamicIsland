@@ -181,7 +181,7 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
                 return HourlyWeather(
                     time: date,
                     temperature: response.hourly.temperature_2m[index],
-                    symbol: getSymbolForWeatherCode(response.hourly.weather_code[index]),
+                    symbol: getSmartHourlyIcon(precipitationChance: response.hourly.precipitation_probability?[index] ?? 0, time: date, weatherCode: response.hourly.weather_code[index]),
                     precipitationChance: (response.hourly.precipitation_probability?[index] ?? 0) / 100.0
                 )
             }
@@ -195,7 +195,7 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
                     date: date,
                     high: response.daily.temperature_2m_max[index],
                     low: response.daily.temperature_2m_min[index],
-                    symbol: getSymbolForWeatherCode(response.daily.weather_code[index]),
+                    symbol: getSmartDailyIcon(precipitationChance: response.daily.precipitation_probability_max?[index] ?? 0, weatherCode: response.daily.weather_code[index]),
                     precipitationChance: (response.daily.precipitation_probability_max?[index] ?? 0) / 100.0,
                     condition: getConditionForWeatherCode(response.daily.weather_code[index])
                 )
@@ -238,6 +238,62 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
         case 95, 96, 99: return "cloud.bolt.rain.fill"
         default: return "questionmark.circle"
         }
+    }
+    
+    // Smart icon selection for hourly forecast based on precipitation and time
+    private func getSmartHourlyIcon(precipitationChance: Double, time: Date, weatherCode: Int) -> String {
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: time)
+        let isDaytime = hour >= 6 && hour < 18
+        
+        // High precipitation (>30%) - show rain/snow based on weather code
+        if precipitationChance > 30 {
+            if weatherCode >= 71 && weatherCode <= 75 {
+                return "cloud.snow.fill"
+            } else if weatherCode >= 95 {
+                return "cloud.bolt.rain.fill"
+            } else {
+                return "cloud.rain.fill"
+            }
+        }
+        
+        // Medium precipitation (10-30%) - show partly cloudy
+        if precipitationChance > 10 {
+            if isDaytime {
+                return "cloud.sun.fill"
+            } else {
+                return "cloud.moon.fill"
+            }
+        }
+        
+        // Low precipitation (<10%) - show clear weather based on time
+        if isDaytime {
+            return "sun.max.fill"
+        } else {
+            return "moon.stars.fill"
+        }
+    }
+    
+    // Smart icon selection for daily forecast based on precipitation
+    private func getSmartDailyIcon(precipitationChance: Double, weatherCode: Int) -> String {
+        // High precipitation (>30%) - show rain/snow based on weather code
+        if precipitationChance > 30 {
+            if weatherCode >= 71 && weatherCode <= 75 {
+                return "cloud.snow.fill"
+            } else if weatherCode >= 95 {
+                return "cloud.bolt.rain.fill"
+            } else {
+                return "cloud.rain.fill"
+            }
+        }
+        
+        // Medium precipitation (10-30%) - show partly cloudy
+        if precipitationChance > 10 {
+            return "cloud.sun.fill"
+        }
+        
+        // Low precipitation (<10%) - show mostly clear
+        return "sun.max.fill"
     }
     
     private func getConditionForWeatherCode(_ code: Int) -> String {
