@@ -1,141 +1,211 @@
 import SwiftUI
 
 struct SystemMonitorView: View {
-    @State private var cpuCoreUsages: [Double] = Array(repeating: 0, count: 14)
+    @State private var cpuCoreUsages: [Double] = []
+    @State private var cpuInfo: (totalCores: Int, performanceCores: Int, efficiencyCores: Int) = (0, 0, 0)
     @State private var gpuUsage: Double = 0
     @State private var gpuUsageHistory: [Double] = Array(repeating: 0, count: 60)
-    @State private var ramUsedGB: Double = 0
-    @State private var ramAvailableGB: Double = 0
-    @State private var ramTotalGB: Double = 0
-    @State private var fanSpeed: Double = 0
-    @State private var ssdUsage: Double = 0
-    @State private var ssdUsedGB: Double = 0
-    @State private var ssdTotalGB: Double = 0
-    @State private var wattage: Double = 0
+    @State private var ramStats: (usedGB: Double, availableGB: Double, totalGB: Double, pressureLevel: String) = (0, 0, 0, "Unknown")
+    @State private var ssdStats: (usedGB: Double, totalGB: Double, percentage: Double) = (0, 0, 0)
     @State private var timer: Timer? = nil
+    
     private let statsHelper = SystemStatsHelper()
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            // CPU Usage
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("CPU")
-                        .font(.subheadline)
-                    Spacer()
-                    Text(String(format: "%.1f%%", cpuCoreUsages.reduce(0, +) / Double(cpuCoreUsages.count)))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                BarChart(usages: cpuCoreUsages, color: .accentColor, coreTypeProvider: { idx in idx < 10 ? .performance : .efficiency })
-                    .frame(height: 40)
-            }
-            // GPU Usage
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("GPU")
-                        .font(.subheadline)
-                    Spacer()
-                    Text(String(format: "%.1f%%", gpuUsage))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                LineGraph(data: gpuUsageHistory, color: .purple)
-                    .frame(height: 32)
-            }
-            // RAM Usage
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("RAM")
-                        .font(.subheadline)
-                    Spacer()
-                    Text(String(format: "Used: %.2f GB", ramUsedGB))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(String(format: "Available: %.2f GB", ramAvailableGB))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                HStack(spacing: 10) {
-                    HorizontalBarChart(used: ramUsedGB, total: ramTotalGB, color: .green)
-                        .frame(height: 16)
-                    Text(String(format: "%.0f%%", (ramTotalGB > 0 ? (ramUsedGB / ramTotalGB) * 100 : 0)))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .frame(width: 36, alignment: .trailing)
-                }
-            }
-            // SSD Usage
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("SSD")
-                        .font(.subheadline)
-                    Spacer()
-                }
-                HStack(spacing: 10) {
-                    ZStack(alignment: .leading) {
-                        HorizontalBarChart(used: ssdUsedGB, total: ssdTotalGB, color: .blue)
-                            .frame(height: 16)
-                        if ssdTotalGB > 0 {
-                            Text(String(format: "%.0f GB", ssdTotalGB))
-                                .font(.caption2)
-                                .foregroundColor(.white)
-                                .padding(.leading, 8)
-                                .padding(.vertical, 0)
-                        }
-                    }
-                    Text(ssdTotalGB > 0 ? String(format: "%.0f%%", (ssdUsedGB / ssdTotalGB) * 100) : "0%")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .frame(width: 36, alignment: .trailing)
-                }
-            }
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+            cpuSection
+            gpuSection
+            ramSection
+            ssdSection
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            updateStats() // Fetch stats immediately
+            setupInitialState()
+            updateStats()
             startMonitoring()
         }
-        .onDisappear { timer?.invalidate() }
+        .onDisappear {
+            stopMonitoring()
+        }
     }
-    private func updateStats() {
-        let cpuUsages = statsHelper.getPerCoreCPUUsage()
-        cpuCoreUsages = cpuUsages.count == 14 ? cpuUsages : Array(cpuUsages.prefix(14)) + Array(repeating: 0, count: max(0, 14 - cpuUsages.count))
-        getGPUUsageFromPowermetrics { value in
-            DispatchQueue.main.async {
-                if let value = value {
-                    gpuUsage = value
-                    gpuUsageHistory.append(value)
-                    if gpuUsageHistory.count > 60 { gpuUsageHistory.removeFirst() }
+    
+    // MARK: - CPU Section
+    private var cpuSection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            HStack {
+                Text("CPU")
+                    .font(DesignSystem.Typography.headline3)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(String(format: "%.1f%%", averageCPUUsage))
+                        .font(DesignSystem.Typography.captionSemibold)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                    
+                    Text("\(cpuInfo.performanceCores)P + \(cpuInfo.efficiencyCores)E cores")
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
                 }
             }
+            
+            BarChart(
+                usages: cpuCoreUsages,
+                color: .accentColor,
+                coreTypeProvider: { coreIndex in
+                    coreIndex < cpuInfo.performanceCores ? .performance : .efficiency
+                }
+            )
+            .frame(height: 40)
         }
-        let ramStats = statsHelper.getRAMStats()
-        ramUsedGB = ramStats.usedGB
-        ramAvailableGB = ramStats.availableGB
-        ramTotalGB = ramStats.totalGB
-        // SSD
-        let fileURL = URL(fileURLWithPath: "/")
-        if let values = try? fileURL.resourceValues(forKeys: [.volumeAvailableCapacityKey, .volumeTotalCapacityKey]),
-           let available = values.volumeAvailableCapacity,
-           let total = values.volumeTotalCapacity {
-            let used = Double(Int64(total) - Int64(available))
-            ssdUsedGB = used / (1024 * 1024 * 1024)
-            ssdTotalGB = Double(total) / (1024 * 1024 * 1024)
-            ssdUsage = (ssdTotalGB > 0) ? (ssdUsedGB / ssdTotalGB) * 100.0 : 0.0
-        } else {
-            ssdUsedGB = 0
-            ssdTotalGB = 0
-            ssdUsage = 0
-        }
-        // TODO: Replace with real values if available
-        fanSpeed = 0
-        wattage = 0
     }
+    
+    // MARK: - GPU Section
+    private var gpuSection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            HStack {
+                Text("GPU")
+                    .font(DesignSystem.Typography.headline3)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Spacer()
+                
+                Text(String(format: "%.1f%%", gpuUsage))
+                    .font(DesignSystem.Typography.captionSemibold)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+            }
+            
+            LineGraph(data: gpuUsageHistory, color: .purple)
+                .frame(height: 32)
+        }
+    }
+    
+    // MARK: - RAM Section
+    private var ramSection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            HStack {
+                Text("RAM")
+                    .font(DesignSystem.Typography.headline3)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 2) {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Text("Used: \(String(format: "%.1f", ramStats.usedGB)) GB")
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        
+                        Circle()
+                            .fill(memoryPressureColor)
+                            .frame(width: 6, height: 6)
+                    }
+                    
+                    Text("Available: \(String(format: "%.1f", ramStats.availableGB)) GB")
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                }
+            }
+            
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                HorizontalBarChart(used: ramStats.usedGB, total: ramStats.totalGB, color: memoryPressureColor)
+                    .frame(height: 16)
+                
+                Text(String(format: "%.0f%%", ramUsagePercentage))
+                    .font(DesignSystem.Typography.micro)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .frame(width: 36, alignment: .trailing)
+            }
+        }
+    }
+    
+    // MARK: - SSD Section
+    private var ssdSection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            HStack {
+                Text("SSD")
+                    .font(DesignSystem.Typography.headline3)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Spacer()
+                
+                Text("\(String(format: "%.0f", ssdStats.totalGB)) GB")
+                    .font(DesignSystem.Typography.captionSemibold)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+            }
+            
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                HorizontalBarChart(used: ssdStats.usedGB, total: ssdStats.totalGB, color: .blue)
+                    .frame(height: 16)
+                
+                Text(String(format: "%.0f%%", ssdStats.percentage))
+                    .font(DesignSystem.Typography.micro)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .frame(width: 36, alignment: .trailing)
+            }
+        }
+    }
+    
+    // MARK: - Computed Properties
+    private var averageCPUUsage: Double {
+        guard !cpuCoreUsages.isEmpty else { return 0 }
+        return cpuCoreUsages.reduce(0, +) / Double(cpuCoreUsages.count)
+    }
+    
+    private var ramUsagePercentage: Double {
+        guard ramStats.totalGB > 0 else { return 0 }
+        return (ramStats.usedGB / ramStats.totalGB) * 100
+    }
+    
+    private var memoryPressureColor: Color {
+        switch ramStats.pressureLevel {
+        case "Normal":
+            return .green
+        case "Yellow":
+            return .yellow
+        case "Red":
+            return .red
+        default:
+            return .gray
+        }
+    }
+    
+    // MARK: - Helper Methods
+    private func setupInitialState() {
+        cpuInfo = statsHelper.getCPUInfo()
+        cpuCoreUsages = Array(repeating: 0, count: cpuInfo.totalCores)
+        gpuUsageHistory = Array(repeating: 0, count: 60)
+    }
+    
+    private func updateStats() {
+        // Update CPU usage
+        cpuCoreUsages = statsHelper.getPerCoreCPUUsage()
+        
+        // Update GPU usage
+        gpuUsage = statsHelper.getGPUUsage()
+        gpuUsageHistory.append(gpuUsage)
+        if gpuUsageHistory.count > 60 {
+            gpuUsageHistory.removeFirst()
+        }
+        
+        // Update RAM stats
+        ramStats = statsHelper.getRAMStats()
+        
+        // Update SSD stats
+        ssdStats = statsHelper.getSSDUsage()
+    }
+    
     private func startMonitoring() {
-        timer?.invalidate()
+        stopMonitoring() // Ensure we don't have multiple timers
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             updateStats()
         }
+    }
+    
+    private func stopMonitoring() {
+        timer?.invalidate()
+        timer = nil
     }
 } 
