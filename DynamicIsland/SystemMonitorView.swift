@@ -92,26 +92,22 @@ struct SystemMonitorView: View {
                 
                 Spacer()
                 
-                VStack(alignment: .trailing, spacing: 2) {
-                    HStack(spacing: DesignSystem.Spacing.xs) {
-                        Text("Used: \(String(format: "%.1f", ramStats.usedGB)) GB")
-                            .font(DesignSystem.Typography.micro)
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                        
-                        Circle()
-                            .fill(memoryPressureColor)
-                            .frame(width: 6, height: 6)
-                    }
-                    
-                    Text("Available: \(String(format: "%.1f", ramStats.availableGB)) GB")
-                        .font(DesignSystem.Typography.micro)
-                        .foregroundColor(DesignSystem.Colors.textTertiary)
-                }
+                Text("Total: \(String(format: "%.1f", ramStats.totalGB)) GB")
+                    .font(DesignSystem.Typography.captionSemibold)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
             }
             
             HStack(spacing: DesignSystem.Spacing.sm) {
-                HorizontalBarChart(used: ramStats.usedGB, total: ramStats.totalGB, color: memoryPressureColor)
-                    .frame(height: 16)
+                HorizontalBarChart(
+                    used: ramStats.usedGB, 
+                    total: ramStats.totalGB, 
+                    color: memoryPressureColor,
+                    showUsedValueOnBar: true,
+                    usedValueFormatter: { used in
+                        "\(String(format: "%.1f", used))GB"
+                    }
+                )
+                .frame(height: 16)
                 
                 Text(String(format: "%.0f%%", ramUsagePercentage))
                     .font(DesignSystem.Typography.micro)
@@ -131,14 +127,22 @@ struct SystemMonitorView: View {
                 
                 Spacer()
                 
-                Text("\(String(format: "%.0f", ssdStats.totalGB)) GB")
+                Text("Total: \(String(format: "%.0f", ssdStats.totalGB)) GB")
                     .font(DesignSystem.Typography.captionSemibold)
                     .foregroundColor(DesignSystem.Colors.textSecondary)
             }
             
             HStack(spacing: DesignSystem.Spacing.sm) {
-                HorizontalBarChart(used: ssdStats.usedGB, total: ssdStats.totalGB, color: .blue)
-                    .frame(height: 16)
+                HorizontalBarChart(
+                    used: ssdStats.usedGB, 
+                    total: ssdStats.totalGB, 
+                    color: .blue,
+                    showUsedValueOnBar: true,
+                    usedValueFormatter: { used in
+                        "\(String(format: "%.0f", used))GB"
+                    }
+                )
+                .frame(height: 16)
                 
                 Text(String(format: "%.0f%%", ssdStats.percentage))
                     .font(DesignSystem.Typography.micro)
