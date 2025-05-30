@@ -1,2 +1,2 @@
 # macOS-DynamicIsland
-Dynamic Island for that ugly camera bang.
+Dynamic Island for Macbook notches...

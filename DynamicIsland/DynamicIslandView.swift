@@ -15,6 +15,7 @@ struct DynamicIslandView: View {
     @State private var selectedView: MainViewType = .clipboard
     @State private var isPopped: Bool = false
     @StateObject private var clipboardWatcher = GlobalClipboardWatcher.shared
+    
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: isPopped ? 32 : 60, style: .continuous)
@@ -46,22 +47,6 @@ struct DynamicIslandView: View {
                     Rectangle()
                         .fill(Color.clear)
                         .frame(height: 16)
-                        .contentShape(Rectangle())
-                        .gesture(
-                            DragGesture(coordinateSpace: .global)
-                                .onChanged { value in
-                                    NotificationCenter.default.post(
-                                        name: NSNotification.Name("DynamicIslandDragWindow"), 
-                                        object: value
-                                    )
-                                }
-                                .onEnded { _ in
-                                    NotificationCenter.default.post(
-                                        name: NSNotification.Name("DynamicIslandDragEnded"), 
-                                        object: nil
-                                    )
-                                }
-                        )
                     HStack(spacing: 16) {
                         Spacer()
                         Menu {

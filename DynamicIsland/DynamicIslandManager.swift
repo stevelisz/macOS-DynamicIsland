@@ -48,12 +48,29 @@ class DynamicIslandManager: ObservableObject {
         ) { [weak self] _ in
             self?.pauseAutoHide()
         }
+        
         NotificationCenter.default.addObserver(
             forName: .dynamicIslandMouseExited,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             self?.resumeAutoHide()
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: .dynamicIslandDetached,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.pauseAutoHide() // Disable auto-hide when detached
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: .dynamicIslandAttached,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.resumeAutoHide() // Re-enable auto-hide when back to notch
         }
     }
     
