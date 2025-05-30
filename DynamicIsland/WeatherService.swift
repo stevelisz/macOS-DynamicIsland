@@ -148,10 +148,38 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
             
             let locationName = await getLocationName(for: location)
             
-            // Generate hourly forecast (next 12 hours)
-            let hourlyForecasts = Array(0..<min(12, response.hourly.time.count)).map { index in
-                HourlyWeather(
-                    time: ISO8601DateFormatter().date(from: response.hourly.time[index]) ?? Date(),
+            // Create proper date formatters for Open-Meteo API
+            let hourlyFormatter = DateFormatter()
+            hourlyFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
+            hourlyFormatter.timeZone = TimeZone.current
+            
+            let dailyFormatter = DateFormatter()
+            dailyFormatter.dateFormat = "yyyy-MM-dd"
+            dailyFormatter.timeZone = TimeZone.current
+            
+            // Generate hourly forecast (next 12 hours from current time)
+            let currentDate = Date()
+            let calendar = Calendar.current
+            let currentHour = calendar.component(.hour, from: currentDate)
+            
+            // Find the starting index for current hour or next hour
+            var startIndex = 0
+            for (index, timeString) in response.hourly.time.enumerated() {
+                if let date = hourlyFormatter.date(from: timeString) {
+                    let hour = calendar.component(.hour, from: date)
+                    if hour >= currentHour && calendar.isDate(date, inSameDayAs: currentDate) {
+                        startIndex = index
+                        break
+                    }
+                }
+            }
+            
+            let hourlyForecasts: [HourlyWeather] = Array(startIndex..<min(startIndex + 12, response.hourly.time.count)).compactMap { index in
+                guard let date = hourlyFormatter.date(from: response.hourly.time[index]) else {
+                    return nil
+                }
+                return HourlyWeather(
+                    time: date,
                     temperature: response.hourly.temperature_2m[index],
                     symbol: getSymbolForWeatherCode(response.hourly.weather_code[index]),
                     precipitationChance: (response.hourly.precipitation_probability?[index] ?? 0) / 100.0
@@ -159,9 +187,12 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
             
             // Generate daily forecast (next 7 days)
-            let dailyForecasts = Array(0..<min(7, response.daily.time.count)).map { index in
-                DailyWeather(
-                    date: ISO8601DateFormatter().date(from: response.daily.time[index]) ?? Date(),
+            let dailyForecasts: [DailyWeather] = Array(0..<min(7, response.daily.time.count)).compactMap { index in
+                guard let date = dailyFormatter.date(from: response.daily.time[index]) else {
+                    return nil
+                }
+                return DailyWeather(
+                    date: date,
                     high: response.daily.temperature_2m_max[index],
                     low: response.daily.temperature_2m_min[index],
                     symbol: getSymbolForWeatherCode(response.daily.weather_code[index]),
