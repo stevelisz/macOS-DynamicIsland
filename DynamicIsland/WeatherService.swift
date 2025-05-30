@@ -107,7 +107,7 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     func requestLocationPermission() {
-        locationManager.requestLocation()
+        locationManager.requestAlwaysAuthorization()
     }
     
     func fetchWeather() {
@@ -346,7 +346,8 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
             
             switch manager.authorizationStatus {
             case .authorizedAlways:
-                fetchWeather()
+                // Permission granted, request location to get current weather
+                manager.requestLocation()
             case .denied, .restricted:
                 errorMessage = "Location access denied. Please enable in System Settings."
             case .notDetermined:
