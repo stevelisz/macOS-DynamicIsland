@@ -4,6 +4,7 @@ import CoreLocation
 struct WeatherView: View {
     @StateObject private var weatherService = WeatherService()
     @State private var selectedForecastType: ForecastType = .hourly
+    @State private var temperatureUnit: TemperatureUnit = UserDefaults.standard.temperatureUnit
     
     enum ForecastType: String, CaseIterable {
         case hourly = "Hourly"
@@ -145,23 +146,44 @@ struct WeatherView: View {
     
     private var currentWeatherSection: some View {
         VStack(spacing: DesignSystem.Spacing.sm) {
-            // Location and main temperature
+            // Location and temperature unit toggle
             VStack(spacing: DesignSystem.Spacing.xs) {
                 HStack {
-                    Image(systemName: "location.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
-                    
-                    Text(weatherService.currentWeather.location)
-                        .font(DesignSystem.Typography.micro)
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Image(systemName: "location.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        
+                        Text(weatherService.currentWeather.location)
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
                     
                     Spacer()
+                    
+                    // Temperature unit toggle
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        ForEach(TemperatureUnit.allCases, id: \.self) { unit in
+                            Button(action: {
+                                temperatureUnit = unit
+                                UserDefaults.standard.temperatureUnit = unit
+                            }) {
+                                Text(unit.displayName)
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(temperatureUnit == unit ? DesignSystem.Colors.primary : DesignSystem.Colors.textSecondary)
+                                    .padding(.horizontal, DesignSystem.Spacing.xs)
+                                    .padding(.vertical, 2)
+                                    .background(temperatureUnit == unit ? DesignSystem.Colors.primary.opacity(0.2) : Color.clear)
+                                    .cornerRadius(4)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
                 
                 HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                        Text("\(Int(weatherService.currentWeather.currentTemperature))°")
+                        Text(formatTemperature(weatherService.currentWeather.currentTemperature, showUnit: false))
                             .font(.system(size: 48, weight: .thin))
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                         
@@ -169,7 +191,7 @@ struct WeatherView: View {
                             .font(DesignSystem.Typography.captionMedium)
                             .foregroundColor(DesignSystem.Colors.textSecondary)
                         
-                        Text("Feels like \(Int(weatherService.currentWeather.feelsLike))°")
+                        Text("Feels like \(formatTemperature(weatherService.currentWeather.feelsLike, showUnit: false))")
                             .font(DesignSystem.Typography.micro)
                             .foregroundColor(DesignSystem.Colors.textTertiary)
                     }
@@ -260,7 +282,7 @@ struct WeatherView: View {
                             .symbolRenderingMode(.hierarchical)
                             .frame(height: 20)
                         
-                        Text("\(Int(hour.temperature))°")
+                        Text(formatTemperature(hour.temperature))
                             .font(DesignSystem.Typography.captionMedium)
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                             .lineLimit(1)
@@ -308,12 +330,12 @@ struct WeatherView: View {
                     Spacer()
                     
                     HStack(spacing: DesignSystem.Spacing.xs) {
-                        Text("\(Int(day.low))°")
+                        Text(formatTemperature(day.low))
                             .font(DesignSystem.Typography.caption)
                             .foregroundColor(DesignSystem.Colors.textSecondary)
                             .lineLimit(1)
                         
-                        Text("\(Int(day.high))°")
+                        Text(formatTemperature(day.high))
                             .font(DesignSystem.Typography.captionMedium)
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                             .lineLimit(1)
@@ -360,6 +382,17 @@ struct WeatherView: View {
         } else {
             formatter.dateFormat = "EEE"
             return formatter.string(from: date)
+        }
+    }
+    
+    private func formatTemperature(_ celsius: Double, showUnit: Bool = true) -> String {
+        let convertedTemp = temperatureUnit.convert(celsius)
+        let formattedValue = String(format: "%.0f", convertedTemp)
+        
+        if showUnit {
+            return "\(formattedValue)°"
+        } else {
+            return "\(formattedValue)°"
         }
     }
 }
