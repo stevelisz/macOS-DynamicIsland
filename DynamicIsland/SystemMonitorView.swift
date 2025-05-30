@@ -56,7 +56,7 @@ struct SystemMonitorView: View {
                         .foregroundColor(.secondary)
                 }
                 HStack(spacing: 10) {
-                    HorizontalBarChart(used: ramUsedGB, total: ramTotalGB)
+                    HorizontalBarChart(used: ramUsedGB, total: ramTotalGB, color: .green)
                         .frame(height: 16)
                     Text(String(format: "%.0f%%", (ramTotalGB > 0 ? (ramUsedGB / ramTotalGB) * 100 : 0)))
                         .font(.caption2)
@@ -70,60 +70,72 @@ struct SystemMonitorView: View {
                     Text("SSD")
                         .font(.subheadline)
                     Spacer()
-                    Text(String(format: "%.1f%%", ssdUsage))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
                 HStack(spacing: 10) {
-                    HorizontalBarChart(used: ssdUsedGB, total: ssdTotalGB)
-                        .frame(height: 16)
-                    Text(ssdTotalGB > 0 ? String(format: "%.2f/%.2f GB", ssdUsedGB, ssdTotalGB) : "")
+                    ZStack(alignment: .leading) {
+                        HorizontalBarChart(used: ssdUsedGB, total: ssdTotalGB, color: .blue)
+                            .frame(height: 16)
+                        if ssdTotalGB > 0 {
+                            Text(String(format: "%.0f GB", ssdTotalGB))
+                                .font(.caption2)
+                                .foregroundColor(.white)
+                                .padding(.leading, 8)
+                                .padding(.vertical, 0)
+                        }
+                    }
+                    Text(ssdTotalGB > 0 ? String(format: "%.0f%%", (ssdUsedGB / ssdTotalGB) * 100) : "0%")
                         .font(.caption2)
                         .foregroundColor(.secondary)
-                        .frame(width: 80, alignment: .trailing)
+                        .frame(width: 36, alignment: .trailing)
                 }
             }
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear { startMonitoring() }
+        .onAppear {
+            updateStats() // Fetch stats immediately
+            startMonitoring()
+        }
         .onDisappear { timer?.invalidate() }
+    }
+    private func updateStats() {
+        let cpuUsages = statsHelper.getPerCoreCPUUsage()
+        cpuCoreUsages = cpuUsages.count == 14 ? cpuUsages : Array(cpuUsages.prefix(14)) + Array(repeating: 0, count: max(0, 14 - cpuUsages.count))
+        getGPUUsageFromPowermetrics { value in
+            DispatchQueue.main.async {
+                if let value = value {
+                    gpuUsage = value
+                    gpuUsageHistory.append(value)
+                    if gpuUsageHistory.count > 60 { gpuUsageHistory.removeFirst() }
+                }
+            }
+        }
+        let ramStats = statsHelper.getRAMStats()
+        ramUsedGB = ramStats.usedGB
+        ramAvailableGB = ramStats.availableGB
+        ramTotalGB = ramStats.totalGB
+        // SSD
+        let fileURL = URL(fileURLWithPath: "/")
+        if let values = try? fileURL.resourceValues(forKeys: [.volumeAvailableCapacityKey, .volumeTotalCapacityKey]),
+           let available = values.volumeAvailableCapacity,
+           let total = values.volumeTotalCapacity {
+            let used = Double(Int64(total) - Int64(available))
+            ssdUsedGB = used / (1024 * 1024 * 1024)
+            ssdTotalGB = Double(total) / (1024 * 1024 * 1024)
+            ssdUsage = (ssdTotalGB > 0) ? (ssdUsedGB / ssdTotalGB) * 100.0 : 0.0
+        } else {
+            ssdUsedGB = 0
+            ssdTotalGB = 0
+            ssdUsage = 0
+        }
+        // TODO: Replace with real values if available
+        fanSpeed = 0
+        wattage = 0
     }
     private func startMonitoring() {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            let cpuUsages = statsHelper.getPerCoreCPUUsage()
-            cpuCoreUsages = cpuUsages.count == 14 ? cpuUsages : Array(cpuUsages.prefix(14)) + Array(repeating: 0, count: max(0, 14 - cpuUsages.count))
-            getGPUUsageFromPowermetrics { value in
-                DispatchQueue.main.async {
-                    if let value = value {
-                        gpuUsage = value
-                        gpuUsageHistory.append(value)
-                        if gpuUsageHistory.count > 60 { gpuUsageHistory.removeFirst() }
-                    }
-                }
-            }
-            let ramStats = statsHelper.getRAMStats()
-            ramUsedGB = ramStats.usedGB
-            ramAvailableGB = ramStats.availableGB
-            ramTotalGB = ramStats.totalGB
-            // SSD
-            let fileURL = URL(fileURLWithPath: "/")
-            if let values = try? fileURL.resourceValues(forKeys: [.volumeAvailableCapacityKey, .volumeTotalCapacityKey]),
-               let available = values.volumeAvailableCapacity,
-               let total = values.volumeTotalCapacity {
-                let used = Double(Int64(total) - Int64(available))
-                ssdUsedGB = used / (1024 * 1024 * 1024)
-                ssdTotalGB = Double(total) / (1024 * 1024 * 1024)
-                ssdUsage = (ssdTotalGB > 0) ? (ssdUsedGB / ssdTotalGB) * 100.0 : 0.0
-            } else {
-                ssdUsedGB = 0
-                ssdTotalGB = 0
-                ssdUsage = 0
-            }
-            // TODO: Replace with real values if available
-            fanSpeed = 0
-            wattage = 0
+            updateStats()
         }
     }
 } 

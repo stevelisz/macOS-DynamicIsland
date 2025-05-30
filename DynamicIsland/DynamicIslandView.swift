@@ -15,7 +15,7 @@ struct DynamicIslandView: View {
     @State private var showDropPulse = false
     @State private var selectedView: MainViewType = .clipboard
     @State private var isPopped: Bool = false
-    @StateObject private var clipboardWatcher = ClipboardWatcher()
+    @StateObject private var clipboardWatcher = GlobalClipboardWatcher.shared
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: isPopped ? 32 : 60, style: .continuous)
@@ -269,6 +269,14 @@ enum MainViewType {
     case systemMonitor
 }
 
+class GlobalClipboardWatcher: ClipboardWatcher {
+    static let shared = GlobalClipboardWatcher()
+    private override init() {
+        super.init()
+        start()
+    }
+}
+
 class ClipboardWatcher: ObservableObject {
     @Published var items: [ClipboardItem] = []
     private var timer: Timer?
@@ -302,8 +310,24 @@ class ClipboardWatcher: ObservableObject {
         }
     }
     private func addItem(_ item: ClipboardItem) {
-        // Avoid duplicates (except for pinned)
-        if items.contains(where: { $0.type == item.type && $0.content == item.content && $0.fileURL == item.fileURL && $0.imageData == item.imageData }) {
+        // Only allow each distinct item once. If same, update date and move to top.
+        if item.type == .image, let newHash = item.imagePixelHash {
+            if let idx = items.firstIndex(where: { $0.type == .image && $0.imagePixelHash == newHash }) {
+                // Update date and move to top
+                var updated = items[idx]
+                updated.date = Date()
+                items.remove(at: idx)
+                items.insert(updated, at: 0)
+                save()
+                return
+            }
+        } else if let idx = items.firstIndex(where: { $0.type == item.type && $0.content == item.content && $0.fileURL == item.fileURL && $0.imageData == item.imageData }) {
+            // Update date and move to top
+            var updated = items[idx]
+            updated.date = Date()
+            items.remove(at: idx)
+            items.insert(updated, at: 0)
+            save()
             return
         }
         items.insert(item, at: 0)
