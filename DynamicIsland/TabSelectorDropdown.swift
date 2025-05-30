@@ -17,21 +17,13 @@ struct TabSelectorDropdown: View {
                 Button(action: {
                     toggleTab(tab.0)
                 }) {
-                    HStack {
+                    HStack(spacing: 8) {
                         Image(systemName: tab.1)
                             .foregroundColor(tab.3)
-                        Text(tab.2)
+                        
+                        Text("\(tab.2)\(enabledTabs.contains(tab.0) ? " ✓" : "")")
                             .font(DesignSystem.Typography.body)
-                        
-                        Spacer()
-                        
-                        if enabledTabs.contains(tab.0) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(DesignSystem.Colors.success)
-                        } else {
-                            Image(systemName: "circle")
-                                .foregroundColor(DesignSystem.Colors.textTertiary)
-                        }
+                            .foregroundColor(enabledTabs.contains(tab.0) ? DesignSystem.Colors.textPrimary : DesignSystem.Colors.textSecondary)
                     }
                 }
             }
@@ -50,26 +42,22 @@ struct TabSelectorDropdown: View {
                 }
             }
         } label: {
-            ZStack {
-                Circle()
-                    .fill(Color.clear)
-                    .frame(width: 32, height: 32)
-                    .background(
-                        Circle()
-                            .fill(DesignSystem.Colors.surface.opacity(0.1))
-                    )
-                    .overlay(
-                        Circle()
-                            .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 0.5)
-                    )
-                
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-            }
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+                .padding(8)
+                .background(
+                    Circle()
+                        .fill(DesignSystem.Colors.surface.opacity(0.1))
+                )
+                .overlay(
+                    Circle()
+                        .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 0.5)
+                )
         }
         .buttonStyle(PlainButtonStyle())
         .menuStyle(BorderlessButtonMenuStyle())
+        .menuIndicator(.hidden)
         .animation(DesignSystem.Animation.smooth, value: enabledTabs)
     }
     
