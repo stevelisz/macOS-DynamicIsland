@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ModernTabBar: View {
     @Binding var selectedView: MainViewType
+    @Binding var enabledTabs: Set<MainViewType>
     @State private var hoveredTab: MainViewType? = nil
     
     private let tabs: [(MainViewType, String, String, Color)] = [
@@ -11,9 +12,14 @@ struct ModernTabBar: View {
         (.weather, "cloud.sun.fill", "Weather", DesignSystem.Colors.primary)
     ]
     
+    // Filter tabs to only show enabled ones
+    private var enabledTabsList: [(MainViewType, String, String, Color)] {
+        tabs.filter { enabledTabs.contains($0.0) }
+    }
+    
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.xs) {
-            ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
+            ForEach(Array(enabledTabsList.enumerated()), id: \.offset) { index, tab in
                 TabButton(
                     type: tab.0,
                     icon: tab.1,
@@ -31,10 +37,15 @@ struct ModernTabBar: View {
                         hoveredTab = isHovered ? tab.0 : nil
                     }
                 }
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.8).combined(with: .opacity),
+                    removal: .scale(scale: 0.8).combined(with: .opacity)
+                ))
             }
             
             Spacer()
         }
+        .animation(DesignSystem.Animation.smooth, value: enabledTabs)
     }
 }
 

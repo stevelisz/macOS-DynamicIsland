@@ -12,6 +12,7 @@ struct DynamicIslandView: View {
     @State private var isDropTargeted = false
     @State private var showDropPulse = false
     @State private var selectedView: MainViewType = UserDefaults.standard.lastSelectedTab
+    @State private var enabledTabs: Set<MainViewType> = UserDefaults.standard.enabledTabs
     @State private var isPopped: Bool = false
     @StateObject private var clipboardWatcher = GlobalClipboardWatcher.shared
     
@@ -53,6 +54,9 @@ struct DynamicIslandView: View {
                 // Top controls - positioned at the very top with safe padding
                 HStack(spacing: DesignSystem.Spacing.md) {
                     Spacer()
+                    
+                    // Tab Selector Dropdown - positioned to the left of three dots
+                    TabSelectorDropdown(selectedView: $selectedView, enabledTabs: $enabledTabs)
                     
                     // Quick Actions Menu - Single button only
                     HeaderMenuButton(
@@ -112,7 +116,7 @@ struct DynamicIslandView: View {
                 .padding(.bottom, DesignSystem.Spacing.xs)
                 
                 // Enhanced Tab Navigation
-                ModernTabBar(selectedView: $selectedView)
+                ModernTabBar(selectedView: $selectedView, enabledTabs: $enabledTabs)
                     .padding(.horizontal, DesignSystem.Spacing.xxl)
                     .padding(.top, DesignSystem.Spacing.micro)
                     .padding(.bottom, DesignSystem.Spacing.xs)
@@ -183,6 +187,13 @@ struct DynamicIslandView: View {
         }
         .onChange(of: selectedView) { _, newValue in
             UserDefaults.standard.lastSelectedTab = newValue
+        }
+        .onChange(of: enabledTabs) { _, newValue in
+            UserDefaults.standard.enabledTabs = newValue
+            // Ensure selected view is still enabled
+            if !newValue.contains(selectedView) {
+                selectedView = newValue.first ?? .clipboard
+            }
         }
     }
     
