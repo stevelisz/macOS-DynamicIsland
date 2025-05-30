@@ -252,24 +252,29 @@ struct WeatherView: View {
                         Text(formatTime(hour.time))
                             .font(DesignSystem.Typography.micro)
                             .foregroundColor(DesignSystem.Colors.textSecondary)
+                            .lineLimit(1)
                         
                         Image(systemName: hour.symbol)
-                            .font(.system(size: 20))
+                            .font(.system(size: 18))
                             .foregroundColor(getWeatherColor(for: hour.symbol))
                             .symbolRenderingMode(.hierarchical)
+                            .frame(height: 20)
                         
                         Text("\(Int(hour.temperature))°")
                             .font(DesignSystem.Typography.captionMedium)
                             .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .lineLimit(1)
                         
-                        if hour.precipitationChance > 0 {
-                            Text("\(Int(hour.precipitationChance * 100))%")
-                                .font(.system(size: 8))
-                                .foregroundColor(DesignSystem.Colors.primary)
-                        }
+                        // Always show precipitation area to maintain consistent height
+                        Text(hour.precipitationChance > 0 ? "\(Int(hour.precipitationChance * 100))%" : " ")
+                            .font(.system(size: 8))
+                            .foregroundColor(hour.precipitationChance > 0 ? DesignSystem.Colors.primary : Color.clear)
+                            .lineLimit(1)
+                            .frame(height: 10)
                     }
+                    .frame(width: 55, height: 80)
                     .padding(.vertical, DesignSystem.Spacing.xs)
-                    .padding(.horizontal, DesignSystem.Spacing.sm)
+                    .padding(.horizontal, DesignSystem.Spacing.xs)
                     .background(DesignSystem.Colors.surfaceElevated)
                     .cornerRadius(DesignSystem.BorderRadius.md)
                 }
@@ -285,22 +290,20 @@ struct WeatherView: View {
                     Text(formatDay(day.date))
                         .font(DesignSystem.Typography.captionMedium)
                         .foregroundColor(DesignSystem.Colors.textPrimary)
-                        .frame(width: 50, alignment: .leading)
+                        .frame(width: 60, alignment: .leading)
+                        .lineLimit(1)
                     
                     Image(systemName: day.symbol)
                         .font(.system(size: 16))
                         .foregroundColor(getWeatherColor(for: day.symbol))
                         .symbolRenderingMode(.hierarchical)
-                        .frame(width: 20)
+                        .frame(width: 20, height: 20)
                     
-                    if day.precipitationChance > 0 {
-                        Text("\(Int(day.precipitationChance * 100))%")
-                            .font(DesignSystem.Typography.micro)
-                            .foregroundColor(DesignSystem.Colors.primary)
-                            .frame(width: 30)
-                    } else {
-                        Spacer().frame(width: 30)
-                    }
+                    Text(day.precipitationChance > 0 ? "\(Int(day.precipitationChance * 100))%" : " ")
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(day.precipitationChance > 0 ? DesignSystem.Colors.primary : Color.clear)
+                        .frame(width: 30, alignment: .leading)
+                        .lineLimit(1)
                     
                     Spacer()
                     
@@ -308,12 +311,15 @@ struct WeatherView: View {
                         Text("\(Int(day.low))°")
                             .font(DesignSystem.Typography.caption)
                             .foregroundColor(DesignSystem.Colors.textSecondary)
+                            .lineLimit(1)
                         
                         Text("\(Int(day.high))°")
                             .font(DesignSystem.Typography.captionMedium)
                             .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .lineLimit(1)
                     }
                 }
+                .frame(height: 40)
                 .padding(.vertical, DesignSystem.Spacing.xs)
                 .padding(.horizontal, DesignSystem.Spacing.sm)
                 .background(DesignSystem.Colors.surfaceElevated)
