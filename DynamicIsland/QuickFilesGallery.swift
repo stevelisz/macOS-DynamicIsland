@@ -71,6 +71,17 @@ struct QuickFilesGallery: View {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color.clear)
+        .contentShape(Rectangle())
+        .contextMenu {
+            if !quickFiles.isEmpty {
+                Button("Clear All Quick Files", role: .destructive) {
+                    clearAll()
+                }
             }
         }
     }

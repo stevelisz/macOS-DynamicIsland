@@ -70,6 +70,17 @@ struct QuickAppGallery: View {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color.clear)
+        .contentShape(Rectangle())
+        .contextMenu {
+            if !quickApps.isEmpty {
+                Button("Clear All Quick Apps", role: .destructive) {
+                    clearAll()
+                }
             }
         }
     }
