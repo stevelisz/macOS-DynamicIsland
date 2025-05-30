@@ -23,7 +23,7 @@ struct TabSelectorDropdown: View {
                         
                         Text("\(tab.2)\(enabledTabs.contains(tab.0) ? " ✓" : "")")
                             .font(DesignSystem.Typography.body)
-                            .foregroundColor(enabledTabs.contains(tab.0) ? DesignSystem.Colors.textPrimary : DesignSystem.Colors.textSecondary)
+                            .foregroundColor(.white)
                     }
                 }
             }
