@@ -35,27 +35,16 @@ struct ClipboardManagerGallery: View {
                 pb.writeObjects([img])
             }
         case .file:
-            // Enhanced file copying for cross-app compatibility
-            item.accessFile { url in
-                // Method 1: Copy file URL with proper pasteboard types
+            // Use specialized pasteboard method that maintains security-scoped access longer
+            item.accessFileForPasteboard { url in
+                // Write the file URL to pasteboard with multiple formats for compatibility
                 pb.writeObjects([url as NSURL])
                 
-                // Method 2: Also add the file URL as a string (for broader compatibility)
-                pb.addTypes([.fileURL, .string], owner: nil)
+                // Add additional pasteboard types for broader app compatibility
+                pb.addTypes([.fileURL], owner: nil)
                 pb.setString(url.absoluteString, forType: .fileURL)
-                pb.setString(url.path, forType: .string)
                 
-                // Method 3: For maximum compatibility, also try file promise
-                if let fileData = try? Data(contentsOf: url) {
-                    pb.addTypes([.init("public.file-url")], owner: nil)
-                    pb.setData(url.dataRepresentation, forType: .init("public.file-url"))
-                }
-                
-                // Keep security-scoped access alive longer by retaining the URL
-                DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-                    // Allow time for other apps to access the file
-                    _ = url // Keep reference
-                }
+                print("Copied file to pasteboard: \(url.lastPathComponent)")
             }
         }
         // Show feedback
