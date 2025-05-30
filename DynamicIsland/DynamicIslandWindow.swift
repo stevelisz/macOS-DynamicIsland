@@ -72,7 +72,7 @@ class DynamicIslandWindow: NSPanel {
         NotificationCenter.default.post(name: .dynamicIslandMouseExited, object: nil)
     }
     
-    override var canBecomeKey: Bool { false }
+    override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
     
     // Custom positioning method

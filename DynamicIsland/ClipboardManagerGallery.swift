@@ -72,11 +72,11 @@ struct ClipboardManagerGallery: View {
             HStack {
                 TextField("Search clipboard...", text: $searchText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, 12)
                 Spacer()
             }
-            .padding(.top, 8)
-            .padding(.bottom, 4)
+            .padding(.top, 2)
+            .padding(.bottom, 8)
             if filteredItems.isEmpty {
                 Spacer()
                 HStack {
