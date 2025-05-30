@@ -11,11 +11,40 @@ enum ClipboardItemType: String, Codable {
 struct ClipboardItem: Identifiable, Equatable, Codable {
     let id: UUID
     let type: ClipboardItemType
-    let content: String?      // For text
-    let imageData: Data?      // For images
-    let fileURL: URL?         // For files
+    let content: String?          // For text
+    let imageData: Data?          // For images
+    private let fileBookmark: Data?   // Security-scoped bookmark for files
+    private let fileURLString: String? // Backup URL string
     var date: Date
     var pinned: Bool
+
+    // Computed property for secure file URL access
+    var fileURL: URL? {
+        guard type == .file else { return nil }
+        
+        // Try to resolve from security-scoped bookmark first
+        if let bookmark = fileBookmark {
+            var stale = false
+            if let resolvedURL = try? URL(
+                resolvingBookmarkData: bookmark,
+                options: .withSecurityScope,
+                relativeTo: nil,
+                bookmarkDataIsStale: &stale
+            ) {
+                if stale {
+                    print("File bookmark is stale for clipboard item: \(id)")
+                }
+                return resolvedURL
+            }
+        }
+        
+        // Fallback to URL string (for compatibility)
+        if let urlString = fileURLString {
+            return URL(string: urlString)
+        }
+        
+        return nil
+    }
 
     // Computed property for image pixel hash (not codable)
     var imagePixelHash: Int? {
@@ -26,6 +55,70 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         }
         #endif
         return nil
+    }
+
+    // Initializers
+    init(id: UUID = UUID(), type: ClipboardItemType, content: String? = nil, imageData: Data? = nil, fileURL: URL? = nil, date: Date = Date(), pinned: Bool = false) {
+        self.id = id
+        self.type = type
+        self.content = content
+        self.imageData = imageData
+        self.date = date
+        self.pinned = pinned
+        
+        // Handle file URL with security-scoped bookmark
+        if let url = fileURL, type == .file {
+            self.fileURLString = url.absoluteString
+            do {
+                self.fileBookmark = try url.bookmarkData(
+                    options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess],
+                    includingResourceValuesForKeys: nil,
+                    relativeTo: nil
+                )
+            } catch {
+                print("Failed to create security-scoped bookmark for clipboard file: \(error)")
+                self.fileBookmark = nil
+            }
+        } else {
+            self.fileURLString = nil
+            self.fileBookmark = nil
+        }
+    }
+    
+    // Method to access the file with proper security scoping
+    func accessFile<T>(_ block: (URL) throws -> T) rethrows -> T? {
+        guard let url = fileURL else { return nil }
+        
+        guard url.startAccessingSecurityScopedResource() else {
+            print("Could not start accessing security-scoped resource for clipboard file")
+            return nil
+        }
+        
+        defer {
+            url.stopAccessingSecurityScopedResource()
+        }
+        
+        return try block(url)
+    }
+
+    // Specialized method for pasteboard operations that maintains longer access
+    func accessFileForPasteboard<T>(_ block: (URL) throws -> T) rethrows -> T? {
+        guard let url = fileURL else { return nil }
+        
+        guard url.startAccessingSecurityScopedResource() else {
+            print("Could not start accessing security-scoped resource for clipboard file")
+            return nil
+        }
+        
+        // For pasteboard operations, keep access alive longer to allow cross-app transfers
+        let result = try block(url)
+        
+        // Keep security-scoped access alive for 10 seconds to allow other apps to access
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
+            url.stopAccessingSecurityScopedResource()
+        }
+        
+        return result
     }
 
     static func pixelHash(for image: NSImage) -> Int {

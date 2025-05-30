@@ -7,7 +7,27 @@ struct QuickFilesGallery: View {
     let columns = [GridItem(.adaptive(minimum: 72, maximum: 96), spacing: DesignSystem.Spacing.lg)]
     
     private func clearAll() {
-        quickFiles.removeAll()
+        UserDefaults.standard.clearAllQuickFiles()
+        quickFiles = UserDefaults.standard.quickFiles
+    }
+    
+    private func removeFile(_ url: URL) {
+        UserDefaults.standard.removeQuickFile(at: url)
+        quickFiles = UserDefaults.standard.quickFiles
+    }
+    
+    private func openFile(_ url: URL) {
+        // Ensure we have security-scoped access
+        guard url.startAccessingSecurityScopedResource() else {
+            print("Could not start accessing security-scoped resource for: \(url.lastPathComponent)")
+            return
+        }
+        
+        defer {
+            url.stopAccessingSecurityScopedResource()
+        }
+        
+        NSWorkspace.shared.open(url)
     }
     
     var body: some View {
@@ -58,15 +78,13 @@ struct QuickFilesGallery: View {
                         }
                         .padding(DesignSystem.Spacing.sm)
                         .contentShape(Rectangle())
-                        .onTapGesture { NSWorkspace.shared.open(url) }
+                        .onTapGesture { openFile(url) }
                         .onDrag { NSItemProvider(object: url as NSURL) }
                         .contextMenu {
-                            Button("Open") { NSWorkspace.shared.open(url) }
+                            Button("Open") { openFile(url) }
                             Divider()
                             Button("Remove", role: .destructive) {
-                                if let idx = quickFiles.firstIndex(of: url) {
-                                    quickFiles.remove(at: idx)
-                                }
+                                removeFile(url)
                             }
                         }
                     }

@@ -35,7 +35,7 @@ struct SystemMonitorView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
             HStack {
                 Text("CPU")
-                    .font(DesignSystem.Typography.headline3)
+                    .font(DesignSystem.Typography.bodySemibold)
                     .foregroundColor(DesignSystem.Colors.textPrimary)
                 
                 Spacer()
@@ -67,7 +67,7 @@ struct SystemMonitorView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
             HStack {
                 Text("GPU")
-                    .font(DesignSystem.Typography.headline3)
+                    .font(DesignSystem.Typography.bodySemibold)
                     .foregroundColor(DesignSystem.Colors.textPrimary)
                 
                 Spacer()
@@ -87,7 +87,7 @@ struct SystemMonitorView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
             HStack {
                 Text("RAM")
-                    .font(DesignSystem.Typography.headline3)
+                    .font(DesignSystem.Typography.bodySemibold)
                     .foregroundColor(DesignSystem.Colors.textPrimary)
                 
                 Spacer()
@@ -126,7 +126,7 @@ struct SystemMonitorView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
             HStack {
                 Text("SSD")
-                    .font(DesignSystem.Typography.headline3)
+                    .font(DesignSystem.Typography.bodySemibold)
                     .foregroundColor(DesignSystem.Colors.textPrimary)
                 
                 Spacer()

@@ -7,7 +7,27 @@ struct QuickAppGallery: View {
     let columns = [GridItem(.adaptive(minimum: 72, maximum: 96), spacing: DesignSystem.Spacing.lg)]
     
     private func clearAll() {
-        quickApps.removeAll()
+        UserDefaults.standard.clearAllQuickApps()
+        quickApps = UserDefaults.standard.quickApps
+    }
+    
+    private func removeApp(_ url: URL) {
+        UserDefaults.standard.removeQuickApp(at: url)
+        quickApps = UserDefaults.standard.quickApps
+    }
+    
+    private func openApp(_ url: URL) {
+        // Ensure we have security-scoped access
+        guard url.startAccessingSecurityScopedResource() else {
+            print("Could not start accessing security-scoped resource for: \(url.lastPathComponent)")
+            return
+        }
+        
+        defer {
+            url.stopAccessingSecurityScopedResource()
+        }
+        
+        NSWorkspace.shared.open(url)
     }
     
     var body: some View {
@@ -58,14 +78,12 @@ struct QuickAppGallery: View {
                         }
                         .padding(DesignSystem.Spacing.sm)
                         .contentShape(Rectangle())
-                        .onTapGesture { NSWorkspace.shared.open(url) }
+                        .onTapGesture { openApp(url) }
                         .contextMenu {
-                            Button("Open") { NSWorkspace.shared.open(url) }
+                            Button("Open") { openApp(url) }
                             Divider()
                             Button("Remove", role: .destructive) {
-                                if let idx = quickApps.firstIndex(of: url) {
-                                    quickApps.remove(at: idx)
-                                }
+                                removeApp(url)
                             }
                         }
                     }

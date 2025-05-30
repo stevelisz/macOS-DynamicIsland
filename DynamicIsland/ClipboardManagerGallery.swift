@@ -35,7 +35,28 @@ struct ClipboardManagerGallery: View {
                 pb.writeObjects([img])
             }
         case .file:
-            if let url = item.fileURL { pb.writeObjects([url as NSURL]) }
+            // Enhanced file copying for cross-app compatibility
+            item.accessFile { url in
+                // Method 1: Copy file URL with proper pasteboard types
+                pb.writeObjects([url as NSURL])
+                
+                // Method 2: Also add the file URL as a string (for broader compatibility)
+                pb.addTypes([.fileURL, .string], owner: nil)
+                pb.setString(url.absoluteString, forType: .fileURL)
+                pb.setString(url.path, forType: .string)
+                
+                // Method 3: For maximum compatibility, also try file promise
+                if let fileData = try? Data(contentsOf: url) {
+                    pb.addTypes([.init("public.file-url")], owner: nil)
+                    pb.setData(url.dataRepresentation, forType: .init("public.file-url"))
+                }
+                
+                // Keep security-scoped access alive longer by retaining the URL
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                    // Allow time for other apps to access the file
+                    _ = url // Keep reference
+                }
+            }
         }
         // Show feedback
         justCopiedId = item.id
@@ -46,7 +67,10 @@ struct ClipboardManagerGallery: View {
     private func openItem(_ item: ClipboardItem) {
         switch item.type {
         case .file:
-            if let url = item.fileURL { NSWorkspace.shared.open(url) }
+            // Use secure file access to open files
+            item.accessFile { url in
+                NSWorkspace.shared.open(url)
+            }
         case .image:
             if let data = item.imageData, let img = NSImage(data: data) {
                 let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".png")
