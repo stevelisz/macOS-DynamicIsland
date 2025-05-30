@@ -460,7 +460,6 @@ struct FilterChip: View {
                 RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                     .stroke(borderColor, lineWidth: 0.5)
             )
-            .scaleEffect(isHovered ? 1.02 : 1.0)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
@@ -469,6 +468,7 @@ struct FilterChip: View {
             }
         }
         .animation(DesignSystem.Animation.gentle, value: isSelected)
+        .animation(DesignSystem.Animation.gentle, value: isHovered)
     }
     
     // MARK: - Computed Properties
