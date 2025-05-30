@@ -30,7 +30,6 @@ struct DynamicIslandView: View {
                     RoundedRectangle(cornerRadius: isPopped ? DesignSystem.BorderRadius.xxl : 60, style: .continuous)
                         .stroke(DesignSystem.Colors.border, lineWidth: 1.2)
                 )
-                .frame(width: 340, height: 380)
                 .shadow(
                     color: DesignSystem.Shadows.xl.color,
                     radius: DesignSystem.Shadows.xl.radius,
@@ -52,7 +51,7 @@ struct DynamicIslandView: View {
                 .animation(DesignSystem.Animation.smooth, value: showDropPulse)
             
             VStack(spacing: 0) {
-                // Header Section
+                // Header Section - Dynamic height
                 VStack(spacing: 0) {
                     // Drag area
                     Rectangle()
@@ -60,11 +59,14 @@ struct DynamicIslandView: View {
                         .frame(height: DesignSystem.Spacing.lg)
                     
                     // Top controls
-                    HStack(spacing: DesignSystem.Spacing.lg) {
+                    HStack(spacing: DesignSystem.Spacing.md) {
                         Spacer()
                         
-                        // Quick Actions Menu
-                        Menu {
+                        // Quick Actions Menu - Single button only
+                        HeaderMenuButton(
+                            icon: "ellipsis.circle",
+                            color: DesignSystem.Colors.textSecondary
+                        ) {
                             Button(action: {
                                 if let url = URL(string: "x-apple.systempreferences:") {
                                     NSWorkspace.shared.open(url)
@@ -104,32 +106,22 @@ struct DynamicIslandView: View {
                                         .font(DesignSystem.Typography.body)
                                 }
                             }
-                        } label: {
-                            Image(systemName: "square.grid.2x2")
-                                .font(.system(size: 20, weight: .medium))
-                                .foregroundStyle(DesignSystem.Colors.primary)
-                                .background(Color.clear)
                         }
-                        .buttonStyle(.plain)
-                        .contentShape(Circle())
                         
-                        // Close button
-                        Button(action: closeDynamicIsland) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 20, weight: .medium))
-                                .foregroundStyle(DesignSystem.Colors.textSecondary.opacity(0.7))
-                                .background(Color.clear)
-                        }
-                        .buttonStyle(.plain)
-                        .contentShape(Circle())
+                        // Close button - properly spaced
+                        HeaderButton(
+                            icon: "xmark",
+                            color: DesignSystem.Colors.textSecondary,
+                            action: closeDynamicIsland
+                        )
                     }
                     .padding(.horizontal, DesignSystem.Spacing.xxl)
-                    .padding(.bottom, DesignSystem.Spacing.xs)
+                    .padding(.bottom, DesignSystem.Spacing.lg)
                     
                     // Enhanced Tab Navigation
                     ModernTabBar(selectedView: $selectedView)
                         .padding(.horizontal, DesignSystem.Spacing.xxl)
-                        .padding(.bottom, DesignSystem.Spacing.sm)
+                        .padding(.bottom, DesignSystem.Spacing.lg)
                     
                     // Separator
                     Rectangle()
@@ -138,43 +130,48 @@ struct DynamicIslandView: View {
                         .padding(.horizontal, DesignSystem.Spacing.lg)
                         .padding(.bottom, DesignSystem.Spacing.sm)
                     
-                    // Section title
+                    // Section title with better spacing
                     HStack {
                         Text(sectionTitle)
                             .font(DesignSystem.Typography.headline3)
                             .fontWeight(.medium)
                             .foregroundColor(DesignSystem.Colors.textPrimary)
-                            .padding(.leading, DesignSystem.Spacing.lg)
-                            .padding(.top, DesignSystem.Spacing.xxs)
-                            .padding(.bottom, DesignSystem.Spacing.md)
+                            .padding(.leading, DesignSystem.Spacing.xl)
+                            .padding(.top, DesignSystem.Spacing.xs)
+                            .padding(.bottom, DesignSystem.Spacing.xxxl)
                         Spacer()
                     }
                 }
-                .frame(height: 110)
                 .background(Color.clear)
                 
-                // Content Area
-                Group {
-                    switch selectedView {
-                    case .clipboard:
-                        ClipboardManagerGallery(clipboardItems: $clipboardWatcher.items)
-                    case .quickApp:
-                        QuickAppGallery(quickApps: $quickApps)
-                            .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in
-                                handleAppDrop(providers: providers)
-                            }
-                    case .quickFiles:
-                        QuickFilesGallery(quickFiles: $quickFiles)
-                    case .systemMonitor:
-                        SystemMonitorView()
+                // Content Area with scroll capability
+                ScrollView {
+                    Group {
+                        switch selectedView {
+                        case .clipboard:
+                            ClipboardManagerGallery(clipboardItems: $clipboardWatcher.items)
+                        case .quickApp:
+                            QuickAppGallery(quickApps: $quickApps)
+                                .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in
+                                    handleAppDrop(providers: providers)
+                                }
+                        case .quickFiles:
+                            QuickFilesGallery(quickFiles: $quickFiles)
+                        case .systemMonitor:
+                            SystemMonitorView()
+                        }
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, DesignSystem.Spacing.xl)
+                    .padding(.bottom, DesignSystem.Spacing.lg)
+                    .animation(DesignSystem.Animation.smooth, value: selectedView)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.horizontal, DesignSystem.Spacing.xl)
-                .animation(DesignSystem.Animation.smooth, value: selectedView)
+                .frame(maxHeight: 280)
             }
         }
-        .frame(width: 340, height: 380)
+        .frame(width: 360, height: 450)
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xxl, style: .continuous))
+        .clipped()
         .onAppear {
             withAnimation(DesignSystem.Animation.bounce) {
                 isPopped = true
@@ -205,7 +202,6 @@ struct DynamicIslandView: View {
             }
             return result
         }
-        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xxl, style: .continuous))
     }
     
     private var sectionTitle: String {

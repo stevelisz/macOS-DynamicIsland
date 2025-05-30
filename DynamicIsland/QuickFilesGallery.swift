@@ -31,47 +31,45 @@ struct QuickFilesGallery: View {
                     
                     Spacer()
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, minHeight: 200)
             } else {
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: DesignSystem.Spacing.lg) {
-                        ForEach(quickFiles, id: \.self) { url in
-                            VStack(spacing: DesignSystem.Spacing.xs) {
-                                Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 48, height: 48)
-                                    .cornerRadius(DesignSystem.BorderRadius.sm)
-                                    .shadow(
-                                        color: DesignSystem.Shadows.sm.color,
-                                        radius: DesignSystem.Shadows.sm.radius,
-                                        x: DesignSystem.Shadows.sm.x,
-                                        y: DesignSystem.Shadows.sm.y
-                                    )
-                                
-                                Text(url.lastPathComponent)
-                                    .font(DesignSystem.Typography.micro)
-                                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                                    .lineLimit(2)
-                                    .multilineTextAlignment(.center)
-                                    .frame(maxWidth: 80)
-                            }
-                            .padding(DesignSystem.Spacing.sm)
-                            .contentShape(Rectangle())
-                            .onTapGesture { NSWorkspace.shared.open(url) }
-                            .onDrag { NSItemProvider(object: url as NSURL) }
-                            .contextMenu {
-                                Button("Open") { NSWorkspace.shared.open(url) }
-                                Divider()
-                                Button("Remove", role: .destructive) {
-                                    if let idx = quickFiles.firstIndex(of: url) {
-                                        quickFiles.remove(at: idx)
-                                    }
+                // Content area - removed internal ScrollView
+                LazyVGrid(columns: columns, spacing: DesignSystem.Spacing.lg) {
+                    ForEach(quickFiles, id: \.self) { url in
+                        VStack(spacing: DesignSystem.Spacing.xs) {
+                            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 48, height: 48)
+                                .cornerRadius(DesignSystem.BorderRadius.sm)
+                                .shadow(
+                                    color: DesignSystem.Shadows.sm.color,
+                                    radius: DesignSystem.Shadows.sm.radius,
+                                    x: DesignSystem.Shadows.sm.x,
+                                    y: DesignSystem.Shadows.sm.y
+                                )
+                            
+                            Text(url.lastPathComponent)
+                                .font(DesignSystem.Typography.micro)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: 80)
+                        }
+                        .padding(DesignSystem.Spacing.sm)
+                        .contentShape(Rectangle())
+                        .onTapGesture { NSWorkspace.shared.open(url) }
+                        .onDrag { NSItemProvider(object: url as NSURL) }
+                        .contextMenu {
+                            Button("Open") { NSWorkspace.shared.open(url) }
+                            Divider()
+                            Button("Remove", role: .destructive) {
+                                if let idx = quickFiles.firstIndex(of: url) {
+                                    quickFiles.remove(at: idx)
                                 }
                             }
                         }
                     }
-                    .padding(DesignSystem.Spacing.sm)
                 }
             }
         }

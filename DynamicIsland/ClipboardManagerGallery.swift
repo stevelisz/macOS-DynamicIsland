@@ -126,42 +126,40 @@ struct ClipboardManagerGallery: View {
                     
                     Spacer()
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, minHeight: 200)
             } else {
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: DesignSystem.Spacing.md) {
-                        ForEach(filteredItems) { item in
-                            ClipboardItemCard(
-                                item: item,
-                                isHovered: hoveredItemId == item.id,
-                                justCopied: justCopiedId == item.id,
-                                onCopy: { copyToClipboard(item) },
-                                onPin: { item.pinned ? unpin(item) : pin(item) },
-                                onOpen: { openItem(item) },
-                                onDelete: { remove(item) }
-                            )
-                            .onHover { isHovered in
-                                withAnimation(DesignSystem.Animation.gentle) {
-                                    hoveredItemId = isHovered ? item.id : nil
-                                }
+                // Content area - removed internal ScrollView
+                LazyVGrid(columns: columns, spacing: DesignSystem.Spacing.md) {
+                    ForEach(filteredItems) { item in
+                        ClipboardItemCard(
+                            item: item,
+                            isHovered: hoveredItemId == item.id,
+                            justCopied: justCopiedId == item.id,
+                            onCopy: { copyToClipboard(item) },
+                            onPin: { item.pinned ? unpin(item) : pin(item) },
+                            onOpen: { openItem(item) },
+                            onDelete: { remove(item) }
+                        )
+                        .onHover { isHovered in
+                            withAnimation(DesignSystem.Animation.gentle) {
+                                hoveredItemId = isHovered ? item.id : nil
                             }
-                            .contextMenu {
-                                Button("Copy") { copyToClipboard(item) }
-                                Button(item.pinned ? "Unpin" : "Pin") { 
-                                    item.pinned ? unpin(item) : pin(item) 
-                                }
-                                if item.type == .file || item.type == .image {
-                                    Button("Open") { openItem(item) }
-                                }
-                                Divider()
-                                Button("Delete", role: .destructive) { remove(item) }
+                        }
+                        .contextMenu {
+                            Button("Copy") { copyToClipboard(item) }
+                            Button(item.pinned ? "Unpin" : "Pin") { 
+                                item.pinned ? unpin(item) : pin(item) 
                             }
+                            if item.type == .file || item.type == .image {
+                                Button("Open") { openItem(item) }
+                            }
+                            Divider()
+                            Button("Delete", role: .destructive) { remove(item) }
                         }
                     }
                 }
             }
         }
-        .padding(.top, DesignSystem.Spacing.xs)
     }
 }
 

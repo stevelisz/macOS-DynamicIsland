@@ -6,12 +6,12 @@ class DynamicIslandWindow: NSPanel {
     private var trackingArea: NSTrackingArea?
     var isDetached: Bool = false
     private let notchThreshold: CGFloat = 10 // px
-    private let headerHeight: CGFloat = 110 // Should match SwiftUI header
+    private let headerHeight: CGFloat = 140 // Updated to match SwiftUI header
     
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 140),
-            styleMask: [.nonactivatingPanel, .borderless, .fullSizeContentView, .resizable],
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 450),
+            styleMask: [.nonactivatingPanel, .borderless, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
