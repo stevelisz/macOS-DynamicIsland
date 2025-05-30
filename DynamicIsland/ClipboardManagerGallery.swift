@@ -132,16 +132,19 @@ struct ClipboardManagerGallery: View {
                                             .cornerRadius(8)
                                             .shadow(radius: 2, y: 1)
                                     } else if item.type == .file, let url = item.fileURL {
-                                        Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            .frame(width: 24, height: 24)
-                                            .cornerRadius(6)
-                                        Text(url.lastPathComponent)
-                                            .font(.caption2)
-                                            .lineLimit(2)
-                                            .multilineTextAlignment(.leading)
-                                            .frame(maxWidth: 180)
+                                        HStack(alignment: .center, spacing: 8) {
+                                            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                                .frame(width: 24, height: 24)
+                                                .cornerRadius(6)
+                                            Text(url.lastPathComponent)
+                                                .font(.body)
+                                                .lineLimit(1)
+                                                .truncationMode(.middle)
+                                                .multilineTextAlignment(.leading)
+                                                .frame(maxWidth: 180, alignment: .leading)
+                                        }
                                     }
                                 }
                                 .padding(10)
