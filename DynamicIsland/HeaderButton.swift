@@ -54,7 +54,7 @@ struct HeaderMenuButton<MenuContent: View>: View {
                     .fill(isHovered ? DesignSystem.Colors.surface : Color.clear)
                     .frame(width: 24, height: 24)
                 
-                // Icon
+                // Icon - only the 3 dots, no dropdown arrow
                 Image(systemName: icon)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(isHovered ? DesignSystem.Colors.textPrimary : color)
@@ -63,7 +63,8 @@ struct HeaderMenuButton<MenuContent: View>: View {
             .animation(DesignSystem.Animation.gentle, value: isHovered)
             .animation(DesignSystem.Animation.gentle, value: isPressed)
         }
-        .menuStyle(.borderlessButton)
+        .menuStyle(.button)
+        .menuIndicator(.hidden)
         .frame(width: 28, height: 28)
         .clipped()
         .onHover { isHovered = $0 }

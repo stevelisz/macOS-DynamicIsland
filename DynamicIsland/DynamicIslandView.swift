@@ -108,13 +108,14 @@ struct DynamicIslandView: View {
                         action: closeDynamicIsland
                     )
                 }
-                .padding(.horizontal, DesignSystem.Spacing.lg)
+                .padding(.horizontal, DesignSystem.Spacing.xxl)
                 .padding(.top, DesignSystem.Spacing.micro)
                 .padding(.bottom, DesignSystem.Spacing.xs)
                 
                 // Enhanced Tab Navigation
                 ModernTabBar(selectedView: $selectedView)
                     .padding(.horizontal, DesignSystem.Spacing.xxl)
+                    .padding(.top, DesignSystem.Spacing.micro)
                     .padding(.bottom, DesignSystem.Spacing.xs)
                 
                 // Separator
