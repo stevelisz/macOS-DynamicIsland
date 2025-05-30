@@ -1,11 +1,14 @@
 import SwiftUI
 import Cocoa
+import Foundation
 
 class DynamicIslandWindow: NSPanel {
     private var trackingArea: NSTrackingArea?
     var isDetached: Bool = false
     private let notchThreshold: CGFloat = 10 // px
     private let headerHeight: CGFloat = 110 // Should match SwiftUI header
+    private var dragStartWindowOrigin: CGPoint?
+    private var dragStartLocation: CGPoint?
     
     init() {
         super.init(
@@ -16,6 +19,7 @@ class DynamicIslandWindow: NSPanel {
         )
         
         setupWindow()
+        setupNotifications()
     }
     
     private func setupWindow() {
@@ -43,6 +47,49 @@ class DynamicIslandWindow: NSPanel {
         let dragView = DraggableHeaderView(frame: NSRect(x: 0, y: self.frame.height - headerHeight, width: self.frame.width, height: headerHeight))
         dragView.autoresizingMask = [.width, .minYMargin]
         self.contentView?.addSubview(dragView)
+    }
+    
+    private func setupNotifications() {
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("DynamicIslandDragWindow"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            if let dragValue = notification.object as? DragGesture.Value {
+                self?.handleDragGesture(dragValue)
+            }
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("DynamicIslandDragEnded"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.dragStartWindowOrigin = nil
+            self?.dragStartLocation = nil
+        }
+    }
+    
+    private func handleDragGesture(_ value: DragGesture.Value) {
+        // On first drag event, store the initial positions
+        if dragStartWindowOrigin == nil {
+            dragStartWindowOrigin = self.frame.origin
+            dragStartLocation = value.startLocation
+        }
+        
+        guard let startOrigin = dragStartWindowOrigin else { return }
+        
+        // Calculate new window position based on drag translation
+        let newOrigin = CGPoint(
+            x: startOrigin.x + value.translation.width,
+            y: startOrigin.y - value.translation.height // Invert Y coordinate for macOS
+        )
+        
+        self.setFrameOrigin(newOrigin)
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     
     override func makeKeyAndOrderFront(_ sender: Any?) {

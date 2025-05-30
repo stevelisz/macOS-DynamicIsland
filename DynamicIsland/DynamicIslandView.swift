@@ -5,7 +5,6 @@ import Combine
 
 struct DynamicIslandView: View {
     @Environment(\.colorScheme) var colorScheme
-    @State private var showActionsPopover = false
     @State private var showFilesPopover = false
     @State private var mediaInfo: MediaInfo? = nil
     @State private var quickFiles: [URL] = UserDefaults.standard.quickFiles
@@ -49,14 +48,60 @@ struct DynamicIslandView: View {
                         .frame(height: 16)
                         .contentShape(Rectangle())
                         .gesture(
-                            DragGesture()
+                            DragGesture(coordinateSpace: .global)
                                 .onChanged { value in
-                                    NotificationCenter.default.post(name: NSNotification.Name("DynamicIslandDragWindow"), object: value)
+                                    NotificationCenter.default.post(
+                                        name: NSNotification.Name("DynamicIslandDragWindow"), 
+                                        object: value
+                                    )
+                                }
+                                .onEnded { _ in
+                                    NotificationCenter.default.post(
+                                        name: NSNotification.Name("DynamicIslandDragEnded"), 
+                                        object: nil
+                                    )
                                 }
                         )
                     HStack(spacing: 16) {
                         Spacer()
-                        Button(action: { showActionsPopover.toggle() }) {
+                        Menu {
+                            Button(action: {
+                                if let url = URL(string: "x-apple.systempreferences:") {
+                                    NSWorkspace.shared.open(url)
+                                } else {
+                                    let settingsURL = URL(fileURLWithPath: "/System/Applications/System Preferences.app")
+                                    NSWorkspace.shared.open(settingsURL)
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "gearshape.fill")
+                                        .foregroundColor(.blue)
+                                    Text("System Settings")
+                                }
+                            }
+                            
+                            Button(action: {
+                                let activityMonitorURL = URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app")
+                                NSWorkspace.shared.open(activityMonitorURL)
+                            }) {
+                                HStack {
+                                    Image(systemName: "chart.bar.fill")
+                                        .foregroundColor(.green)
+                                    Text("Activity Monitor")
+                                }
+                            }
+                            
+                            Button(action: {
+                                let terminalURL = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
+                                NSWorkspace.shared.open(terminalURL)
+                            }) {
+                                HStack {
+                                    Image(systemName: "terminal.fill")
+                                        .foregroundColor(.primary)
+                                    Text("Terminal")
+                                }
+                            }
+                        } label: {
                             Image(systemName: "square.grid.2x2")
                                 .font(.system(size: 20, weight: .regular))
                                 .foregroundStyle(Color.accentColor)
@@ -64,83 +109,6 @@ struct DynamicIslandView: View {
                         }
                         .buttonStyle(.plain)
                         .contentShape(Circle())
-                        .popover(isPresented: $showActionsPopover, arrowEdge: .top) {
-                            VStack(spacing: 0) {
-                                Button(action: {
-                                    showActionsPopover = false
-                                    if let url = URL(string: "x-apple.systempreferences:") {
-                                        NSWorkspace.shared.open(url)
-                                    } else {
-                                        let settingsURL = URL(fileURLWithPath: "/System/Applications/System Preferences.app")
-                                        NSWorkspace.shared.open(settingsURL)
-                                    }
-                                }) {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: "gearshape.fill")
-                                            .foregroundColor(.blue)
-                                            .frame(width: 20)
-                                        Text("System Settings")
-                                            .font(.system(size: 14))
-                                        Spacer()
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 12)
-                                    .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                                .background(Color.clear)
-                                .onHover { isHovered in
-                                    // Add hover effect if needed
-                                }
-                                
-                                Divider()
-                                
-                                Button(action: {
-                                    showActionsPopover = false
-                                    let activityMonitorURL = URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app")
-                                    NSWorkspace.shared.open(activityMonitorURL)
-                                }) {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: "chart.bar.fill")
-                                            .foregroundColor(.green)
-                                            .frame(width: 20)
-                                        Text("Activity Monitor")
-                                            .font(.system(size: 14))
-                                        Spacer()
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 12)
-                                    .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                                .background(Color.clear)
-                                
-                                Divider()
-                                
-                                Button(action: {
-                                    showActionsPopover = false
-                                    let terminalURL = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
-                                    NSWorkspace.shared.open(terminalURL)
-                                }) {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: "terminal.fill")
-                                            .foregroundColor(.primary)
-                                            .frame(width: 20)
-                                        Text("Terminal")
-                                            .font(.system(size: 14))
-                                        Spacer()
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 12)
-                                    .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                                .background(Color.clear)
-                            }
-                            .frame(width: 180)
-                            .background(.ultraThinMaterial)
-                            .cornerRadius(12)
-                        }
                         Button(action: closeDynamicIsland) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 20, weight: .regular))
