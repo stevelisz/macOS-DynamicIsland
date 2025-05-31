@@ -99,22 +99,29 @@ struct TimerView: View {
                 .buttonStyle(.plain)
             }
             
-            // Quick time presets
+            // Direct time input
             HStack(spacing: DesignSystem.Spacing.xs) {
-                ForEach([5, 15, 25, 45], id: \.self) { minutes in
-                    Button("\(minutes)m") {
-                        timerManager.setCustomTime(minutes * 60)
-                    }
+                Text("Set:")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.textSecondary)
-                    .padding(.horizontal, DesignSystem.Spacing.sm)
-                    .padding(.vertical, DesignSystem.Spacing.xxs)
+                
+                TextField("25", text: $timerManager.customTimeInput)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 14, weight: .medium, design: .monospaced))
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .frame(width: 40)
+                    .multilineTextAlignment(.center)
                     .background(
                         RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
-                            .fill(DesignSystem.Colors.surface.opacity(0.3))
+                            .fill(DesignSystem.Colors.surface.opacity(0.5))
                     )
-                    .buttonStyle(.plain)
-                }
+                    .onSubmit {
+                        timerManager.applyCustomTimeInput()
+                    }
+                
+                Text("min")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
             }
         }
         .transition(.opacity.combined(with: .scale(scale: 0.95)))
@@ -309,6 +316,7 @@ class TimerManager: ObservableObject {
     @Published var completedSessions = 0
     @Published var totalFocusMinutes = 0
     @Published var todaySessions = 0
+    @Published var customTimeInput: String = ""
     
     private var timer: Timer?
     private var totalDuration: TimeInterval = 25 * 60
@@ -327,6 +335,7 @@ class TimerManager: ObservableObject {
     
     init() {
         loadStats()
+        updateCustomTimeInput()
     }
     
     func setSession(_ session: SessionType) {
@@ -337,6 +346,7 @@ class TimerManager: ObservableObject {
         let duration = customDuration ?? session.defaultDuration
         timeRemaining = duration
         totalDuration = duration
+        updateCustomTimeInput()
     }
     
     func setCustomTime(_ seconds: TimeInterval) {
@@ -344,6 +354,7 @@ class TimerManager: ObservableObject {
         customDuration = seconds
         timeRemaining = seconds
         totalDuration = seconds
+        updateCustomTimeInput()
     }
     
     func adjustTime(by seconds: TimeInterval) {
@@ -352,6 +363,7 @@ class TimerManager: ObservableObject {
         customDuration = newTime
         timeRemaining = newTime
         totalDuration = newTime
+        updateCustomTimeInput()
     }
     
     func start() {
@@ -440,5 +452,18 @@ class TimerManager: ObservableObject {
         completedSessions = UserDefaults.standard.integer(forKey: "timer_completed_sessions")
         totalFocusMinutes = UserDefaults.standard.integer(forKey: "timer_total_focus_minutes")
         todaySessions = UserDefaults.standard.integer(forKey: "timer_today_sessions")
+    }
+    
+    func applyCustomTimeInput() {
+        guard let minutes = Int(customTimeInput), minutes > 0 else { 
+            updateCustomTimeInput() // Reset to current value if invalid
+            return 
+        }
+        setCustomTime(TimeInterval(minutes * 60))
+    }
+    
+    private func updateCustomTimeInput() {
+        let minutes = Int(timeRemaining) / 60
+        customTimeInput = "\(minutes)"
     }
 } 
