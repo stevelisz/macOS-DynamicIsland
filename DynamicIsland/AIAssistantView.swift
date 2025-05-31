@@ -257,7 +257,6 @@ struct AIAssistantView: View {
                 await ollamaService.checkConnection()
                 
             } catch {
-                print("Failed to start Ollama: \(error)")
                 
                 // Fallback: try the direct path approach
                 do {
@@ -273,7 +272,6 @@ struct AIAssistantView: View {
                     await ollamaService.checkConnection()
                     
                 } catch {
-                    print("Fallback also failed: \(error)")
                 }
             }
             

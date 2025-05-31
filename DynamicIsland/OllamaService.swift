@@ -46,7 +46,6 @@ class OllamaService: ObservableObject {
                 isConnected = false
             }
         } catch {
-            print("Connection check failed: \(error)")
             isConnected = false
         }
     }
@@ -76,7 +75,6 @@ class OllamaService: ObservableObject {
                 }
             }
         } catch {
-            print("Failed to load models: \(error)")
             availableModels = []
         }
     }
@@ -107,11 +105,9 @@ class OllamaService: ObservableObject {
             
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
             
-            print("Sending request to Ollama with model: \(selectedModel)")
             let (data, response) = try await generateSession.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("HTTP Status: \(httpResponse.statusCode)")
             }
             
             if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -127,7 +123,6 @@ class OllamaService: ObservableObject {
             }
             
         } catch {
-            print("Generate request failed: \(error)")
             let errorMsg = error.localizedDescription
             if errorMsg.contains("timed out") {
                 return "Error: Request timed out. The model might be too large or not loaded. Try a smaller model."
@@ -167,7 +162,6 @@ class OllamaService: ObservableObject {
             
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
             
-            print("Sending streaming request to Ollama with model: \(selectedModel)")
             let (bytes, _) = try await generateSession.bytes(for: request)
             var fullResponse = ""
             
@@ -198,7 +192,6 @@ class OllamaService: ObservableObject {
             }
             
         } catch {
-            print("Streaming request failed: \(error)")
             let errorMsg = error.localizedDescription
             if errorMsg.contains("timed out") {
                 onUpdate("Error: Request timed out. The model might be too large or not loaded. Try a smaller model.")

@@ -119,18 +119,13 @@ class DynamicIslandWindow: NSPanel {
         let wasDetached = isDetached
         isDetached = dx > notchThreshold || dy > notchThreshold
         
-        // Debug logging - always show current state
-        print("DynamicIsland: Position check - x: \(self.frame.origin.x), y: \(self.frame.origin.y), notchX: \(notchX), notchY: \(notchY)")
-        print("DynamicIsland: Distance - dx: \(dx), dy: \(dy), threshold: \(notchThreshold), isDetached: \(isDetached)")
         
         // If window just became detached, notify the manager to disable auto-hide
         if !wasDetached && isDetached {
-            print("DynamicIsland: Window detached - disabling auto-hide")
             NotificationCenter.default.post(name: .dynamicIslandDetached, object: nil)
         }
         // If window was moved back to notch area, re-enable auto-hide
         else if wasDetached && !isDetached {
-            print("DynamicIsland: Window attached - enabling auto-hide")
             NotificationCenter.default.post(name: .dynamicIslandAttached, object: nil)
         }
     }

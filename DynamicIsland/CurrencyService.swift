@@ -102,7 +102,6 @@ class CurrencyService: ObservableObject {
             
         } catch {
             errorMessage = "Failed to fetch exchange rates: \(error.localizedDescription)"
-            print("Currency API Error: \(error)")
         }
         
         isLoading = false
@@ -135,7 +134,6 @@ class CurrencyService: ObservableObject {
             lastUpdateTime = cachedTime
             
         } catch {
-            print("Failed to load cached rates: \(error)")
         }
     }
     
@@ -154,7 +152,6 @@ class CurrencyService: ObservableObject {
             UserDefaults.standard.set(rates.lastUpdated, forKey: cacheTimeKey)
             
         } catch {
-            print("Failed to cache rates: \(error)")
         }
     }
     
