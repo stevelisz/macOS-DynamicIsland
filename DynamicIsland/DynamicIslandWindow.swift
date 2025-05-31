@@ -29,7 +29,7 @@ class DynamicIslandWindow: NSPanel {
         self.level = .floating
         self.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         self.isMovable = true // Enable native dragging
-        self.isMovableByWindowBackground = true // Allow dragging from anywhere in window
+        self.isMovableByWindowBackground = false // Disable general dragging - we'll add specific drag areas
         self.acceptsMouseMovedEvents = true
         
         // Positioning

@@ -53,6 +53,10 @@ struct DynamicIslandView: View {
                 .animation(DesignSystem.Animation.smooth, value: showDropPulse)
             
             VStack(spacing: 0) {
+                // Window drag handle area - invisible but draggable
+                WindowDragArea()
+                    .frame(height: 20) // Small drag area at the top
+                
                 // Top controls - positioned at the very top with safe padding
                 headerControls
                 
@@ -399,6 +403,31 @@ class ClipboardWatcher: ObservableObject {
            let decoded = try? JSONDecoder().decode([ClipboardItem].self, from: data) {
             items = decoded
         }
+    }
+}
+
+// MARK: - Window Drag Handle
+struct WindowDragArea: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = DragHandleView()
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        // No updates needed
+    }
+}
+
+class DragHandleView: NSView {
+    override var mouseDownCanMoveWindow: Bool { true }
+    
+    override func draw(_ dirtyRect: NSRect) {
+        // Draw nothing - invisible drag area
+    }
+    
+    override func mouseDown(with event: NSEvent) {
+        // Let the window handle the dragging
+        window?.performDrag(with: event)
     }
 }
 
