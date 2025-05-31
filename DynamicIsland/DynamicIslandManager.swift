@@ -9,10 +9,8 @@ class DynamicIslandManager: ObservableObject {
     private var hideTimer: Timer?
     
     private init() {
-        print("🏗️ DynamicIslandManager initializing")
         setupNotifications()
         mouseMonitor.startMonitoring()
-        print("✅ DynamicIslandManager initialized and listening for notifications")
     }
     
     deinit {
@@ -83,7 +81,6 @@ class DynamicIslandManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            print("🎯 DynamicIslandManager received session completion notification")
             self?.showDynamicIslandForSessionCompletion()
         }
     }
@@ -134,7 +131,6 @@ class DynamicIslandManager: ObservableObject {
     }
     
     func showDynamicIslandForSessionCompletion() {
-        print("🚀 Showing Dynamic Island for session completion")
         
         // Show the Dynamic Island
         showDynamicIsland()
@@ -147,7 +143,6 @@ class DynamicIslandManager: ObservableObject {
             scheduleAutoHideForCompletion()
         }
         
-        print("✅ Dynamic Island shown for session completion")
     }
     
     func hideDynamicIsland() {

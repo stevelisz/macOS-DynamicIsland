@@ -219,7 +219,6 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
             isLoading = false
             
         } catch {
-            print("Weather fetch error: \(error)")
             errorMessage = "Failed to fetch weather: \(error.localizedDescription)"
             isLoading = false
         }
@@ -319,7 +318,7 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
                 return placemark.locality ?? placemark.administrativeArea ?? "Current Location"
             }
         } catch {
-            print("Geocoding error: \(error)")
+            
         }
         return "Current Location"
     }

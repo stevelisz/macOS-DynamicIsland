@@ -19,7 +19,7 @@ struct QuickAppGallery: View {
     private func openApp(_ url: URL) {
         // Ensure we have security-scoped access
         guard url.startAccessingSecurityScopedResource() else {
-            print("Could not start accessing security-scoped resource for: \(url.lastPathComponent)")
+            
             return
         }
         

@@ -32,7 +32,7 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
                 bookmarkDataIsStale: &stale
             ) {
                 if stale {
-                    print("File bookmark is stale for clipboard item: \(id)")
+                    
                 }
                 return resolvedURL
             }
@@ -76,7 +76,7 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
                     relativeTo: nil
                 )
             } catch {
-                print("Failed to create security-scoped bookmark for clipboard file: \(error)")
+                
                 self.fileBookmark = nil
             }
         } else {
@@ -90,7 +90,7 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         guard let url = fileURL else { return nil }
         
         guard url.startAccessingSecurityScopedResource() else {
-            print("Could not start accessing security-scoped resource for clipboard file")
+            
             return nil
         }
         
@@ -106,7 +106,7 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         guard let url = fileURL else { return nil }
         
         guard url.startAccessingSecurityScopedResource() else {
-            print("Could not start accessing security-scoped resource for clipboard file")
+            
             return nil
         }
         

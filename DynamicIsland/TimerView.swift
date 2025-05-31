@@ -470,14 +470,12 @@ class TimerManager: ObservableObject {
     }
     
     func start() {
-        print("▶️ Timer started - timeRemaining: \(timeRemaining), totalDuration: \(totalDuration)")
         isRunning = true
         startTime = Date()
         saveTimerState()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.tick()
         }
-        print("⏱️ Timer object created and scheduled")
     }
     
     func pause() {
@@ -516,19 +514,16 @@ class TimerManager: ObservableObject {
     }
     
     private func tick() {
-        print("⏰ Timer tick - timeRemaining: \(timeRemaining)")
         if timeRemaining > 0 {
             timeRemaining -= 1
             saveTimerState()
         } else {
-            print("🔥 Timer reached 0, calling completeSession()")
             completeSession()
             moveToNextSession()
         }
     }
     
     private func completeSession() {
-        print("🎯 CompleteSession called for session: \(currentSession.title)")
         lastCompletedSessionType = currentSession
         
         // Only count work sessions toward stats, not breaks
@@ -539,21 +534,17 @@ class TimerManager: ObservableObject {
             totalFocusMinutes += focusMinutes
             todaySessions += 1
             saveStats()
-            print("📊 Updated stats: completedSessions=\(completedSessions), totalFocusMinutes=\(totalFocusMinutes)")
         }
         
         // Trigger completion notification
         sessionCompleted = true
         hasCompletedSession = true
-        print("🔔 About to post notification and send system notification")
         
         // Show notification and post to NotificationCenter on main queue
         sendNotification()
         
         DispatchQueue.main.async {
-            print("🔔 Timer session completed, posting notification")
             NotificationCenter.default.post(name: .sessionCompleted, object: nil)
-            print("📢 Posted notification to NotificationCenter")
         }
     }
     

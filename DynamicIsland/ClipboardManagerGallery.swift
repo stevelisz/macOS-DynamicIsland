@@ -69,8 +69,6 @@ struct ClipboardManagerGallery: View {
                 // Add additional pasteboard types for broader app compatibility
                 pb.addTypes([.fileURL], owner: nil)
                 pb.setString(url.absoluteString, forType: .fileURL)
-                
-                print("Copied file to pasteboard: \(url.lastPathComponent)")
             }
         }
         // Show feedback

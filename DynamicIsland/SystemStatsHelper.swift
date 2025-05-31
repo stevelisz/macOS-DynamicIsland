@@ -34,8 +34,6 @@ class SystemStatsHelper {
             performanceCores = numCpus
             efficiencyCores = 0
         }
-        
-        print("CPU Configuration: \(performanceCores) performance cores, \(efficiencyCores) efficiency cores")
     }
     
     func getCPUInfo() -> (totalCores: Int, performanceCores: Int, efficiencyCores: Int) {
