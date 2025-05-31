@@ -1,0 +1,40 @@
+{
+  "source": "/Users/steve/Desktop/Project/macOS-DynamicIsland/DynamicIsland/DynamicIslandView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Launch at Login",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 165
+        }
+      },
+      {
+        "comment": "",
+        "key": "System Settings",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 183
+        }
+      },
+      {
+        "comment": "",
+        "key": "Activity Monitor",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 195
+        }
+      },
+      {
+        "comment": "",
+        "key": "Terminal",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 207
+        }
+      }
+    ]
+  },
+  "version": 1
+}

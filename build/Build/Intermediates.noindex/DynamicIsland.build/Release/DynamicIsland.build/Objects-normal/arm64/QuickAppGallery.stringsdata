@@ -1,0 +1,48 @@
+{
+  "source": "/Users/steve/Desktop/Project/macOS-DynamicIsland/DynamicIsland/QuickAppGallery.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "No quick apps",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 44
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drop applications here for quick access",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 48
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 83
+        }
+      },
+      {
+        "comment": "",
+        "key": "Remove",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 85
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear All Quick Apps",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 99
+        }
+      }
+    ]
+  },
+  "version": 1
+}

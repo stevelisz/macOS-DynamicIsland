@@ -1,0 +1,64 @@
+Dynamic Toolbox for macOS - Installation Guide
+==============================================
+
+SYSTEM REQUIREMENTS
+-------------------
+- macOS 15.1 (Sequoia) or later
+- Apple Silicon (M1/M2/M3) or Intel processor
+- 50MB free disk space
+- Internet connection for weather and currency features
+
+INSTALLATION STEPS
+-----------------
+1. Download DynamicToolbox-v1.0.dmg
+2. Double-click the DMG file to mount it
+3. Drag "DynamicIsland.app" to the Applications folder
+4. Eject the DMG when installation is complete
+5. Launch "Dynamic Toolbox" from Applications or Spotlight
+
+FIRST LAUNCH
+-----------
+- You may see a security warning about an "unidentified developer"
+- If this happens:
+  1. Go to System Settings → Privacy & Security
+  2. Find "Dynamic Toolbox" in the security section
+  3. Click "Open Anyway"
+  4. The app will launch normally from then on
+
+PERMISSIONS
+----------
+The app may request these permissions:
+- Location Services: For weather features
+- Accessibility: For clipboard monitoring (optional)
+
+These permissions can be granted in System Settings → Privacy & Security
+
+GETTING STARTED
+--------------
+1. Click the notch area on your MacBook to open the app
+2. Use the tab selector to switch between tools
+3. Drag tabs to reorder them to your preference
+4. Move the window away from the notch to keep it permanently open
+
+AI ASSISTANT SETUP (OPTIONAL)
+-----------------------------
+To use the AI Assistant feature:
+1. Install Ollama from https://ollama.ai
+2. Run: ollama pull llama3.2:3b
+3. Launch Dynamic Toolbox and go to AI Assistant tab
+4. Click "Check Connection" to verify setup
+
+TROUBLESHOOTING
+--------------
+- App won't open: Check security settings as described above
+- Clipboard not working: Grant accessibility permissions
+- Weather not loading: Enable location services
+- AI Assistant offline: Install and start Ollama
+
+UNINSTALLING
+-----------
+1. Quit Dynamic Toolbox
+2. Move the app from Applications to Trash
+3. Empty Trash
+
+For support: https://github.com/your-repo/dynamic-toolbox 

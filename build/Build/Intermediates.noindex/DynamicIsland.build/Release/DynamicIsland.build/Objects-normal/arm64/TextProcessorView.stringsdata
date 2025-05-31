@@ -1,0 +1,40 @@
+{
+  "source": "/Users/steve/Desktop/Project/macOS-DynamicIsland/DynamicIsland/TextProcessorView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Text",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 54
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enter text to process...",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 64
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 89
+        }
+      },
+      {
+        "comment": "",
+        "key": "Result",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 119
+        }
+      }
+    ]
+  },
+  "version": 1
+}
