@@ -2,37 +2,124 @@ import SwiftUI
 import Foundation
 
 struct TimerView: View {
-    @StateObject private var timerManager = TimerManager()
+    @StateObject private var timerManager = TimerManager.shared
     @State private var selectedSession: SessionType = .work
-    @State private var showTimeCustomizer = false
+    @State private var showingCompletion = false
+    @State private var completedSessionType: SessionType = .work
     
     var body: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            // Session Type Selector
-            sessionSelector
-            
-            // Custom Time Controls (when not running)
-            if !timerManager.isRunning {
-                timeCustomizer
+        ZStack {
+            VStack(spacing: DesignSystem.Spacing.md) {
+                // Session Type Selector
+                sessionSelector
+                
+                // Custom Time Controls (when not running)
+                if !timerManager.isRunning {
+                    timeCustomizer
+                }
+                
+                // Main Timer Display
+                timerDisplay
+                
+                // Control Buttons
+                controlButtons
+                
+                // Session Stats with Reset Button
+                statsSection
+            }
+            .padding(DesignSystem.Spacing.lg)
+            .onAppear {
+                // Sync the selected session with timer manager
+                selectedSession = timerManager.currentSession
+                
+                // Check if a session completed while window was closed
+                if timerManager.hasCompletedSession {
+                    showCompletionAlert()
+                    timerManager.hasCompletedSession = false
+                }
             }
             
-            // Main Timer Display
-            timerDisplay
+            // Session Completion Overlay
+            if showingCompletion {
+                sessionCompletionOverlay
+            }
+        }
+        .onReceive(timerManager.$sessionCompleted) { completed in
+            if completed {
+                showCompletionAlert()
+                timerManager.sessionCompleted = false
+            }
+        }
+    }
+    
+    private var sessionCompletionOverlay: some View {
+        ZStack {
+            // Semi-transparent background
+            Color.black.opacity(0.7)
+                .ignoresSafeArea()
             
-            // Control Buttons
-            controlButtons
-            
-            // Session Stats with Reset Button
-            statsSection
+            // Completion card
+            VStack(spacing: DesignSystem.Spacing.lg) {
+                Image(systemName: completedSessionType == .work ? "checkmark.circle.fill" : "cup.and.saucer.fill")
+                    .font(.system(size: 48, weight: .medium))
+                    .foregroundColor(completedSessionType.color)
+                
+                VStack(spacing: DesignSystem.Spacing.xs) {
+                    Text("Session Complete!")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Text("\(completedSessionType.title) session finished")
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+                
+                Button("Continue") {
+                    withAnimation(DesignSystem.Animation.gentle) {
+                        showingCompletion = false
+                    }
+                }
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.white)
+                .padding(.horizontal, DesignSystem.Spacing.xl)
+                .padding(.vertical, DesignSystem.Spacing.md)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        .fill(completedSessionType.color)
+                )
+                .buttonStyle(.plain)
+            }
+            .padding(DesignSystem.Spacing.xl)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
+                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                    )
+            )
+            .scaleEffect(showingCompletion ? 1.0 : 0.8)
+            .opacity(showingCompletion ? 1.0 : 0.0)
         }
-        .padding(DesignSystem.Spacing.lg)
-        .onDisappear {
-            timerManager.pause()
+    }
+    
+    private func showCompletionAlert() {
+        completedSessionType = timerManager.lastCompletedSessionType
+        withAnimation(DesignSystem.Animation.bounce) {
+            showingCompletion = true
         }
-        .onAppear {
-            // Sync the selected session with timer manager
-            selectedSession = timerManager.currentSession
+        
+        // Auto-dismiss after 3 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            if showingCompletion {
+                withAnimation(DesignSystem.Animation.gentle) {
+                    showingCompletion = false
+                }
+            }
         }
+        
+        // Post notification to show window if it's closed
+        NotificationCenter.default.post(name: .sessionCompleted, object: nil)
     }
     
     private var sessionSelector: some View {
@@ -310,6 +397,8 @@ enum SessionType: CaseIterable {
 }
 
 class TimerManager: ObservableObject {
+    static let shared = TimerManager()
+    
     @Published var timeRemaining: TimeInterval = 25 * 60
     @Published var isRunning = false
     @Published var currentSession: SessionType = .work
@@ -317,10 +406,15 @@ class TimerManager: ObservableObject {
     @Published var totalFocusMinutes = 0
     @Published var todaySessions = 0
     @Published var customTimeInput: String = ""
+    @Published var sessionCompleted = false
+    @Published var hasCompletedSession = false
+    
+    var lastCompletedSessionType: SessionType = .work
     
     private var timer: Timer?
     private var totalDuration: TimeInterval = 25 * 60
     private var customDuration: TimeInterval? = nil
+    private var startTime: Date?
     
     var progress: Double {
         guard totalDuration > 0 else { return 0 }
@@ -333,9 +427,15 @@ class TimerManager: ObservableObject {
         return String(format: "%02d:%02d", minutes, seconds)
     }
     
-    init() {
+    private init() {
         loadStats()
+        loadTimerState()
         updateCustomTimeInput()
+        
+        // Resume timer if it was running
+        if isRunning {
+            start()
+        }
     }
     
     func setSession(_ session: SessionType) {
@@ -347,6 +447,7 @@ class TimerManager: ObservableObject {
         timeRemaining = duration
         totalDuration = duration
         updateCustomTimeInput()
+        saveTimerState()
     }
     
     func setCustomTime(_ seconds: TimeInterval) {
@@ -355,6 +456,7 @@ class TimerManager: ObservableObject {
         timeRemaining = seconds
         totalDuration = seconds
         updateCustomTimeInput()
+        saveTimerState()
     }
     
     func adjustTime(by seconds: TimeInterval) {
@@ -364,19 +466,25 @@ class TimerManager: ObservableObject {
         timeRemaining = newTime
         totalDuration = newTime
         updateCustomTimeInput()
+        saveTimerState()
     }
     
     func start() {
+        print("▶️ Timer started - timeRemaining: \(timeRemaining), totalDuration: \(totalDuration)")
         isRunning = true
+        startTime = Date()
+        saveTimerState()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.tick()
         }
+        print("⏱️ Timer object created and scheduled")
     }
     
     func pause() {
         isRunning = false
         timer?.invalidate()
         timer = nil
+        saveTimerState()
     }
     
     func reset() {
@@ -384,6 +492,8 @@ class TimerManager: ObservableObject {
         let duration = customDuration ?? currentSession.defaultDuration
         timeRemaining = duration
         totalDuration = duration
+        updateCustomTimeInput()
+        saveTimerState()
     }
     
     func skipWithoutStats() {
@@ -392,16 +502,35 @@ class TimerManager: ObservableObject {
         moveToNextSession()
     }
     
+    func applyCustomTimeInput() {
+        guard let minutes = Int(customTimeInput), minutes > 0 else { 
+            updateCustomTimeInput() // Reset to current value if invalid
+            return 
+        }
+        setCustomTime(TimeInterval(minutes * 60))
+    }
+    
+    private func updateCustomTimeInput() {
+        let minutes = Int(timeRemaining) / 60
+        customTimeInput = "\(minutes)"
+    }
+    
     private func tick() {
+        print("⏰ Timer tick - timeRemaining: \(timeRemaining)")
         if timeRemaining > 0 {
             timeRemaining -= 1
+            saveTimerState()
         } else {
+            print("🔥 Timer reached 0, calling completeSession()")
             completeSession()
             moveToNextSession()
         }
     }
     
     private func completeSession() {
+        print("🎯 CompleteSession called for session: \(currentSession.title)")
+        lastCompletedSessionType = currentSession
+        
         // Only count work sessions toward stats, not breaks
         if currentSession == .work {
             completedSessions += 1
@@ -410,10 +539,22 @@ class TimerManager: ObservableObject {
             totalFocusMinutes += focusMinutes
             todaySessions += 1
             saveStats()
+            print("📊 Updated stats: completedSessions=\(completedSessions), totalFocusMinutes=\(totalFocusMinutes)")
         }
         
-        // Show notification
+        // Trigger completion notification
+        sessionCompleted = true
+        hasCompletedSession = true
+        print("🔔 About to post notification and send system notification")
+        
+        // Show notification and post to NotificationCenter on main queue
         sendNotification()
+        
+        DispatchQueue.main.async {
+            print("🔔 Timer session completed, posting notification")
+            NotificationCenter.default.post(name: .sessionCompleted, object: nil)
+            print("📢 Posted notification to NotificationCenter")
+        }
     }
     
     private func moveToNextSession() {
@@ -454,16 +595,72 @@ class TimerManager: ObservableObject {
         todaySessions = UserDefaults.standard.integer(forKey: "timer_today_sessions")
     }
     
-    func applyCustomTimeInput() {
-        guard let minutes = Int(customTimeInput), minutes > 0 else { 
-            updateCustomTimeInput() // Reset to current value if invalid
-            return 
+    private func saveTimerState() {
+        UserDefaults.standard.set(timeRemaining, forKey: "timer_time_remaining")
+        UserDefaults.standard.set(totalDuration, forKey: "timer_total_duration")
+        UserDefaults.standard.set(isRunning, forKey: "timer_is_running")
+        UserDefaults.standard.set(currentSession.rawValue, forKey: "timer_current_session")
+        UserDefaults.standard.set(customDuration, forKey: "timer_custom_duration")
+        
+        if let startTime = startTime {
+            UserDefaults.standard.set(startTime, forKey: "timer_start_time")
         }
-        setCustomTime(TimeInterval(minutes * 60))
     }
     
-    private func updateCustomTimeInput() {
-        let minutes = Int(timeRemaining) / 60
-        customTimeInput = "\(minutes)"
+    private func loadTimerState() {
+        timeRemaining = UserDefaults.standard.double(forKey: "timer_time_remaining")
+        totalDuration = UserDefaults.standard.double(forKey: "timer_total_duration")
+        isRunning = UserDefaults.standard.bool(forKey: "timer_is_running")
+        customDuration = UserDefaults.standard.object(forKey: "timer_custom_duration") as? TimeInterval
+        
+        if let sessionRaw = UserDefaults.standard.string(forKey: "timer_current_session"),
+           let session = SessionType(rawValue: sessionRaw) {
+            currentSession = session
+        }
+        
+        // Handle time that passed while app was closed
+        if isRunning, let savedStartTime = UserDefaults.standard.object(forKey: "timer_start_time") as? Date {
+            let elapsedTime = Date().timeIntervalSince(savedStartTime)
+            let adjustedTimeRemaining = timeRemaining - elapsedTime
+            
+            if adjustedTimeRemaining <= 0 {
+                // Session completed while app was closed
+                timeRemaining = 0
+                isRunning = false
+                hasCompletedSession = true
+                lastCompletedSessionType = currentSession
+                completeSession()
+                moveToNextSession()
+            } else {
+                timeRemaining = adjustedTimeRemaining
+            }
+        }
+        
+        // Set defaults if nothing was saved
+        if timeRemaining == 0 && totalDuration == 0 {
+            timeRemaining = currentSession.defaultDuration
+            totalDuration = currentSession.defaultDuration
+        }
     }
+}
+
+extension SessionType: RawRepresentable {
+    var rawValue: String {
+        switch self {
+        case .work: return "work"
+        case .shortBreak: return "shortBreak"
+        }
+    }
+    
+    init?(rawValue: String) {
+        switch rawValue {
+        case "work": self = .work
+        case "shortBreak": self = .shortBreak
+        default: return nil
+        }
+    }
+}
+
+extension Notification.Name {
+    static let sessionCompleted = Notification.Name("sessionCompleted")
 } 

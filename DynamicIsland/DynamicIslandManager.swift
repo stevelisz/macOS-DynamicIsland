@@ -7,8 +7,10 @@ class DynamicIslandManager: ObservableObject {
     private var hideTimer: Timer?
     
     init() {
+        print("🏗️ DynamicIslandManager initializing")
         setupNotifications()
         mouseMonitor.startMonitoring()
+        print("✅ DynamicIslandManager initialized and listening for notifications")
     }
     
     deinit {
@@ -72,6 +74,16 @@ class DynamicIslandManager: ObservableObject {
         ) { [weak self] _ in
             self?.resumeAutoHide() // Re-enable auto-hide when back to notch
         }
+        
+        // Add session completion notification
+        NotificationCenter.default.addObserver(
+            forName: .sessionCompleted,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            print("🎯 DynamicIslandManager received session completion notification")
+            self?.showDynamicIslandForSessionCompletion()
+        }
     }
     
     func toggleDynamicIsland() {
@@ -119,6 +131,23 @@ class DynamicIslandManager: ObservableObject {
         }
     }
     
+    func showDynamicIslandForSessionCompletion() {
+        print("🚀 Showing Dynamic Island for session completion")
+        
+        // Show the Dynamic Island
+        showDynamicIsland()
+        
+        // Switch to timer tab automatically
+        UserDefaults.standard.lastSelectedTab = .timer
+        
+        // Extend auto-hide timer for session completion (longer display time)
+        if let win = window, !win.isDetached {
+            scheduleAutoHideForCompletion()
+        }
+        
+        print("✅ Dynamic Island shown for session completion")
+    }
+    
     func hideDynamicIsland() {
         guard let window = window else { return }
         
@@ -140,6 +169,16 @@ class DynamicIslandManager: ObservableObject {
         // Only auto-hide if not detached
         if let win = window, win.isDetached { return }
         hideTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
+            self?.hideDynamicIsland()
+        }
+    }
+    
+    private func scheduleAutoHideForCompletion() {
+        hideTimer?.invalidate()
+        // Only auto-hide if not detached
+        if let win = window, win.isDetached { return }
+        // Longer timer for session completion (8 seconds)
+        hideTimer = Timer.scheduledTimer(withTimeInterval: 8.0, repeats: false) { [weak self] _ in
             self?.hideDynamicIsland()
         }
     }
