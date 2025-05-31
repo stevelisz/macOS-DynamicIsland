@@ -5,8 +5,9 @@ import Foundation
 class DynamicIslandWindow: NSPanel {
     private var trackingArea: NSTrackingArea?
     var isDetached: Bool = false
-    private let notchThreshold: CGFloat = 10 // px
+    private let notchThreshold: CGFloat = 30 // Increased from 10px to 30px for less sensitivity
     private let headerHeight: CGFloat = 140 // Updated to match SwiftUI header
+    private var positionMonitorTimer: Timer?
     
     init() {
         super.init(
@@ -17,6 +18,7 @@ class DynamicIslandWindow: NSPanel {
         )
         
         setupWindow()
+        startPositionMonitoring()
     }
     
     private func setupWindow() {
@@ -42,6 +44,7 @@ class DynamicIslandWindow: NSPanel {
     
     deinit {
         NotificationCenter.default.removeObserver(self)
+        positionMonitorTimer?.invalidate()
     }
     
     override func makeKeyAndOrderFront(_ sender: Any?) {
@@ -91,24 +94,43 @@ class DynamicIslandWindow: NSPanel {
     
     override func setFrameOrigin(_ point: NSPoint) {
         super.setFrameOrigin(point)
-        
+        checkDetachment()
+    }
+    
+    override func setFrame(_ frameRect: NSRect, display: Bool) {
+        super.setFrame(frameRect, display: display)
+        checkDetachment()
+    }
+    
+    override func setFrame(_ frameRect: NSRect, display: Bool, animate: Bool) {
+        super.setFrame(frameRect, display: display, animate: animate)
+        checkDetachment()
+    }
+    
+    private func checkDetachment() {
         // Check if window has been moved away from notch area
         guard let screen = NSScreen.main else { return }
         let screenFrame = screen.frame
         let notchX = (screenFrame.width - self.frame.width) / 2
         let notchY = screenFrame.height - self.frame.height - 40
-        let dx = abs(point.x - notchX)
-        let dy = abs(point.y - notchY)
+        let dx = abs(self.frame.origin.x - notchX)
+        let dy = abs(self.frame.origin.y - notchY)
         
         let wasDetached = isDetached
         isDetached = dx > notchThreshold || dy > notchThreshold
         
+        // Debug logging - always show current state
+        print("DynamicIsland: Position check - x: \(self.frame.origin.x), y: \(self.frame.origin.y), notchX: \(notchX), notchY: \(notchY)")
+        print("DynamicIsland: Distance - dx: \(dx), dy: \(dy), threshold: \(notchThreshold), isDetached: \(isDetached)")
+        
         // If window just became detached, notify the manager to disable auto-hide
         if !wasDetached && isDetached {
+            print("DynamicIsland: Window detached - disabling auto-hide")
             NotificationCenter.default.post(name: .dynamicIslandDetached, object: nil)
         }
         // If window was moved back to notch area, re-enable auto-hide
         else if wasDetached && !isDetached {
+            print("DynamicIsland: Window attached - enabling auto-hide")
             NotificationCenter.default.post(name: .dynamicIslandAttached, object: nil)
         }
     }
@@ -116,6 +138,12 @@ class DynamicIslandWindow: NSPanel {
     func resetToNotch() {
         isDetached = false
         positionNearNotch()
+    }
+    
+    private func startPositionMonitoring() {
+        positionMonitorTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.checkDetachment()
+        }
     }
 }
 

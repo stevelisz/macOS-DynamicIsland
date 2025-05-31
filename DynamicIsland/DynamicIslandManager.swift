@@ -198,16 +198,38 @@ class DynamicIslandManager: ObservableObject {
         }
     }
     
-    private func pauseAutoHide() {
-        hideTimer?.invalidate()
-        hideTimer = nil
+    private func resumeAutoHide() {
+        // Debug: Check window state
+        if let win = window {
+            print("DynamicIsland: resumeAutoHide called - isDetached: \(win.isDetached), isSheetPresented: \(isSheetPresented)")
+        } else {
+            print("DynamicIsland: resumeAutoHide called - no window")
+        }
+        
+        // Don't auto-hide if detached
+        if let win = window, win.isDetached {
+            print("DynamicIsland: Auto-hide skipped - window is detached")
+            return
+        }
+        
+        // Don't auto-hide if a sheet is presented
+        if isSheetPresented {
+            print("DynamicIsland: Auto-hide skipped - sheet is presented")
+            return
+        }
+        
+        print("DynamicIsland: Scheduling auto-hide")
+        scheduleAutoHide()
     }
     
-    private func resumeAutoHide() {
-        // Don't auto-hide if detached or if a sheet is presented
-        if let win = window, win.isDetached { return }
-        if isSheetPresented { return }
-        scheduleAutoHide()
+    private func pauseAutoHide() {
+        if let win = window {
+            print("DynamicIsland: Auto-hide paused - isDetached: \(win.isDetached)")
+        } else {
+            print("DynamicIsland: Auto-hide paused - no window")
+        }
+        hideTimer?.invalidate()
+        hideTimer = nil
     }
     
     private func onSheetPresented() {

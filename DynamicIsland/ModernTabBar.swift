@@ -5,6 +5,7 @@ struct ModernTabBar: View {
     @Binding var enabledTabs: Set<MainViewType>
     @State private var hoveredTab: MainViewType? = nil
     @State private var draggedTab: MainViewType? = nil
+    @State private var tabOrder: [MainViewType] = UserDefaults.standard.tabOrder
     
     private let tabData: [MainViewType: (String, String, Color)] = [
         .clipboard: ("doc.on.clipboard.fill", "Clipboard", DesignSystem.Colors.clipboard),
@@ -17,10 +18,9 @@ struct ModernTabBar: View {
         .aiAssistant: ("brain.head.profile", "AI Assistant", DesignSystem.Colors.system)
     ]
     
-    // Get enabled tabs in the stored order
+    // Get enabled tabs in the current order
     private var orderedEnabledTabs: [MainViewType] {
-        let order = UserDefaults.standard.tabOrder
-        return order.filter { enabledTabs.contains($0) }
+        return tabOrder.filter { enabledTabs.contains($0) }
     }
     
     var body: some View {
@@ -36,12 +36,16 @@ struct ModernTabBar: View {
                             isSelected: selectedView == tabType,
                             isHovered: hoveredTab == tabType,
                             isDragged: draggedTab == tabType,
-                            index: index
-                        ) {
-                            withAnimation(DesignSystem.Animation.bounce) {
-                                selectedView = tabType
+                            index: index,
+                            onTap: {
+                                withAnimation(DesignSystem.Animation.bounce) {
+                                    selectedView = tabType
+                                }
+                            },
+                            onDrop: { droppedTab in
+                                moveTab(from: droppedTab, to: tabType)
                             }
-                        }
+                        )
                         .onHover { isHovered in
                             withAnimation(DesignSystem.Animation.gentle) {
                                 hoveredTab = isHovered ? tabType : nil
@@ -54,6 +58,26 @@ struct ModernTabBar: View {
         }
         .scrollDisabled(orderedEnabledTabs.count <= 3)
         .animation(DesignSystem.Animation.smooth, value: enabledTabs)
+        .animation(DesignSystem.Animation.smooth, value: tabOrder)
+        .onAppear {
+            tabOrder = UserDefaults.standard.tabOrder
+        }
+        .onChange(of: enabledTabs) { _, _ in
+            // Refresh tab order when enabled tabs change
+            tabOrder = UserDefaults.standard.tabOrder
+        }
+    }
+    
+    private func moveTab(from source: MainViewType, to target: MainViewType) {
+        guard let sourceIndex = tabOrder.firstIndex(of: source),
+              let targetIndex = tabOrder.firstIndex(of: target) else { return }
+        
+        // Update local state immediately
+        let movedTab = tabOrder.remove(at: sourceIndex)
+        tabOrder.insert(movedTab, at: targetIndex)
+        
+        // Also persist to UserDefaults
+        UserDefaults.standard.tabOrder = tabOrder
     }
 }
 
@@ -122,7 +146,8 @@ struct DraggableTabButton: View {
     let isHovered: Bool
     let isDragged: Bool
     let index: Int
-    let action: () -> Void
+    let onTap: () -> Void
+    let onDrop: (MainViewType) -> Void
     
     @State private var isDropTarget = false
     
@@ -174,7 +199,7 @@ struct DraggableTabButton: View {
         .animation(DesignSystem.Animation.gentle, value: isHovered)
         .animation(DesignSystem.Animation.gentle, value: isDropTarget)
         .onTapGesture {
-            action()
+            onTap()
         }
         .draggable(type) {
             // Drag preview
@@ -188,12 +213,8 @@ struct DraggableTabButton: View {
             guard let droppedTab = droppedTabs.first,
                   droppedTab != type else { return false }
             
-            // Move the tab
-            let order = UserDefaults.standard.tabOrder
-            guard let sourceIndex = order.firstIndex(of: droppedTab),
-                  let targetIndex = order.firstIndex(of: type) else { return false }
+            onDrop(droppedTab)
             
-            UserDefaults.standard.moveTab(from: sourceIndex, to: targetIndex)
             return true
         } isTargeted: { isTargeted in
             withAnimation(DesignSystem.Animation.gentle) {
