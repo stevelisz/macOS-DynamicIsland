@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import Foundation
 import Combine
+import ServiceManagement
 
 struct DynamicIslandView: View {
     @Environment(\.colorScheme) var colorScheme
@@ -15,6 +16,7 @@ struct DynamicIslandView: View {
     @State private var enabledTabs: Set<MainViewType> = UserDefaults.standard.enabledTabs
     @State private var isPopped: Bool = false
     @StateObject private var clipboardWatcher = GlobalClipboardWatcher.shared
+    @AppStorage("launchAtLogin") private var launchAtLogin = false
     
     var body: some View {
         ZStack(alignment: .top) {
@@ -52,68 +54,7 @@ struct DynamicIslandView: View {
             
             VStack(spacing: 0) {
                 // Top controls - positioned at the very top with safe padding
-                HStack(spacing: DesignSystem.Spacing.md) {
-                    Spacer()
-                    
-                    // Tab Selector Dropdown - positioned to the left of three dots
-                    TabSelectorDropdown(selectedView: $selectedView, enabledTabs: $enabledTabs)
-                    
-                    // Quick Actions Menu - Single button only
-                    HeaderMenuButton(
-                        icon: "ellipsis.circle",
-                        color: DesignSystem.Colors.textSecondary
-                    ) {
-                        Button(action: {
-                            if let url = URL(string: "x-apple.systempreferences:") {
-                                NSWorkspace.shared.open(url)
-                            } else {
-                                let settingsURL = URL(fileURLWithPath: "/System/Applications/System Preferences.app")
-                                NSWorkspace.shared.open(settingsURL)
-                            }
-                        }) {
-                            HStack {
-                                Image(systemName: "gearshape.fill")
-                                    .foregroundColor(DesignSystem.Colors.system)
-                                Text("System Settings")
-                                    .font(DesignSystem.Typography.body)
-                            }
-                        }
-                        
-                        Button(action: {
-                            let activityMonitorURL = URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app")
-                            NSWorkspace.shared.open(activityMonitorURL)
-                        }) {
-                            HStack {
-                                Image(systemName: "chart.bar.fill")
-                                    .foregroundColor(DesignSystem.Colors.success)
-                                Text("Activity Monitor")
-                                    .font(DesignSystem.Typography.body)
-                            }
-                        }
-                        
-                        Button(action: {
-                            let terminalURL = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
-                            NSWorkspace.shared.open(terminalURL)
-                        }) {
-                            HStack {
-                                Image(systemName: "terminal.fill")
-                                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                                Text("Terminal")
-                                    .font(DesignSystem.Typography.body)
-                            }
-                        }
-                    }
-                    
-                    // Close button - properly spaced
-                    HeaderButton(
-                        icon: "xmark",
-                        color: DesignSystem.Colors.textSecondary,
-                        action: closeDynamicIsland
-                    )
-                }
-                .padding(.horizontal, DesignSystem.Spacing.xxl)
-                .padding(.top, DesignSystem.Spacing.micro)
-                .padding(.bottom, DesignSystem.Spacing.xs)
+                headerControls
                 
                 // Enhanced Tab Navigation
                 ModernTabBar(selectedView: $selectedView, enabledTabs: $enabledTabs)
@@ -203,6 +144,85 @@ struct DynamicIslandView: View {
         }
     }
     
+    private var headerControls: some View {
+        HStack(spacing: DesignSystem.Spacing.md) {
+            Spacer()
+            
+            // Tab Selector Dropdown - positioned to the left of control icons
+            TabSelectorDropdown(selectedView: $selectedView, enabledTabs: $enabledTabs)
+            
+            // Settings Menu
+            HeaderMenuButton(
+                icon: "gearshape",
+                color: DesignSystem.Colors.textSecondary
+            ) {
+                Toggle("Launch at Login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { _, newValue in
+                        setLaunchAtLogin(enabled: newValue)
+                    }
+                
+                Divider()
+                
+                Button(action: {
+                    if let url = URL(string: "x-apple.systempreferences:") {
+                        NSWorkspace.shared.open(url)
+                    } else {
+                        let settingsURL = URL(fileURLWithPath: "/System/Applications/System Preferences.app")
+                        NSWorkspace.shared.open(settingsURL)
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "gearshape.fill")
+                            .foregroundColor(DesignSystem.Colors.system)
+                        Text("System Settings")
+                            .font(DesignSystem.Typography.body)
+                    }
+                }
+                
+                Button(action: {
+                    let activityMonitorURL = URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app")
+                    NSWorkspace.shared.open(activityMonitorURL)
+                }) {
+                    HStack {
+                        Image(systemName: "chart.bar.fill")
+                            .foregroundColor(DesignSystem.Colors.success)
+                        Text("Activity Monitor")
+                            .font(DesignSystem.Typography.body)
+                    }
+                }
+                
+                Button(action: {
+                    let terminalURL = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
+                    NSWorkspace.shared.open(terminalURL)
+                }) {
+                    HStack {
+                        Image(systemName: "terminal.fill")
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        Text("Terminal")
+                            .font(DesignSystem.Typography.body)
+                    }
+                }
+            }
+            
+            // Power/Quit button
+            HeaderButton(
+                icon: "power",
+                color: DesignSystem.Colors.error,
+                action: quitApplication
+            )
+            
+            // Close button - properly spaced
+            HeaderButton(
+                icon: "xmark",
+                color: DesignSystem.Colors.textSecondary,
+                action: closeDynamicIsland
+            )
+        }
+        .padding(.horizontal, DesignSystem.Spacing.xxl)
+        .padding(.top, DesignSystem.Spacing.micro)
+        .padding(.bottom, DesignSystem.Spacing.xs)
+    }
+    
     private var sectionTitle: String {
         switch selectedView {
         case .clipboard: return "History"
@@ -212,6 +232,18 @@ struct DynamicIslandView: View {
         case .timer: return "Timer"
         case .unitConverter: return "Unit Converter"
         case .developerTools: return "Developer Tools"
+        }
+    }
+    
+    private func setLaunchAtLogin(enabled: Bool) {
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            print("Failed to \(enabled ? "enable" : "disable") launch at login: \(error)")
         }
     }
     
@@ -237,8 +269,13 @@ struct DynamicIslandView: View {
         }
         return true
     }
+    
     private func closeDynamicIsland() {
         NotificationCenter.default.post(name: .closeDynamicIsland, object: nil)
+    }
+    
+    private func quitApplication() {
+        NSApplication.shared.terminate(nil)
     }
 }
 

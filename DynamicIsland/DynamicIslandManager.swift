@@ -2,11 +2,13 @@ import SwiftUI
 import Cocoa
 
 class DynamicIslandManager: ObservableObject {
+    static let shared = DynamicIslandManager()
+    
     private var window: DynamicIslandWindow?
     private var mouseMonitor = MouseEventMonitor()
     private var hideTimer: Timer?
     
-    init() {
+    private init() {
         print("🏗️ DynamicIslandManager initializing")
         setupNotifications()
         mouseMonitor.startMonitoring()
