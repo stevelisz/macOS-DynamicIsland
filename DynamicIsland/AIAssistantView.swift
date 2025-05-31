@@ -317,7 +317,7 @@ struct OllamaInstructionsSheet: View {
                         InstructionStep(
                             number: 2,
                             title: "Start Ollama",
-                            description: "Open Terminal and run: ollama serve",
+                            description: "Run Ollama App from Launchpad or open Terminal and run: ollama serve",
                             action: "Copy Command",
                             copyText: "ollama serve"
                         )
@@ -325,7 +325,7 @@ struct OllamaInstructionsSheet: View {
                         InstructionStep(
                             number: 3,
                             title: "Download a Model",
-                            description: "Download a recommended model like Llama 3.2",
+                            description: "Open Terminal and download a recommended model like Llama 3.2",
                             action: "Copy Command",
                             copyText: "ollama pull llama3.2:3b"
                         )
