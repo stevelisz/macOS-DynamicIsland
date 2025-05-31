@@ -155,6 +155,8 @@ struct DynamicIslandView: View {
                             SystemMonitorView()
                         case .weather:
                             WeatherView()
+                        case .timer:
+                            TimerView()
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -203,6 +205,7 @@ struct DynamicIslandView: View {
         case .quickApp: return "Quick Apps"
         case .systemMonitor: return "System Usage"
         case .weather: return "Weather"
+        case .timer: return "Timer"
         }
     }
     
@@ -238,6 +241,7 @@ enum MainViewType {
     case quickApp
     case systemMonitor
     case weather
+    case timer
 }
 
 class GlobalClipboardWatcher: ClipboardWatcher {

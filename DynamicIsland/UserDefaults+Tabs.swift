@@ -26,7 +26,7 @@ extension UserDefaults {
                 return Set(enabledTypes)
             }
             // Default: all tabs enabled
-            return Set([.clipboard, .quickApp, .systemMonitor, .weather])
+            return Set([.clipboard, .quickApp, .systemMonitor, .weather, .timer])
         }
         set {
             let rawValues = newValue.map { $0.rawValue }
@@ -42,6 +42,7 @@ extension MainViewType: RawRepresentable {
         case .quickApp: return "quickApp"
         case .systemMonitor: return "systemMonitor"
         case .weather: return "weather"
+        case .timer: return "timer"
         }
     }
     
@@ -51,6 +52,7 @@ extension MainViewType: RawRepresentable {
         case "quickApp": self = .quickApp
         case "systemMonitor": self = .systemMonitor
         case "weather": self = .weather
+        case "timer": self = .timer
         default: return nil
         }
     }

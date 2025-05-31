@@ -8,7 +8,8 @@ struct TabSelectorDropdown: View {
         (.clipboard, "doc.on.clipboard.fill", "Clipboard", DesignSystem.Colors.clipboard),
         (.quickApp, "app.fill", "Apps", DesignSystem.Colors.apps),
         (.systemMonitor, "gauge.high", "System", DesignSystem.Colors.system),
-        (.weather, "cloud.sun.fill", "Weather", DesignSystem.Colors.primary)
+        (.weather, "cloud.sun.fill", "Weather", DesignSystem.Colors.primary),
+        (.timer, "timer", "Timer", DesignSystem.Colors.success)
     ]
     
     var body: some View {
@@ -92,6 +93,8 @@ extension MainViewType: Hashable {
             hasher.combine(2)
         case .weather:
             hasher.combine(3)
+        case .timer:
+            hasher.combine(4)
         }
     }
 } 
