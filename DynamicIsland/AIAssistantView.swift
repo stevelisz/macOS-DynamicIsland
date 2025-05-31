@@ -70,11 +70,12 @@ struct AIAssistantView: View {
                 }) {
                     HStack(spacing: DesignSystem.Spacing.xs) {
                         Image(systemName: "info.circle.fill")
+                            .frame(width: 16, height: 16)
                         Text("Setup Instructions")
                     }
                     .foregroundColor(.white)
-                    .padding(.horizontal, DesignSystem.Spacing.lg)
-                    .padding(.vertical, DesignSystem.Spacing.sm)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 36)
                     .background(DesignSystem.Colors.primary)
                     .cornerRadius(DesignSystem.BorderRadius.lg)
                 }
@@ -84,17 +85,21 @@ struct AIAssistantView: View {
                     startOllama()
                 }) {
                     HStack(spacing: DesignSystem.Spacing.xs) {
-                        if isStartingOllama {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "play.fill")
+                        Group {
+                            if isStartingOllama {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "play.fill")
+                            }
                         }
+                        .frame(width: 16, height: 16)
+                        
                         Text("Start Ollama")
                     }
                     .foregroundColor(.white)
-                    .padding(.horizontal, DesignSystem.Spacing.lg)
-                    .padding(.vertical, DesignSystem.Spacing.sm)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 36)
                     .background(DesignSystem.Colors.success)
                     .cornerRadius(DesignSystem.BorderRadius.lg)
                 }
@@ -107,17 +112,21 @@ struct AIAssistantView: View {
                     }
                 }) {
                     HStack(spacing: DesignSystem.Spacing.xs) {
-                        if ollamaService.isChecking {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
+                        Group {
+                            if ollamaService.isChecking {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                            }
                         }
+                        .frame(width: 16, height: 16)
+                        
                         Text("Check Connection")
                     }
                     .foregroundColor(DesignSystem.Colors.textPrimary)
-                    .padding(.horizontal, DesignSystem.Spacing.lg)
-                    .padding(.vertical, DesignSystem.Spacing.sm)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 36)
                     .background(DesignSystem.Colors.surface)
                     .cornerRadius(DesignSystem.BorderRadius.lg)
                 }
