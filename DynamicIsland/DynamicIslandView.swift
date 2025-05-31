@@ -282,7 +282,7 @@ struct DynamicIslandView: View {
     }
 }
 
-enum MainViewType {
+enum MainViewType: CaseIterable, Codable, Transferable {
     case clipboard
     case quickApp
     case systemMonitor
@@ -291,6 +291,10 @@ enum MainViewType {
     case unitConverter
     case developerTools
     case aiAssistant
+    
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .data)
+    }
 }
 
 class GlobalClipboardWatcher: ClipboardWatcher {

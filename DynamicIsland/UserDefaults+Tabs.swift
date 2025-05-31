@@ -4,6 +4,7 @@ extension UserDefaults {
     private enum Keys {
         static let lastSelectedTab = "lastSelectedTab"
         static let enabledTabs = "enabledTabs"
+        static let tabOrder = "tabOrder"
     }
     
     var lastSelectedTab: MainViewType {
@@ -32,6 +33,31 @@ extension UserDefaults {
             let rawValues = newValue.map { $0.rawValue }
             set(rawValues, forKey: Keys.enabledTabs)
         }
+    }
+    
+    var tabOrder: [MainViewType] {
+        get {
+            if let rawValues = array(forKey: Keys.tabOrder) as? [String] {
+                let orderedTypes = rawValues.compactMap { MainViewType(rawValue: $0) }
+                // If the stored order is incomplete, fill with default order
+                if orderedTypes.count == MainViewType.allCases.count {
+                    return orderedTypes
+                }
+            }
+            // Default order
+            return [.clipboard, .quickApp, .systemMonitor, .weather, .timer, .unitConverter, .developerTools, .aiAssistant]
+        }
+        set {
+            let rawValues = newValue.map { $0.rawValue }
+            set(rawValues, forKey: Keys.tabOrder)
+        }
+    }
+    
+    func moveTab(from sourceIndex: Int, to destinationIndex: Int) {
+        var currentOrder = tabOrder
+        let movedTab = currentOrder.remove(at: sourceIndex)
+        currentOrder.insert(movedTab, at: destinationIndex)
+        tabOrder = currentOrder
     }
 }
 
