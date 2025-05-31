@@ -24,10 +24,6 @@ struct HeaderMenuButton<MenuContent: View>: View {
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(isHovered ? color.opacity(0.8) : color)
                 .frame(width: 24, height: 24)
-                .background(
-                    Circle()
-                        .fill(isHovered ? DesignSystem.Colors.surface : Color.clear)
-                )
                 .scaleEffect(isHovered ? 1.1 : 1.0)
                 .animation(DesignSystem.Animation.gentle, value: isHovered)
         }

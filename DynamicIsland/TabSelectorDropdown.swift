@@ -49,16 +49,6 @@ struct TabSelectorDropdown: View {
             Image(systemName: "slider.horizontal.3")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(DesignSystem.Colors.textSecondary)
-                .background(
-                    Circle()
-                        .fill(DesignSystem.Colors.surface.opacity(0.1))
-                        .frame(width: 24, height: 24)
-                )
-                .overlay(
-                    Circle()
-                        .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 0.5)
-                        .frame(width: 24, height: 24)
-                )
         }
         .menuStyle(.button)
         .menuIndicator(.hidden)
