@@ -114,4 +114,6 @@ extension Notification.Name {
     static let mouseNotchStateChanged = Notification.Name("mouseNotchStateChanged")
     static let closeDynamicIsland = Notification.Name("closeDynamicIsland")
     static let notchFileDragEntered = Notification.Name("notchFileDragEntered")
+    static let sheetPresented = Notification.Name("sheetPresented")
+    static let sheetDismissed = Notification.Name("sheetDismissed")
 }

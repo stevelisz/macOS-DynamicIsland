@@ -7,6 +7,7 @@ class DynamicIslandManager: ObservableObject {
     private var window: DynamicIslandWindow?
     private var mouseMonitor = MouseEventMonitor()
     private var hideTimer: Timer?
+    private var isSheetPresented = false // Track sheet presentation
     
     private init() {
         setupNotifications()
@@ -82,6 +83,23 @@ class DynamicIslandManager: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             self?.showDynamicIslandForSessionCompletion()
+        }
+        
+        // Add sheet presentation notifications
+        NotificationCenter.default.addObserver(
+            forName: .sheetPresented,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.onSheetPresented()
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: .sheetDismissed,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.onSheetDismissed()
         }
     }
     
@@ -186,8 +204,19 @@ class DynamicIslandManager: ObservableObject {
     }
     
     private func resumeAutoHide() {
-        // Only auto-hide if not detached
+        // Don't auto-hide if detached or if a sheet is presented
         if let win = window, win.isDetached { return }
+        if isSheetPresented { return }
         scheduleAutoHide()
+    }
+    
+    private func onSheetPresented() {
+        isSheetPresented = true
+        pauseAutoHide()
+    }
+    
+    private func onSheetDismissed() {
+        isSheetPresented = false
+        resumeAutoHide()
     }
 }

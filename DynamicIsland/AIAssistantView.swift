@@ -20,6 +20,13 @@ struct AIAssistantView: View {
         }
         .sheet(isPresented: $showOllamaInstructions) {
             OllamaInstructionsSheet()
+                .interactiveDismissDisabled()
+                .onAppear {
+                    NotificationCenter.default.post(name: .sheetPresented, object: nil)
+                }
+                .onDisappear {
+                    NotificationCenter.default.post(name: .sheetDismissed, object: nil)
+                }
         }
     }
     
@@ -108,7 +115,12 @@ struct AIAssistantView: View {
                     .fill(ollamaService.isGenerating ? DesignSystem.Colors.warning : DesignSystem.Colors.success)
                     .frame(width: 8, height: 8)
                     .scaleEffect(ollamaService.isGenerating ? 1.2 : 1.0)
-                    .animation(DesignSystem.Animation.gentle.repeatForever(autoreverses: true), value: ollamaService.isGenerating)
+                    .animation(
+                        ollamaService.isGenerating ? 
+                        DesignSystem.Animation.gentle.repeatForever(autoreverses: true) : 
+                        DesignSystem.Animation.gentle,
+                        value: ollamaService.isGenerating
+                    )
                 
                 Text(ollamaService.isGenerating ? "Generating..." : "Connected")
                     .font(DesignSystem.Typography.caption)
@@ -268,19 +280,29 @@ struct OllamaInstructionsSheet: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        NavigationView {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Setup Ollama")
+                    .font(DesignSystem.Typography.headline1)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Spacer()
+                
+                Button("Done") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(DesignSystem.Spacing.xl)
+            .background(DesignSystem.Colors.surface.opacity(0.1))
+            
             ScrollView {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
-                    // Header
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                        Text("Setup Ollama")
-                            .font(DesignSystem.Typography.headline1)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        Text("Follow these steps to get AI Assistant working:")
-                            .font(DesignSystem.Typography.body)
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                    }
+                    Text("Follow these steps to get AI Assistant working:")
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                        .padding(.top, DesignSystem.Spacing.md)
                     
                     // Steps
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -315,21 +337,20 @@ struct OllamaInstructionsSheet: View {
                             action: nil
                         )
                     }
-                    
-                    Spacer()
                 }
-                .padding(DesignSystem.Spacing.xl)
-            }
-            .navigationTitle("Setup Instructions")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
+                .padding(.horizontal, DesignSystem.Spacing.xl)
+                .padding(.bottom, DesignSystem.Spacing.xl)
             }
         }
-        .frame(minWidth: 400, minHeight: 500)
+        .frame(minWidth: 500, minHeight: 600)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl))
+        .shadow(
+            color: DesignSystem.Shadows.xl.color,
+            radius: DesignSystem.Shadows.xl.radius,
+            x: DesignSystem.Shadows.xl.x,
+            y: DesignSystem.Shadows.xl.y
+        )
     }
 }
 
