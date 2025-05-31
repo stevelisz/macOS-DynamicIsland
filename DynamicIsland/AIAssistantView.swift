@@ -105,12 +105,14 @@ struct AIAssistantView: View {
             // Connection Status
             HStack(spacing: DesignSystem.Spacing.xs) {
                 Circle()
-                    .fill(DesignSystem.Colors.success)
+                    .fill(ollamaService.isGenerating ? DesignSystem.Colors.warning : DesignSystem.Colors.success)
                     .frame(width: 8, height: 8)
+                    .scaleEffect(ollamaService.isGenerating ? 1.2 : 1.0)
+                    .animation(DesignSystem.Animation.gentle.repeatForever(autoreverses: true), value: ollamaService.isGenerating)
                 
-                Text("Connected")
+                Text(ollamaService.isGenerating ? "Generating..." : "Connected")
                     .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.success)
+                    .foregroundColor(ollamaService.isGenerating ? DesignSystem.Colors.warning : DesignSystem.Colors.success)
             }
             
             Spacer()
@@ -119,24 +121,36 @@ struct AIAssistantView: View {
             if !ollamaService.availableModels.isEmpty {
                 Menu {
                     ForEach(ollamaService.availableModels, id: \.self) { model in
-                        Button(model) {
-                            ollamaService.selectedModel = model
+                        Button(action: {
+                            if !ollamaService.isGenerating {
+                                ollamaService.selectedModel = model
+                            }
+                        }) {
+                            HStack {
+                                Text(model)
+                                if model == ollamaService.selectedModel {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(DesignSystem.Colors.success)
+                                }
+                            }
                         }
+                        .disabled(ollamaService.isGenerating)
                     }
                 } label: {
                     HStack(spacing: DesignSystem.Spacing.xs) {
                         Text(ollamaService.selectedModel)
                             .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                            .foregroundColor(ollamaService.isGenerating ? DesignSystem.Colors.textTertiary : DesignSystem.Colors.textSecondary)
                         
                         Image(systemName: "chevron.down")
                             .font(.system(size: 10))
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                            .foregroundColor(ollamaService.isGenerating ? DesignSystem.Colors.textTertiary : DesignSystem.Colors.textSecondary)
                     }
                 }
                 .menuStyle(.button)
                 .menuIndicator(.hidden)
                 .buttonStyle(.plain)
+                .disabled(ollamaService.isGenerating)
             }
         }
     }

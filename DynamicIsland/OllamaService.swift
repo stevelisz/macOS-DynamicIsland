@@ -8,15 +8,24 @@ class OllamaService: ObservableObject {
     @Published var availableModels: [String] = []
     @Published var selectedModel = "llama3.2:3b"
     @Published var conversationHistory: [ChatMessage] = []
+    @Published var isGenerating = false
     
     private let baseURL = "http://localhost:11434"
-    private var urlSession: URLSession
+    private var quickSession: URLSession // For quick operations like version/tags
+    private var generateSession: URLSession // For slower generate operations
     
     init() {
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 5.0
-        config.timeoutIntervalForResource = 30.0
-        self.urlSession = URLSession(configuration: config)
+        // Quick session for version/tags (5 second timeout)
+        let quickConfig = URLSessionConfiguration.default
+        quickConfig.timeoutIntervalForRequest = 5.0
+        quickConfig.timeoutIntervalForResource = 10.0
+        self.quickSession = URLSession(configuration: quickConfig)
+        
+        // Generate session for model inference (longer timeout)
+        let generateConfig = URLSessionConfiguration.default
+        generateConfig.timeoutIntervalForRequest = 120.0 // 2 minutes
+        generateConfig.timeoutIntervalForResource = 300.0 // 5 minutes
+        self.generateSession = URLSession(configuration: generateConfig)
     }
     
     // MARK: - Connection Management
@@ -27,7 +36,7 @@ class OllamaService: ObservableObject {
         
         do {
             let url = URL(string: "\(baseURL)/api/version")!
-            let (_, response) = try await urlSession.data(from: url)
+            let (_, response) = try await quickSession.data(from: url)
             
             if let httpResponse = response as? HTTPURLResponse,
                httpResponse.statusCode == 200 {
@@ -37,6 +46,7 @@ class OllamaService: ObservableObject {
                 isConnected = false
             }
         } catch {
+            print("Connection check failed: \(error)")
             isConnected = false
         }
     }
@@ -46,19 +56,27 @@ class OllamaService: ObservableObject {
         
         do {
             let url = URL(string: "\(baseURL)/api/tags")!
-            let (data, _) = try await urlSession.data(from: url)
+            let (data, _) = try await quickSession.data(from: url)
             
             if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let models = json["models"] as? [[String: Any]] {
                 let modelNames = models.compactMap { $0["name"] as? String }
                 availableModels = modelNames.sorted()
                 
-                // Set default model if available
-                if !modelNames.isEmpty && !modelNames.contains(selectedModel) {
-                    selectedModel = modelNames.first ?? "llama3.2:3b"
+                // Set default model if available - prefer smaller models for better performance
+                if !modelNames.isEmpty {
+                    if !modelNames.contains(selectedModel) {
+                        // Prefer smaller, faster models
+                        if let smallModel = modelNames.first(where: { $0.contains("3b") || $0.contains("7b") }) {
+                            selectedModel = smallModel
+                        } else {
+                            selectedModel = modelNames.first ?? "llama3.2:3b"
+                        }
+                    }
                 }
             }
         } catch {
+            print("Failed to load models: \(error)")
             availableModels = []
         }
     }
@@ -68,6 +86,9 @@ class OllamaService: ObservableObject {
     func sendMessage(_ message: String) async -> String {
         guard isConnected else { return "Error: Ollama is not connected" }
         
+        isGenerating = true
+        defer { isGenerating = false }
+        
         let userMessage = ChatMessage(role: .user, content: message)
         conversationHistory.append(userMessage)
         
@@ -77,29 +98,46 @@ class OllamaService: ObservableObject {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             
+            // Simplified request body without context for now
             let requestBody: [String: Any] = [
                 "model": selectedModel,
                 "prompt": message,
-                "stream": false,
-                "context": buildContext()
+                "stream": false
             ]
             
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
             
-            let (data, _) = try await urlSession.data(for: request)
+            print("Sending request to Ollama with model: \(selectedModel)")
+            let (data, response) = try await generateSession.data(for: request)
             
-            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let response = json["response"] as? String {
-                let assistantMessage = ChatMessage(role: .assistant, content: response)
-                conversationHistory.append(assistantMessage)
-                return response
+            if let httpResponse = response as? HTTPURLResponse {
+                print("HTTP Status: \(httpResponse.statusCode)")
+            }
+            
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                if let errorMessage = json["error"] as? String {
+                    return "Error: \(errorMessage)"
+                }
+                
+                if let responseText = json["response"] as? String {
+                    let assistantMessage = ChatMessage(role: .assistant, content: responseText)
+                    conversationHistory.append(assistantMessage)
+                    return responseText
+                }
             }
             
         } catch {
-            return "Error: \(error.localizedDescription)"
+            print("Generate request failed: \(error)")
+            let errorMsg = error.localizedDescription
+            if errorMsg.contains("timed out") {
+                return "Error: Request timed out. The model might be too large or not loaded. Try a smaller model."
+            } else if errorMsg.contains("Connection refused") {
+                return "Error: Connection refused. Make sure Ollama is running with 'ollama serve'."
+            }
+            return "Error: \(errorMsg)"
         }
         
-        return "Error: Failed to get response"
+        return "Error: Failed to get response from model"
     }
     
     func sendStreamingMessage(_ message: String, onUpdate: @escaping (String) -> Void) async {
@@ -108,6 +146,9 @@ class OllamaService: ObservableObject {
             return 
         }
         
+        isGenerating = true
+        defer { isGenerating = false }
+        
         let userMessage = ChatMessage(role: .user, content: message)
         conversationHistory.append(userMessage)
         
@@ -117,24 +158,37 @@ class OllamaService: ObservableObject {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             
+            // Simplified request body
             let requestBody: [String: Any] = [
                 "model": selectedModel,
                 "prompt": message,
-                "stream": true,
-                "context": buildContext()
+                "stream": true
             ]
             
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
             
-            let (bytes, _) = try await urlSession.bytes(for: request)
+            print("Sending streaming request to Ollama with model: \(selectedModel)")
+            let (bytes, _) = try await generateSession.bytes(for: request)
             var fullResponse = ""
             
             for try await line in bytes.lines {
                 if let data = line.data(using: .utf8),
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let response = json["response"] as? String {
-                    fullResponse += response
-                    onUpdate(fullResponse)
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    
+                    if let errorMessage = json["error"] as? String {
+                        onUpdate("Error: \(errorMessage)")
+                        return
+                    }
+                    
+                    if let response = json["response"] as? String {
+                        fullResponse += response
+                        onUpdate(fullResponse)
+                    }
+                    
+                    // Check if this is the final message
+                    if let done = json["done"] as? Bool, done {
+                        break
+                    }
                 }
             }
             
@@ -144,7 +198,15 @@ class OllamaService: ObservableObject {
             }
             
         } catch {
-            onUpdate("Error: \(error.localizedDescription)")
+            print("Streaming request failed: \(error)")
+            let errorMsg = error.localizedDescription
+            if errorMsg.contains("timed out") {
+                onUpdate("Error: Request timed out. The model might be too large or not loaded. Try a smaller model.")
+            } else if errorMsg.contains("Connection refused") {
+                onUpdate("Error: Connection refused. Make sure Ollama is running with 'ollama serve'.")
+            } else {
+                onUpdate("Error: \(errorMsg)")
+            }
         }
     }
     
