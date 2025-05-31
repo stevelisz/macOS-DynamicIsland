@@ -47,19 +47,6 @@ struct ModernTabBar: View {
                                 hoveredTab = isHovered ? tabType : nil
                             }
                         }
-                        .dropDestination(for: MainViewType.self) { droppedTabs, location in
-                            guard let droppedTab = droppedTabs.first,
-                                  droppedTab != tabType else { return false }
-                            
-                            moveTab(from: droppedTab, to: tabType)
-                            return true
-                        } isTargeted: { isTargeted in
-                            // Visual feedback when hovering over drop target
-                        }
-                        .transition(.asymmetric(
-                            insertion: .scale(scale: 0.8).combined(with: .opacity),
-                            removal: .scale(scale: 0.8).combined(with: .opacity)
-                        ))
                     }
                 }
             }
@@ -67,14 +54,6 @@ struct ModernTabBar: View {
         }
         .scrollDisabled(orderedEnabledTabs.count <= 3)
         .animation(DesignSystem.Animation.smooth, value: enabledTabs)
-    }
-    
-    private func moveTab(from sourceTab: MainViewType, to targetTab: MainViewType) {
-        let order = UserDefaults.standard.tabOrder
-        guard let sourceIndex = order.firstIndex(of: sourceTab),
-              let targetIndex = order.firstIndex(of: targetTab) else { return }
-        
-        UserDefaults.standard.moveTab(from: sourceIndex, to: targetIndex)
     }
 }
 
@@ -145,8 +124,7 @@ struct DraggableTabButton: View {
     let index: Int
     let action: () -> Void
     
-    @State private var dragOffset = CGSize.zero
-    @State private var isDragging = false
+    @State private var isDropTarget = false
     
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.xs) {
@@ -183,46 +161,21 @@ struct DraggableTabButton: View {
                 .fill(isSelected ? DesignSystem.Colors.surfaceElevated : (isHovered ? DesignSystem.Colors.surface : Color.clear))
                 .overlay(
                     RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg, style: .continuous)
-                        .stroke(isSelected ? color.opacity(0.3) : Color.clear, lineWidth: 1)
+                        .stroke(
+                            isDropTarget ? DesignSystem.Colors.primary.opacity(0.5) : 
+                            (isSelected ? color.opacity(0.3) : Color.clear), 
+                            lineWidth: isDropTarget ? 2 : 1
+                        )
                 )
         )
         .scaleEffect(isHovered && !isSelected ? 1.05 : 1.0)
-        .scaleEffect(isDragging ? 1.1 : 1.0)
-        .offset(dragOffset)
-        .opacity(isDragging ? 0.8 : 1.0)
+        .scaleEffect(isDropTarget ? 1.1 : 1.0)
         .animation(DesignSystem.Animation.gentle, value: isSelected)
         .animation(DesignSystem.Animation.gentle, value: isHovered)
-        .animation(DesignSystem.Animation.gentle, value: isDragging)
-        .simultaneousGesture(
-            // Tap gesture for selection
-            TapGesture()
-                .onEnded { _ in
-                    if !isDragging {
-                        action()
-                    }
-                }
-        )
-        .gesture(
-            // Drag gesture for reordering
-            DragGesture(coordinateSpace: .global)
-                .onChanged { value in
-                    if !isDragging && (abs(value.translation.width) > 5 || abs(value.translation.height) > 5) {
-                        isDragging = true
-                    }
-                    if isDragging {
-                        dragOffset = value.translation
-                    }
-                }
-                .onEnded { value in
-                    if isDragging {
-                        // Handle the drop here if needed
-                        withAnimation(DesignSystem.Animation.gentle) {
-                            dragOffset = .zero
-                            isDragging = false
-                        }
-                    }
-                }
-        )
+        .animation(DesignSystem.Animation.gentle, value: isDropTarget)
+        .onTapGesture {
+            action()
+        }
         .draggable(type) {
             // Drag preview
             DragPreview(
@@ -230,6 +183,22 @@ struct DraggableTabButton: View {
                 title: title,
                 color: color
             )
+        }
+        .dropDestination(for: MainViewType.self) { droppedTabs, location in
+            guard let droppedTab = droppedTabs.first,
+                  droppedTab != type else { return false }
+            
+            // Move the tab
+            let order = UserDefaults.standard.tabOrder
+            guard let sourceIndex = order.firstIndex(of: droppedTab),
+                  let targetIndex = order.firstIndex(of: type) else { return false }
+            
+            UserDefaults.standard.moveTab(from: sourceIndex, to: targetIndex)
+            return true
+        } isTargeted: { isTargeted in
+            withAnimation(DesignSystem.Animation.gentle) {
+                isDropTarget = isTargeted
+            }
         }
     }
 }
