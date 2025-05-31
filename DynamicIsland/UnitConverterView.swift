@@ -7,11 +7,17 @@ struct UnitConverterView: View {
     @State private var fromUnit: ConversionUnit = .meter
     @State private var toUnit: ConversionUnit = .feet
     @State private var isEditingInput = false
+    @StateObject private var currencyService = CurrencyService()
     
     var body: some View {
         VStack(spacing: DesignSystem.Spacing.md) {
             // Category Selector
             categorySelector
+            
+            // Currency Rate Info (only for currency)
+            if selectedCategory == .currency {
+                currencyRateInfo
+            }
             
             // Conversion Interface
             conversionInterface
@@ -143,8 +149,15 @@ struct UnitConverterView: View {
     
     private var convertedValue: String {
         guard let inputValue = Double(fromValue) else { return "0" }
-        let converted = fromUnit.convert(inputValue, to: toUnit)
-        return formatNumber(converted)
+        
+        // Use live currency rates for currency conversions
+        if selectedCategory == .currency {
+            let converted = currencyService.convertCurrency(inputValue, from: fromUnit.rawValue, to: toUnit.rawValue)
+            return formatNumber(converted)
+        } else {
+            let converted = fromUnit.convert(inputValue, to: toUnit)
+            return formatNumber(converted)
+        }
     }
     
     private var quickValues: [String] {
@@ -167,6 +180,52 @@ struct UnitConverterView: View {
         case .currency:
             return [(.usd, .eur), (.usd, .gbp), (.eur, .usd), (.gbp, .usd)]
         }
+    }
+    
+    private var currencyRateInfo: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxs) {
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Text("1 \(fromUnit.rawValue) = \(currencyService.getRateString(from: fromUnit.rawValue, to: toUnit.rawValue)) \(toUnit.rawValue)")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    if currencyService.isLoading {
+                        ProgressView()
+                            .scaleEffect(0.6)
+                    }
+                }
+                
+                Text("Updated: \(currencyService.getTimeSinceLastUpdate())")
+                    .font(.system(size: 10))
+                    .foregroundColor(DesignSystem.Colors.textTertiary)
+            }
+            
+            Spacer()
+            
+            Button(action: {
+                Task {
+                    await currencyService.refreshRates()
+                }
+            }) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.primary)
+                    .frame(width: 24, height: 24)
+                    .background(
+                        Circle()
+                            .fill(DesignSystem.Colors.primary.opacity(0.1))
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(currencyService.isLoading)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, DesignSystem.Spacing.xs)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                .fill(DesignSystem.Colors.surface.opacity(0.2))
+        )
     }
     
     // MARK: - Helper Methods
