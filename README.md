@@ -1,4 +1,4 @@
-# 🏝️ macOS Dynamic Island
+# 🏝️ Dynamic Toolbox
 
 A beautiful and powerful Dynamic Island-inspired productivity hub for macOS, bringing iPhone's Dynamic Island experience to your Mac desktop.
 

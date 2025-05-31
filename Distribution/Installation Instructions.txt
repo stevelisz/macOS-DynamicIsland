@@ -1,0 +1,82 @@
+🏝️ Dynamic Toolbox - Installation Instructions
+================================================
+
+Thank you for downloading Dynamic Toolbox! This guide will help you install and set up the app on your Mac.
+
+📋 System Requirements
+=====================
+• macOS 15.1 (Sequoia) or later
+• Intel Mac or Apple Silicon Mac
+• ~20 MB of available disk space
+
+📦 Installation Methods
+======================
+
+Method 1: DMG Installer (Recommended)
+-------------------------------------
+1. Double-click "Dynamic Toolbox.dmg" to mount the disk image
+2. Drag "Dynamic Toolbox.app" to your Applications folder
+3. Eject the disk image when done
+
+Method 2: ZIP Archive
+--------------------
+1. Double-click "Dynamic Toolbox.zip" to extract the app
+2. Drag "Dynamic Toolbox.app" to your Applications folder
+
+🚀 First Launch
+===============
+1. Open "Dynamic Toolbox" from your Applications folder
+2. If macOS shows a security warning:
+   - Click "Cancel" if prompted
+   - Go to System Preferences → Privacy & Security
+   - Look for "Dynamic Toolbox was blocked..." and click "Open Anyway"
+   - Confirm by clicking "Open" in the dialog
+
+3. The app will appear in your menu bar area (notch region)
+4. Click on the notch area to open the Dynamic Island interface
+
+⚙️ Setup & Configuration
+========================
+• Grant location access when prompted (for weather feature)
+• Configure which tabs you want enabled in the settings
+• Add your favorite apps to the Quick Apps launcher
+• Set up custom timer durations in the Pomodoro timer
+
+✨ Features Overview
+==================
+📋 Clipboard Manager - Track and manage clipboard history
+🚀 Quick Apps - Launch your favorite applications instantly
+📊 System Monitor - Real-time system performance metrics  
+🌤️ Weather Display - Current weather for your location
+⏱️ Pomodoro Timer - Focus sessions with break reminders
+📐 Unit Converter - Convert between different units
+⚙️ Developer Tools - JSON formatter, Base64 encoder, hash generator
+
+🛠️ Troubleshooting
+==================
+If you encounter any issues:
+
+1. Permission Issues:
+   - Go to System Preferences → Privacy & Security
+   - Ensure Dynamic Toolbox has necessary permissions
+
+2. App Won't Launch:
+   - Right-click the app and select "Open"
+   - Or run: xattr -cr "Dynamic Toolbox.app" in Terminal
+
+3. Performance Issues:
+   - Quit and restart the app
+   - Check Activity Monitor for resource usage
+
+📞 Support
+==========
+For additional help or to report issues:
+• Check the README.md file in the source code
+• Create an issue on the project repository
+
+🙏 Acknowledgments
+=================
+Dynamic Toolbox is inspired by Apple's Dynamic Island design and built with SwiftUI for macOS. Thank you for using our productivity tool!
+
+---
+Made with ❤️ for macOS productivity enthusiasts 
