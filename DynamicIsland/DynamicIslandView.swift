@@ -159,6 +159,8 @@ struct DynamicIslandView: View {
                             TimerView()
                         case .unitConverter:
                             UnitConverterView()
+                        case .developerTools:
+                            DeveloperToolsView()
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -209,6 +211,7 @@ struct DynamicIslandView: View {
         case .weather: return "Weather"
         case .timer: return "Timer"
         case .unitConverter: return "Unit Converter"
+        case .developerTools: return "Developer Tools"
         }
     }
     
@@ -246,6 +249,7 @@ enum MainViewType {
     case weather
     case timer
     case unitConverter
+    case developerTools
 }
 
 class GlobalClipboardWatcher: ClipboardWatcher {
