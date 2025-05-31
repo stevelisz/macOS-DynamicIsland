@@ -59,8 +59,7 @@ struct TabSelectorDropdown: View {
                         .frame(width: 24, height: 24)
                 )
         }
-        .buttonStyle(PlainButtonStyle())
-        .menuStyle(BorderlessButtonMenuStyle())
+        .menuStyle(.button)
         .menuIndicator(.hidden)
         .frame(width: 28, height: 28)
         .clipped()

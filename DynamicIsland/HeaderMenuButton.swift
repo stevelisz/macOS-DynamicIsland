@@ -31,7 +31,10 @@ struct HeaderMenuButton<MenuContent: View>: View {
                 .scaleEffect(isHovered ? 1.1 : 1.0)
                 .animation(DesignSystem.Animation.gentle, value: isHovered)
         }
-        .menuStyle(BorderlessButtonMenuStyle())
+        .buttonStyle(.plain)
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .frame(width: 28, height: 28)
         .onHover { isHovered = $0 }
     }
 } 
