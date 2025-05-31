@@ -281,8 +281,7 @@ struct CategoryButton: View {
                     .lineLimit(1)
             }
             .foregroundColor(isSelected ? .white : DesignSystem.Colors.textSecondary)
-            .padding(.horizontal, DesignSystem.Spacing.sm)
-            .padding(.vertical, DesignSystem.Spacing.sm)
+            .frame(width: 70, height: 60)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                     .fill(isSelected ? category.color : DesignSystem.Colors.surface.opacity(0.3))
