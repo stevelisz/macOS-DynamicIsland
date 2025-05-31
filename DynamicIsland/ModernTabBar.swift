@@ -10,7 +10,8 @@ struct ModernTabBar: View {
         (.quickApp, "app.fill", "Apps", DesignSystem.Colors.apps),
         (.systemMonitor, "gauge.high", "System", DesignSystem.Colors.system),
         (.weather, "cloud.sun.fill", "Weather", DesignSystem.Colors.primary),
-        (.timer, "timer", "Timer", DesignSystem.Colors.success)
+        (.timer, "timer", "Timer", DesignSystem.Colors.success),
+        (.unitConverter, "arrow.triangle.2.circlepath", "Converter", DesignSystem.Colors.files)
     ]
     
     // Filter tabs to only show enabled ones
