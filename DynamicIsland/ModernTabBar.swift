@@ -19,33 +19,35 @@ struct ModernTabBar: View {
     }
     
     var body: some View {
-        HStack(spacing: DesignSystem.Spacing.xs) {
-            ForEach(Array(enabledTabsList.enumerated()), id: \.offset) { index, tab in
-                TabButton(
-                    type: tab.0,
-                    icon: tab.1,
-                    title: tab.2,
-                    color: tab.3,
-                    isSelected: selectedView == tab.0,
-                    isHovered: hoveredTab == tab.0
-                ) {
-                    withAnimation(DesignSystem.Animation.bounce) {
-                        selectedView = tab.0
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ForEach(Array(enabledTabsList.enumerated()), id: \.offset) { index, tab in
+                    TabButton(
+                        type: tab.0,
+                        icon: tab.1,
+                        title: tab.2,
+                        color: tab.3,
+                        isSelected: selectedView == tab.0,
+                        isHovered: hoveredTab == tab.0
+                    ) {
+                        withAnimation(DesignSystem.Animation.bounce) {
+                            selectedView = tab.0
+                        }
                     }
-                }
-                .onHover { isHovered in
-                    withAnimation(DesignSystem.Animation.gentle) {
-                        hoveredTab = isHovered ? tab.0 : nil
+                    .onHover { isHovered in
+                        withAnimation(DesignSystem.Animation.gentle) {
+                            hoveredTab = isHovered ? tab.0 : nil
+                        }
                     }
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.8).combined(with: .opacity),
+                        removal: .scale(scale: 0.8).combined(with: .opacity)
+                    ))
                 }
-                .transition(.asymmetric(
-                    insertion: .scale(scale: 0.8).combined(with: .opacity),
-                    removal: .scale(scale: 0.8).combined(with: .opacity)
-                ))
             }
-            
-            Spacer()
+            .padding(.horizontal, DesignSystem.Spacing.xs)
         }
+        .scrollDisabled(enabledTabsList.count <= 3) // Only enable scrolling if more than 3 tabs
         .animation(DesignSystem.Animation.smooth, value: enabledTabs)
     }
 }
@@ -84,6 +86,8 @@ struct TabButton: View {
                             insertion: .scale(scale: 0.8).combined(with: .opacity),
                             removal: .scale(scale: 0.8).combined(with: .opacity)
                         ))
+                        .lineLimit(1)
+                        .fixedSize()
                 }
             }
             .padding(.horizontal, DesignSystem.Spacing.xs)
