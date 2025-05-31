@@ -4,6 +4,7 @@ struct AIAssistantView: View {
     @StateObject private var ollamaService = OllamaService()
     @State private var selectedTool: AITool = .chat
     @State private var showOllamaInstructions = false
+    @State private var isStartingOllama = false
     
     var body: some View {
         Group {
@@ -78,6 +79,27 @@ struct AIAssistantView: View {
                     .cornerRadius(DesignSystem.BorderRadius.lg)
                 }
                 .buttonStyle(.plain)
+                
+                Button(action: {
+                    startOllama()
+                }) {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        if isStartingOllama {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "play.fill")
+                        }
+                        Text("Start Ollama")
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+                    .background(DesignSystem.Colors.success)
+                    .cornerRadius(DesignSystem.BorderRadius.lg)
+                }
+                .buttonStyle(.plain)
+                .disabled(isStartingOllama)
                 
                 Button(action: {
                     Task {
@@ -202,6 +224,52 @@ struct AIAssistantView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(DesignSystem.Animation.smooth, value: selectedTool)
+    }
+    
+    // MARK: - Helper Functions
+    
+    private func startOllama() {
+        isStartingOllama = true
+        
+        Task {
+            do {
+                // Try to launch Ollama.app from Applications folder
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                process.arguments = ["-a", "Ollama"]
+                
+                try process.run()
+                process.waitUntilExit()
+                
+                // Wait a moment for Ollama to start up
+                try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+                
+                // Check if Ollama is now running
+                await ollamaService.checkConnection()
+                
+            } catch {
+                print("Failed to start Ollama: \(error)")
+                
+                // Fallback: try the direct path approach
+                do {
+                    let fallbackProcess = Process()
+                    fallbackProcess.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                    fallbackProcess.arguments = ["/Applications/Ollama.app"]
+                    
+                    try fallbackProcess.run()
+                    fallbackProcess.waitUntilExit()
+                    
+                    // Wait for startup
+                    try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+                    await ollamaService.checkConnection()
+                    
+                } catch {
+                    print("Fallback also failed: \(error)")
+                }
+            }
+            
+            isStartingOllama = false
+        }
     }
 }
 
