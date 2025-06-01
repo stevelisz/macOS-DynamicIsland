@@ -251,8 +251,8 @@ struct AIAssistantView: View {
                 .buttonStyle(.plain)
                 
                 Button(action: {
-                    // Open Terminal app
-                    NSWorkspace.shared.open(URL(string: "terminal://")!)
+                    // Open Terminal app using the proper macOS method
+                    NSWorkspace.shared.launchApplication("Terminal")
                 }) {
                     HStack(spacing: DesignSystem.Spacing.xs) {
                         Image(systemName: "terminal")
