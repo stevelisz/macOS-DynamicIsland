@@ -7,6 +7,12 @@ struct AIChatView: View {
     @State private var draggedFiles: [URL] = []
     @State private var showingHistory = false
     
+    var canSendMessage: Bool {
+        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && 
+        !ollamaService.isGenerating && 
+        ollamaService.isReadyToChat
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // Header with conversation info and controls
@@ -178,19 +184,31 @@ struct AIChatView: View {
                     .fontWeight(.semibold)
                 
                 VStack(spacing: 4) {
-                    Text("Ask me anything or drag files here to analyze")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                    
-                    if ollamaService.webSearchEnabled {
-                        HStack(spacing: 4) {
-                            Image(systemName: "globe")
-                                .font(.caption)
-                            Text("Web search is enabled for current information")
-                                .font(.caption)
+                    if ollamaService.isConnectedButNoModels {
+                        Text("No AI models available")
+                            .font(.body)
+                            .foregroundColor(.orange)
+                        
+                        Text("Download a model using: ollama pull llama3.2:3b")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    } else {
+                        Text("Ask me anything or drag files here to analyze")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                        
+                        if ollamaService.webSearchEnabled {
+                            HStack(spacing: 4) {
+                                Image(systemName: "globe")
+                                    .font(.caption)
+                                Text("Web search is enabled for current information")
+                                    .font(.caption)
+                            }
+                            .foregroundColor(.blue)
+                            .padding(.top, 4)
                         }
-                        .foregroundColor(.blue)
-                        .padding(.top, 4)
                     }
                 }
             }
@@ -263,6 +281,7 @@ struct AIChatView: View {
                 TextField("Ask me anything...", text: $inputText, axis: .vertical)
                     .textFieldStyle(.plain)
                     .lineLimit(1...5)
+                    .disabled(ollamaService.isConnectedButNoModels)
                     .onSubmit {
                         sendMessage()
                     }
@@ -271,10 +290,10 @@ struct AIChatView: View {
                 Button(action: sendMessage) {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .secondary : .accentColor)
+                        .foregroundColor(canSendMessage ? .accentColor : .secondary)
                 }
                 .buttonStyle(PlainButtonStyle())
-                .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || ollamaService.isGenerating)
+                .disabled(!canSendMessage)
             }
             .padding(16)
             .background(Color(NSColor.controlBackgroundColor))

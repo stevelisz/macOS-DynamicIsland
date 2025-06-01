@@ -9,7 +9,11 @@ struct AIAssistantView: View {
     var body: some View {
         Group {
             if ollamaService.isConnected {
-                connectedView
+                if ollamaService.isConnectedButNoModels {
+                    noModelsView
+                } else {
+                    connectedView
+                }
             } else {
                 disconnectedView
             }
@@ -126,6 +130,160 @@ struct AIAssistantView: View {
                         .frame(width: 16, height: 16)
                         
                         Text("Check Connection")
+                    }
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 36)
+                    .background(DesignSystem.Colors.surface)
+                    .cornerRadius(DesignSystem.BorderRadius.lg)
+                }
+                .buttonStyle(.plain)
+                .disabled(ollamaService.isChecking)
+            }
+        }
+        .padding(DesignSystem.Spacing.lg)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    private var noModelsView: some View {
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // No Models Status
+            VStack(spacing: DesignSystem.Spacing.md) {
+                Image(systemName: "brain.head.profile")
+                    .font(.system(size: 32))
+                    .foregroundColor(DesignSystem.Colors.warning)
+                
+                Text("No AI Models Available")
+                    .font(DesignSystem.Typography.headline2)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Text("Ollama is running, but no AI models are installed")
+                    .font(DesignSystem.Typography.body)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            // Model Download Instructions
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                Text("Download a model:")
+                    .font(DesignSystem.Typography.bodySemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Text("1.")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        Text("Open Terminal")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
+                    
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Text("2.")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        Text("Run: ")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        Text("ollama pull llama3.2:3b")
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(DesignSystem.Colors.surface)
+                            .cornerRadius(4)
+                    }
+                    
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Text("3.")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        Text("Wait for download to complete (~2GB)")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
+                }
+                .padding(.leading, DesignSystem.Spacing.sm)
+            }
+            .padding(DesignSystem.Spacing.md)
+            .background(DesignSystem.Colors.surface)
+            .cornerRadius(DesignSystem.BorderRadius.lg)
+            
+            // Alternative Models
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text("Other recommended models:")
+                    .font(DesignSystem.Typography.captionSemibold)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("• llama3.2:1b (smaller, faster)")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    Text("• qwen2.5:3b (good performance)")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    Text("• llava:7b (with vision support)")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                }
+            }
+            
+            // Action Buttons
+            VStack(spacing: DesignSystem.Spacing.sm) {
+                Button(action: {
+                    // Copy command to clipboard
+                    let pasteboard = NSPasteboard.general
+                    pasteboard.clearContents()
+                    pasteboard.setString("ollama pull llama3.2:3b", forType: .string)
+                }) {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Image(systemName: "doc.on.clipboard")
+                            .frame(width: 16, height: 16)
+                        Text("Copy Command")
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 36)
+                    .background(DesignSystem.Colors.primary)
+                    .cornerRadius(DesignSystem.BorderRadius.lg)
+                }
+                .buttonStyle(.plain)
+                
+                Button(action: {
+                    // Open Terminal app
+                    NSWorkspace.shared.open(URL(string: "terminal://")!)
+                }) {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Image(systemName: "terminal")
+                            .frame(width: 16, height: 16)
+                        Text("Open Terminal")
+                    }
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 36)
+                    .background(DesignSystem.Colors.surface)
+                    .cornerRadius(DesignSystem.BorderRadius.lg)
+                }
+                .buttonStyle(.plain)
+                
+                Button(action: {
+                    Task {
+                        await ollamaService.checkConnection()
+                    }
+                }) {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Group {
+                            if ollamaService.isChecking {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                            }
+                        }
+                        .frame(width: 16, height: 16)
+                        
+                        Text("Refresh Models")
                     }
                     .foregroundColor(DesignSystem.Colors.textPrimary)
                     .frame(maxWidth: .infinity)

@@ -20,6 +20,16 @@ class OllamaService: ObservableObject {
         }
     }
     
+    // Computed property to check if Ollama is connected but no models are available
+    var isConnectedButNoModels: Bool {
+        return isConnected && availableModels.isEmpty
+    }
+    
+    // Computed property to check if we're ready to chat (connected and have models)
+    var isReadyToChat: Bool {
+        return isConnected && !availableModels.isEmpty
+    }
+    
     private let baseURL = "http://localhost:11434"
     private var quickSession: URLSession // For quick operations like version/tags
     private var generateSession: URLSession // For slower generate operations
@@ -105,6 +115,9 @@ class OllamaService: ObservableObject {
     
     func sendMessage(_ message: String) async -> String {
         guard isConnected else { return "Error: Ollama is not connected" }
+        guard !availableModels.isEmpty else { 
+            return "Error: No AI models are available. Please download a model first using 'ollama pull llama3.2:3b' in Terminal."
+        }
         
         isGenerating = true
         defer { isGenerating = false }
@@ -166,6 +179,10 @@ class OllamaService: ObservableObject {
         guard isConnected else { 
             onUpdate("Error: Ollama is not connected")
             return 
+        }
+        guard !availableModels.isEmpty else {
+            onUpdate("Error: No AI models are available. Please download a model first using 'ollama pull llama3.2:3b' in Terminal.")
+            return
         }
         
         isGenerating = true
