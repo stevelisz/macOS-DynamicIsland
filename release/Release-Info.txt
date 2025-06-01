@@ -1,0 +1,34 @@
+🧰 Dynamic Toolbox v2.0.0 - Release Package
+==============================================
+
+📅 Build Date: Sat May 31 23:25:25 EDT 2025
+💻 Built on: macOS 15.5
+🏗️  Xcode Version: Xcode 16.2
+
+📦 Package Contents:
+- Dynamic-Toolbox-v2.0.0.dmg (3.1M)
+- README.md (User documentation)
+- Release-Notes.md (Version changelog)
+- Installation-Guide.txt (Setup instructions)
+
+🎯 Target Requirements:
+- macOS 15.1 (Sequoia) or later
+- Intel or Apple Silicon Mac
+- ~50MB storage space
+- Internet connection (optional, for weather/currency/web search)
+
+🤖 AI Features (Optional):
+- Requires Ollama (https://ollama.ai)
+- Recommended: llama3.2:3b model (~2GB)
+
+🔐 Security:
+- Notarized: TBD (run 'xcrun notarytool' after build)
+- Code Signed: Automatic with Xcode
+- Local Processing: AI runs entirely on user's Mac
+
+📧 Support:
+- GitHub Issues: https://github.com/[username]/Dynamic-Toolbox/issues
+- Documentation: Full guides available
+- Community: Join discussions and share tips
+
+Happy productivity! 🚀

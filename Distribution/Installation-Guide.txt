@@ -1,64 +1,191 @@
-Dynamic Toolbox for macOS - Installation Guide
-==============================================
+🧰 Dynamic Toolbox v2.0.0 - Installation Guide
+==================================================
+
+Welcome to Dynamic Toolbox - Your All-in-One Productivity Powerhouse!
+
+QUICK START (Most Users)
+========================
+
+1. 📥 DOWNLOAD
+   - Download "Dynamic-Toolbox-v2.0.0.dmg" from the releases page
+   - File size: ~50MB
+
+2. 🔧 INSTALL
+   - Double-click the DMG file to mount it
+   - Drag "Dynamic Toolbox" to your Applications folder
+   - Eject the DMG when done
+
+3. 🚀 LAUNCH
+   - Open "Dynamic Toolbox" from Applications
+   - Click on your Mac's notch area (where the camera is)
+   - Start using your productivity tools immediately!
+
+4. ⚙️ CUSTOMIZE
+   - Choose which tools you want to use from the tab selector
+   - Drag your favorite apps to the Quick Launcher
+   - Set up your Pomodoro timer preferences
+
+DONE! You're ready to supercharge your productivity!
+
+
+OPTIONAL: AI ASSISTANT SETUP
+============================
+
+The AI Assistant is completely optional but provides powerful help with:
+- Coding problems and debugging
+- Writing improvement and translation  
+- File analysis and document processing
+- Current information via web search
+
+To enable AI features:
+
+1. 🤖 INSTALL OLLAMA
+   - Visit: https://ollama.ai
+   - Download "Ollama for macOS"
+   - Install normally (drag to Applications)
+
+2. 📦 GET AN AI MODEL
+   Open Terminal and run ONE of these commands:
+
+   For beginners (fast, 2GB):
+   ollama pull llama3.2:3b
+
+   For coding help (3.8GB):
+   ollama pull codellama:7b
+
+   For advanced use (7GB):
+   ollama pull llama3.2:7b
+
+3. ✅ CONNECT
+   - Ollama will start automatically
+   - Dynamic Toolbox will detect it and connect
+   - Green indicator means AI is ready!
+
+4. 🔍 ENABLE WEB SEARCH (Recommended)
+   - Click the globe icon in the AI chat
+   - Now AI can search the web for current information
+
 
 SYSTEM REQUIREMENTS
--------------------
-- macOS 15.1 (Sequoia) or later
-- Apple Silicon (M1/M2/M3) or Intel processor
-- 50MB free disk space
-- Internet connection for weather and currency features
+===================
 
-INSTALLATION STEPS
------------------
-1. Download DynamicToolbox-v1.0.dmg
-2. Double-click the DMG file to mount it
-3. Drag "DynamicIsland.app" to the Applications folder
-4. Eject the DMG when installation is complete
-5. Launch "Dynamic Toolbox" from Applications or Spotlight
+✅ macOS 15.1 or later (Sequoia+)
+✅ Intel Mac or Apple Silicon (M1/M2/M3/M4)
+✅ ~50MB storage for the app
+✅ ~2GB+ for AI models (if using AI features)
+✅ Internet connection (for weather, currency, web search)
 
-FIRST LAUNCH
------------
-- You may see a security warning about an "unidentified developer"
-- If this happens:
-  1. Go to System Settings → Privacy & Security
-  2. Find "Dynamic Toolbox" in the security section
-  3. Click "Open Anyway"
-  4. The app will launch normally from then on
 
-PERMISSIONS
-----------
-The app may request these permissions:
-- Location Services: For weather features
-- Accessibility: For clipboard monitoring (optional)
+FEATURES OVERVIEW
+=================
 
-These permissions can be granted in System Settings → Privacy & Security
+🤖 AI Assistant
+   - Chat with local AI models
+   - Code help and debugging
+   - Writing assistance
+   - File analysis (drag & drop)
+   - Web search for current info
+   - Chat history and search
 
-GETTING STARTED
---------------
-1. Click the notch area on your MacBook to open the app
-2. Use the tab selector to switch between tools
-3. Drag tabs to reorder them to your preference
-4. Move the window away from the notch to keep it permanently open
+📋 Clipboard Manager
+   - Automatic clipboard history
+   - Search through past copies
+   - Pin important items
+   - Support for text, images, files
 
-AI ASSISTANT SETUP (OPTIONAL)
------------------------------
-To use the AI Assistant feature:
-1. Install Ollama from https://ollama.ai
-2. Run: ollama pull llama3.2:3b
-3. Launch Dynamic Toolbox and go to AI Assistant tab
-4. Click "Check Connection" to verify setup
+🚀 Quick App Launcher
+   - Drag apps from Finder to add
+   - One-click launching
+   - Beautiful app icons
+
+📊 System Monitor
+   - Real-time CPU, memory usage
+   - Animated performance charts
+   - Disk space monitoring
+
+🌤️ Weather
+   - Current conditions
+   - Location-based
+   - Clean, minimal design
+
+⏱️ Pomodoro Timer
+   - Customizable work/break sessions
+   - Session statistics
+   - Runs in background
+   - Visual progress tracking
+
+📐 Unit Converter
+   - Length, weight, temperature
+   - Live currency exchange rates
+   - Quick preset buttons
+   - Swap between units easily
+
+⚙️ Developer Tools
+   - JSON formatter and validator
+   - Base64 encoding/decoding
+   - Hash generation (MD5, SHA, etc.)
+   - File hashing via drag & drop
+
 
 TROUBLESHOOTING
---------------
-- App won't open: Check security settings as described above
-- Clipboard not working: Grant accessibility permissions
-- Weather not loading: Enable location services
-- AI Assistant offline: Install and start Ollama
+===============
+
+App won't open:
+- Make sure you're running macOS 15.1+
+- Try right-click → Open if Gatekeeper blocks it
+- Check Console.app for error messages
+
+Can't see the interface:
+- Click directly on the notch area (camera area)
+- Try moving cursor to very top center of screen
+- Restart app if needed
+
+AI not working:
+- Install Ollama from ollama.ai
+- Run: ollama pull llama3.2:3b
+- Check that Ollama is running (green status)
+- Restart Dynamic Toolbox after installing Ollama
+
+Web search not working:
+- Check internet connection
+- Try clicking the globe icon to toggle web search
+- Some AI models work better with web search than others
+
+Performance issues:
+- Close unused tabs in the tab selector
+- Restart the app
+- Check Activity Monitor for memory usage
+- Consider using smaller AI models (3b instead of 7b+)
+
 
 UNINSTALLING
------------
-1. Quit Dynamic Toolbox
-2. Move the app from Applications to Trash
-3. Empty Trash
+============
 
-For support: https://github.com/your-repo/dynamic-toolbox 
+To remove Dynamic Toolbox:
+1. Quit the application
+2. Delete "Dynamic Toolbox" from Applications folder
+3. Optional: Remove ~/Library/Preferences/com.dynamictoolbox.*
+4. Optional: Uninstall Ollama if you don't need it elsewhere
+
+
+PRIVACY & SECURITY
+==================
+
+✅ All AI processing happens locally on your Mac
+✅ No personal data sent to external servers
+✅ Open source - you can review the code
+✅ Web search uses DuckDuckGo (privacy-focused)
+✅ Weather/currency APIs don't store personal data
+
+
+SUPPORT & COMMUNITY
+===================
+
+📧 Issues: https://github.com/[username]/Dynamic-Toolbox/issues
+📖 Documentation: Full guides and tutorials available
+💬 Community: Join discussions and share productivity tips
+🔄 Updates: Check releases page for new versions
+
+Enjoy your new productivity powerhouse! 🚀
+
+Made with ❤️ for Mac users who love beautiful, functional software. 
