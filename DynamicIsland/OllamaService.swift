@@ -10,10 +10,17 @@ class OllamaService: ObservableObject {
     @Published var conversationHistory: [ChatMessage] = []
     @Published var isGenerating = false
     @Published var currentConversation: ChatConversation?
+    @Published var supportedFileTypes: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "txt", "md", "swift", "py", "js", "html", "css", "json", "xml"]
     
     private let baseURL = "http://localhost:11434"
     private var quickSession: URLSession // For quick operations like version/tags
     private var generateSession: URLSession // For slower generate operations
+    
+    // Vision model capabilities
+    var isVisionModel: Bool {
+        let visionModels = ["llava", "bakllava", "moondream"]
+        return visionModels.contains { selectedModel.lowercased().contains($0) }
+    }
     
     init() {
         // Quick session for version/tags (5 second timeout)
@@ -291,6 +298,119 @@ class OllamaService: ObservableObject {
         conversation.title = title
         UserDefaults.standard.saveConversation(conversation)
         currentConversation = conversation
+    }
+    
+    // MARK: - File Processing
+    
+    func processFiles(_ urls: [URL]) async -> String? {
+        var processedContent: [String] = []
+        var images: [String] = []
+        
+        for url in urls {
+            let fileExtension = url.pathExtension.lowercased()
+            
+            if !supportedFileTypes.contains(fileExtension) {
+                processedContent.append("⚠️ Unsupported file type: \(url.lastPathComponent)")
+                continue
+            }
+            
+            do {
+                if isImageFile(fileExtension) {
+                    if isVisionModel {
+                        let imageData = try Data(contentsOf: url)
+                        let base64Image = imageData.base64EncodedString()
+                        images.append(base64Image)
+                        processedContent.append("📷 Image: \(url.lastPathComponent)")
+                    } else {
+                        processedContent.append("⚠️ Image files require a vision model (llava, bakllava, etc.). Current model: \(selectedModel)")
+                    }
+                } else if isTextFile(fileExtension) {
+                    let content = try String(contentsOf: url, encoding: .utf8)
+                    let fileName = url.lastPathComponent
+                    processedContent.append("📄 **\(fileName)**:\n```\(fileExtension)\n\(content)\n```")
+                }
+            } catch {
+                processedContent.append("❌ Error reading \(url.lastPathComponent): \(error.localizedDescription)")
+            }
+        }
+        
+        if processedContent.isEmpty {
+            return nil
+        }
+        
+        let finalPrompt = processedContent.joined(separator: "\n\n")
+        
+        // If we have images, use the vision-capable API
+        if !images.isEmpty && isVisionModel {
+            return await sendMessageWithImages(finalPrompt, images: images)
+        } else {
+            return await sendMessage(finalPrompt)
+        }
+    }
+    
+    private func isImageFile(_ fileExtension: String) -> Bool {
+        return ["png", "jpg", "jpeg", "gif", "webp"].contains(fileExtension)
+    }
+    
+    private func isTextFile(_ fileExtension: String) -> Bool {
+        return ["txt", "md", "swift", "py", "js", "html", "css", "json", "xml"].contains(fileExtension)
+    }
+    
+    private func sendMessageWithImages(_ prompt: String, images: [String]) async -> String {
+        guard isConnected else { return "Error: Ollama is not connected" }
+        
+        isGenerating = true
+        defer { isGenerating = false }
+        
+        let userMessage = ChatMessage(role: .user, content: prompt)
+        conversationHistory.append(userMessage)
+        saveCurrentConversation()
+        
+        do {
+            let url = URL(string: "\(baseURL)/api/generate")!
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            let requestBody: [String: Any] = [
+                "model": selectedModel,
+                "prompt": prompt,
+                "images": images,
+                "stream": false
+            ]
+            
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            
+            let (data, response) = try await generateSession.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("Vision API Response Status: \(httpResponse.statusCode)")
+            }
+            
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                if let errorMessage = json["error"] as? String {
+                    return "Error: \(errorMessage)"
+                }
+                
+                if let responseText = json["response"] as? String {
+                    let assistantMessage = ChatMessage(role: .assistant, content: responseText)
+                    conversationHistory.append(assistantMessage)
+                    saveCurrentConversation()
+                    return responseText
+                }
+            }
+            
+        } catch {
+            let errorMsg = error.localizedDescription
+            if errorMsg.contains("timed out") {
+                return "Error: Request timed out. Vision processing can take longer than text-only requests."
+            } else if errorMsg.contains("Connection refused") {
+                return "Error: Connection refused. Make sure Ollama is running with 'ollama serve'."
+            }
+            return "Error: \(errorMsg)"
+        }
+        
+        return "Error: Failed to get response from vision model"
     }
 }
 

@@ -7,6 +7,8 @@ struct AIChatView: View {
     @State private var currentResponse = ""
     @State private var showingResponse = false
     @State private var showingHistory = false
+    @State private var isDropTargeted = false
+    @State private var draggedFiles: [URL] = []
     
     var body: some View {
         VStack(spacing: DesignSystem.Spacing.sm) {
@@ -93,13 +95,59 @@ struct AIChatView: View {
                         )
                     }
                 }
+                
+                // Drag and drop overlay when files are being dragged
+                if isDropTargeted {
+                    dropTargetOverlay
+                }
             }
             .padding(.horizontal, DesignSystem.Spacing.sm)
         }
         .frame(height: 180)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                .fill(isDropTargeted ? DesignSystem.Colors.primary.opacity(0.1) : DesignSystem.Colors.surface.opacity(0.3))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        .stroke(isDropTargeted ? DesignSystem.Colors.primary.opacity(0.5) : Color.clear, lineWidth: 2)
+                )
+        )
+        .dropDestination(for: URL.self) { urls, location in
+            handleDroppedFiles(urls)
+            return true
+        } isTargeted: { isTargeted in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isDropTargeted = isTargeted
+            }
+        }
+    }
+    
+    private var dropTargetOverlay: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            Image(systemName: ollamaService.isVisionModel ? "photo.badge.plus" : "doc.badge.plus")
+                .font(.system(size: 32))
+                .foregroundColor(DesignSystem.Colors.primary)
+            
+            VStack(spacing: DesignSystem.Spacing.xs) {
+                Text("Drop files here")
+                    .font(DesignSystem.Typography.headline3)
+                    .foregroundColor(DesignSystem.Colors.primary)
+                
+                if ollamaService.isVisionModel {
+                    Text("Images & text files supported")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                } else {
+                    Text("Text files supported • Images need vision model")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                .fill(DesignSystem.Colors.primary.opacity(0.05))
         )
     }
     
@@ -112,6 +160,31 @@ struct AIChatView: View {
             Text("Start a conversation")
                 .font(DesignSystem.Typography.body)
                 .foregroundColor(DesignSystem.Colors.textSecondary)
+            
+            // File support info
+            VStack(spacing: DesignSystem.Spacing.xs) {
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Image(systemName: "square.and.arrow.down")
+                        .font(.system(size: 12))
+                        .foregroundColor(DesignSystem.Colors.primary)
+                    
+                    if ollamaService.isVisionModel {
+                        Text("Drop images or files to analyze")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.primary)
+                    } else {
+                        Text("Drop text files to analyze")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.primary)
+                    }
+                }
+                
+                if !ollamaService.isVisionModel {
+                    Text("Use llava or bakllava for image support")
+                        .font(.system(size: 10))
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                }
+            }
             
             // Quick starter prompts
             VStack(spacing: DesignSystem.Spacing.xs) {
@@ -191,6 +264,31 @@ struct AIChatView: View {
     
     private func createNewChat() {
         ollamaService.createNewConversation()
+    }
+    
+    private func handleDroppedFiles(_ urls: [URL]) {
+        draggedFiles = urls
+        
+        guard !isProcessing else { return }
+        
+        isProcessing = true
+        showingResponse = true
+        currentResponse = "Processing files..."
+        
+        Task {
+            if let response = await ollamaService.processFiles(urls) {
+                currentResponse = response
+            } else {
+                currentResponse = "No supported files found or failed to process files."
+            }
+            
+            // Small delay to show the final response
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
+            
+            isProcessing = false
+            showingResponse = false
+            currentResponse = ""
+        }
     }
 }
 

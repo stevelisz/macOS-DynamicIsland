@@ -8,11 +8,11 @@ struct TabSelectorDropdown: View {
         (.clipboard, "doc.on.clipboard.fill", "Clipboard", DesignSystem.Colors.clipboard),
         (.quickApp, "app.fill", "Apps", DesignSystem.Colors.apps),
         (.systemMonitor, "gauge.high", "System", DesignSystem.Colors.system),
-        (.weather, "cloud.sun.fill", "Weather", DesignSystem.Colors.primary),
-        (.timer, "timer", "Timer", DesignSystem.Colors.success),
+        (.weather, "cloud.sun.fill", "Weather", DesignSystem.Colors.weather),
+        (.timer, "timer", "Timer", DesignSystem.Colors.timer),
         (.unitConverter, "arrow.triangle.2.circlepath", "Converter", DesignSystem.Colors.files),
-        (.developerTools, "hammer.fill", "Dev Tools", DesignSystem.Colors.warning),
-        (.aiAssistant, "brain.head.profile", "AI Assistant", DesignSystem.Colors.system)
+        (.developerTools, "hammer.fill", "Dev Tools", DesignSystem.Colors.developer),
+        (.aiAssistant, "brain.head.profile", "AI Assistant", DesignSystem.Colors.ai)
     ]
     
     var body: some View {

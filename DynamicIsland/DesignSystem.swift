@@ -47,11 +47,15 @@ struct DesignSystem {
         static let warning = Color(.sRGB, red: 1.0, green: 0.58, blue: 0.0, opacity: 1.0) // Orange
         static let error = Color(.sRGB, red: 1.0, green: 0.23, blue: 0.19, opacity: 1.0) // Red
         
-        // Semantic Colors
-        static let clipboard = Color(.sRGB, red: 0.0, green: 0.78, blue: 0.35, opacity: 1.0) // Green
-        static let apps = Color(.sRGB, red: 0.69, green: 0.32, blue: 0.87, opacity: 1.0) // Purple
-        static let files = Color(.sRGB, red: 1.0, green: 0.58, blue: 0.0, opacity: 1.0) // Orange
-        static let system = Color(.sRGB, red: 0.0, green: 0.48, blue: 1.0, opacity: 1.0) // Blue
+        // Semantic Colors for Tabs - High contrast, diverse color palette
+        static let clipboard = Color(.sRGB, red: 0.0, green: 0.78, blue: 0.35, opacity: 1.0) // Vibrant Green - for copying/pasting
+        static let apps = Color(.sRGB, red: 0.75, green: 0.25, blue: 0.90, opacity: 1.0) // Bright Magenta - for applications
+        static let files = Color(.sRGB, red: 0.20, green: 0.40, blue: 0.85, opacity: 1.0) // Royal Blue - for files/converter
+        static let system = Color(.sRGB, red: 0.0, green: 0.65, blue: 0.85, opacity: 1.0) // Bright Teal - for system monitoring
+        static let weather = Color(.sRGB, red: 1.0, green: 0.60, blue: 0.0, opacity: 1.0) // Vibrant Orange - for weather/sun
+        static let timer = Color(.sRGB, red: 1.0, green: 0.20, blue: 0.40, opacity: 1.0) // Bright Red - for timer/focus
+        static let developer = Color(.sRGB, red: 0.95, green: 0.75, blue: 0.0, opacity: 1.0) // Golden Yellow - for development tools
+        static let ai = Color(.sRGB, red: 0.55, green: 0.35, blue: 0.85, opacity: 1.0) // Bright Indigo - for AI assistant
         
         // Surface Colors
         static let surface = Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 0.08)
