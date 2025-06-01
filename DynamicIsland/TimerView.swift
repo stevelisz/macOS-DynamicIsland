@@ -9,7 +9,7 @@ struct TimerView: View {
     
     var body: some View {
         ZStack {
-            VStack(spacing: DesignSystem.Spacing.md) {
+            VStack(spacing: DesignSystem.Spacing.sm) {
                 // Session Type Selector
                 sessionSelector
                 
@@ -27,7 +27,7 @@ struct TimerView: View {
                 // Session Stats with Reset Button
                 statsSection
             }
-            .padding(DesignSystem.Spacing.lg)
+            .padding(DesignSystem.Spacing.md)
             .onAppear {
                 // Sync the selected session with timer manager
                 selectedSession = timerManager.currentSession
@@ -131,17 +131,17 @@ struct TimerView: View {
                         timerManager.setSession(session)
                     }
                 }) {
-                    VStack(spacing: DesignSystem.Spacing.xs) {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
                         Image(systemName: session.icon)
-                            .font(.system(size: 16, weight: .medium))
+                            .font(.system(size: 14, weight: .medium))
                         Text(session.title)
-                            .font(DesignSystem.Typography.caption)
+                            .font(.system(size: 13, weight: .medium))
                     }
                     .foregroundColor(selectedSession == session ? .white : DesignSystem.Colors.textSecondary)
-                    .padding(.vertical, DesignSystem.Spacing.sm)
+                    .padding(.vertical, DesignSystem.Spacing.xs)
                     .padding(.horizontal, DesignSystem.Spacing.md)
                     .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                             .fill(selectedSession == session ? session.color : DesignSystem.Colors.surface.opacity(0.3))
                     )
                 }
@@ -153,9 +153,9 @@ struct TimerView: View {
     }
     
     private var timeCustomizer: some View {
-        VStack(spacing: DesignSystem.Spacing.xs) {
+        VStack(spacing: DesignSystem.Spacing.xxs) {
             Text("Custom Time")
-                .font(DesignSystem.Typography.caption)
+                .font(.system(size: 11, weight: .medium))
                 .foregroundColor(DesignSystem.Colors.textSecondary)
             
             HStack(spacing: DesignSystem.Spacing.sm) {
@@ -164,23 +164,23 @@ struct TimerView: View {
                     timerManager.adjustTime(by: -5 * 60) // -5 minutes
                 }) {
                     Image(systemName: "minus.circle.fill")
-                        .font(.system(size: 20))
+                        .font(.system(size: 18))
                         .foregroundColor(DesignSystem.Colors.textSecondary)
                 }
                 .buttonStyle(.plain)
                 
                 // Current time display
                 Text(timerManager.timeString)
-                    .font(.system(size: 18, weight: .semibold, design: .monospaced))
+                    .font(.system(size: 16, weight: .semibold, design: .monospaced))
                     .foregroundColor(DesignSystem.Colors.textPrimary)
-                    .frame(minWidth: 80)
+                    .frame(minWidth: 70)
                 
                 // Increase time button
                 Button(action: {
                     timerManager.adjustTime(by: 5 * 60) // +5 minutes
                 }) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 20))
+                        .font(.system(size: 18))
                         .foregroundColor(selectedSession.color)
                 }
                 .buttonStyle(.plain)
@@ -189,14 +189,14 @@ struct TimerView: View {
             // Direct time input
             HStack(spacing: DesignSystem.Spacing.xs) {
                 Text("Set:")
-                    .font(DesignSystem.Typography.caption)
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundColor(DesignSystem.Colors.textSecondary)
                 
                 TextField("25", text: $timerManager.customTimeInput)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 14, weight: .medium, design: .monospaced))
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundColor(DesignSystem.Colors.textPrimary)
-                    .frame(width: 40)
+                    .frame(width: 35)
                     .multilineTextAlignment(.center)
                     .background(
                         RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
@@ -207,7 +207,7 @@ struct TimerView: View {
                     }
                 
                 Text("min")
-                    .font(DesignSystem.Typography.caption)
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundColor(DesignSystem.Colors.textSecondary)
             }
         }
@@ -216,30 +216,30 @@ struct TimerView: View {
     }
     
     private var timerDisplay: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
+        VStack(spacing: DesignSystem.Spacing.xs) {
             // Progress Ring
             ZStack {
                 Circle()
-                    .stroke(DesignSystem.Colors.surface.opacity(0.3), lineWidth: 8)
-                    .frame(width: 140, height: 140)
+                    .stroke(DesignSystem.Colors.surface.opacity(0.3), lineWidth: 6)
+                    .frame(width: 120, height: 120)
                 
                 Circle()
                     .trim(from: 0, to: timerManager.progress)
                     .stroke(
                         selectedSession.color,
-                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                        style: StrokeStyle(lineWidth: 6, lineCap: .round)
                     )
-                    .frame(width: 140, height: 140)
+                    .frame(width: 120, height: 120)
                     .rotationEffect(.degrees(-90))
                     .animation(.easeInOut(duration: 0.3), value: timerManager.progress)
                 
-                VStack(spacing: DesignSystem.Spacing.xs) {
+                VStack(spacing: DesignSystem.Spacing.xxs) {
                     Text(timerManager.timeString)
-                        .font(.system(size: 24, weight: .bold, design: .monospaced))
+                        .font(.system(size: 22, weight: .bold, design: .monospaced))
                         .foregroundColor(DesignSystem.Colors.textPrimary)
                     
                     Text(selectedSession.title)
-                        .font(DesignSystem.Typography.caption)
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundColor(DesignSystem.Colors.textSecondary)
                 }
             }
@@ -247,13 +247,13 @@ struct TimerView: View {
     }
     
     private var controlButtons: some View {
-        HStack(spacing: DesignSystem.Spacing.lg) {
+        HStack(spacing: DesignSystem.Spacing.md) {
             // Reset Button
             Button(action: { timerManager.reset() }) {
                 Image(systemName: "arrow.counterclockwise")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundColor(DesignSystem.Colors.textSecondary)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 40, height: 40)
                     .background(
                         Circle()
                             .fill(DesignSystem.Colors.surface.opacity(0.3))
@@ -270,9 +270,9 @@ struct TimerView: View {
                 }
             }) {
                 Image(systemName: timerManager.isRunning ? "pause.fill" : "play.fill")
-                    .font(.system(size: 22, weight: .medium))
+                    .font(.system(size: 20, weight: .medium))
                     .foregroundColor(.white)
-                    .frame(width: 60, height: 60)
+                    .frame(width: 54, height: 54)
                     .background(
                         Circle()
                             .fill(selectedSession.color)
@@ -285,9 +285,9 @@ struct TimerView: View {
             // Skip Button (doesn't count towards stats)
             Button(action: { timerManager.skipWithoutStats() }) {
                 Image(systemName: "forward.end")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundColor(DesignSystem.Colors.textSecondary)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 40, height: 40)
                     .background(
                         Circle()
                             .fill(DesignSystem.Colors.surface.opacity(0.3))
