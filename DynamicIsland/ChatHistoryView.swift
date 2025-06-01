@@ -18,21 +18,44 @@ struct ChatHistoryView: View {
     }
     
     var body: some View {
-        VStack(spacing: DesignSystem.Spacing.sm) {
-            // Header
-            headerView
-            
-            // Search Bar
-            searchBar
-            
-            // Conversations List
-            conversationsList
-            
-            // Bottom Actions
-            bottomActions
+        ZStack {
+            // Background with glassmorphism
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xxl, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xxl, style: .continuous)
+                        .fill(Color.black.opacity(0.1))
+                        .blur(radius: 20)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xxl, style: .continuous)
+                        .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                )
+        
+            VStack(spacing: DesignSystem.Spacing.lg) {
+                // Header
+                headerView
+                
+                // Search Bar
+                searchBar
+                
+                // Conversations List
+                conversationsList
+                
+                // Bottom Actions
+                bottomActions
+            }
+            .padding(DesignSystem.Spacing.xl)
         }
+        .frame(width: 400, height: 500)
         .onAppear {
             loadConversations()
+            // Notify that sheet is presented to pause auto-hide
+            NotificationCenter.default.post(name: .sheetPresented, object: nil)
+        }
+        .onDisappear {
+            // Notify that sheet is dismissed to resume auto-hide
+            NotificationCenter.default.post(name: .sheetDismissed, object: nil)
         }
     }
     
@@ -40,7 +63,8 @@ struct ChatHistoryView: View {
         HStack {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxs) {
                 Text("Chat History")
-                    .font(DesignSystem.Typography.headline3)
+                    .font(DesignSystem.Typography.headline2)
+                    .fontWeight(.semibold)
                     .foregroundColor(DesignSystem.Colors.textPrimary)
                 
                 Text("\(conversations.count) conversation\(conversations.count == 1 ? "" : "s")")
@@ -52,34 +76,45 @@ struct ChatHistoryView: View {
             
             Button(action: createNewChat) {
                 Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 20))
+                    .font(.system(size: 22, weight: .medium))
                     .foregroundColor(DesignSystem.Colors.primary)
             }
             .buttonStyle(.plain)
+            .scaleEffect(1.0)
+            .onHover { isHovered in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    // Add subtle hover effect if needed
+                }
+            }
         }
     }
     
     private var searchBar: some View {
-        HStack {
+        HStack(spacing: DesignSystem.Spacing.sm) {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(DesignSystem.Colors.textSecondary)
-                .font(.system(size: 12))
+                .font(.system(size: 14, weight: .medium))
             
             TextField("Search conversations...", text: $searchText)
                 .textFieldStyle(.plain)
                 .font(DesignSystem.Typography.body)
+                .foregroundColor(DesignSystem.Colors.textPrimary)
         }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, DesignSystem.Spacing.xs)
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.vertical, DesignSystem.Spacing.sm)
         .background(
-            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                .fill(DesignSystem.Colors.surface.opacity(0.3))
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg, style: .continuous)
+                .fill(DesignSystem.Colors.surface)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg, style: .continuous)
+                        .stroke(DesignSystem.Colors.border, lineWidth: 0.5)
+                )
         )
     }
     
     private var conversationsList: some View {
         ScrollView {
-            LazyVStack(spacing: DesignSystem.Spacing.xs) {
+            LazyVStack(spacing: DesignSystem.Spacing.sm) {
                 if filteredConversations.isEmpty {
                     emptyStateView
                 } else {
@@ -95,54 +130,91 @@ struct ChatHistoryView: View {
             }
             .padding(.horizontal, DesignSystem.Spacing.xs)
         }
-        .frame(height: 140)
+        .frame(maxHeight: 280) // Increased height for better usability
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                .fill(Color.clear)
+        )
     }
     
     private var emptyStateView: some View {
-        VStack(spacing: DesignSystem.Spacing.sm) {
+        VStack(spacing: DesignSystem.Spacing.lg) {
             Image(systemName: "message.circle")
-                .font(.system(size: 24))
+                .font(.system(size: 32, weight: .light))
                 .foregroundColor(DesignSystem.Colors.textSecondary)
             
-            Text(searchText.isEmpty ? "No conversations yet" : "No matching conversations")
-                .font(DesignSystem.Typography.body)
-                .foregroundColor(DesignSystem.Colors.textSecondary)
+            VStack(spacing: DesignSystem.Spacing.xs) {
+                Text(searchText.isEmpty ? "No conversations yet" : "No matching conversations")
+                    .font(DesignSystem.Typography.headline3)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Text(searchText.isEmpty ? "Start a new conversation to begin" : "Try a different search term")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+            }
             
             if searchText.isEmpty {
-                Button("Start New Chat", action: createNewChat)
-                    .font(DesignSystem.Typography.captionMedium)
-                    .foregroundColor(DesignSystem.Colors.primary)
+                Button("Start New Chat") {
+                    createNewChat()
+                }
+                .font(DesignSystem.Typography.bodySemibold)
+                .foregroundColor(.white)
+                .padding(.horizontal, DesignSystem.Spacing.xl)
+                .padding(.vertical, DesignSystem.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        .fill(DesignSystem.Colors.primary)
+                )
+                .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(DesignSystem.Spacing.lg)
+        .padding(DesignSystem.Spacing.xl)
     }
     
     private var bottomActions: some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
+        HStack(spacing: DesignSystem.Spacing.md) {
             Button(action: { showingClearAllAlert = true }) {
                 HStack(spacing: DesignSystem.Spacing.xs) {
                     Image(systemName: "trash")
-                        .font(.system(size: 12))
+                        .font(.system(size: 12, weight: .medium))
                     Text("Clear All")
-                        .font(DesignSystem.Typography.caption)
+                        .font(DesignSystem.Typography.captionMedium)
                 }
                 .foregroundColor(DesignSystem.Colors.error)
-                .padding(.horizontal, DesignSystem.Spacing.sm)
+                .padding(.horizontal, DesignSystem.Spacing.md)
                 .padding(.vertical, DesignSystem.Spacing.xs)
                 .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md, style: .continuous)
                         .fill(DesignSystem.Colors.error.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md, style: .continuous)
+                                .stroke(DesignSystem.Colors.error.opacity(0.3), lineWidth: 0.5)
+                        )
                 )
             }
             .buttonStyle(.plain)
             .disabled(conversations.isEmpty)
+            .opacity(conversations.isEmpty ? 0.5 : 1.0)
             
             Spacer()
             
-            Button("Back to Chat", action: backToCurrentChat)
-                .font(DesignSystem.Typography.captionMedium)
-                .foregroundColor(DesignSystem.Colors.primary)
+            Button("Back to Chat") {
+                backToCurrentChat()
+            }
+            .font(DesignSystem.Typography.bodySemibold)
+            .foregroundColor(DesignSystem.Colors.primary)
+            .padding(.horizontal, DesignSystem.Spacing.lg)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md, style: .continuous)
+                    .fill(DesignSystem.Colors.primary.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md, style: .continuous)
+                            .stroke(DesignSystem.Colors.primary.opacity(0.3), lineWidth: 0.5)
+                    )
+            )
+            .buttonStyle(.plain)
         }
         .alert("Clear All Conversations", isPresented: $showingClearAllAlert) {
             Button("Cancel", role: .cancel) { }
@@ -218,42 +290,44 @@ struct ConversationRowView: View {
     @State private var isHovered = false
     
     var body: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             // Selection indicator
             Circle()
                 .fill(isSelected ? DesignSystem.Colors.primary : DesignSystem.Colors.surface)
-                .frame(width: 8, height: 8)
-                .padding(.top, 4)
+                .frame(width: 10, height: 10)
+                .padding(.top, 6)
+                .shadow(color: isSelected ? DesignSystem.Colors.primary.opacity(0.3) : .clear, radius: 4)
             
             // Conversation content
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxs) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                 HStack {
                     Text(conversation.title)
-                        .font(DesignSystem.Typography.captionMedium)
+                        .font(DesignSystem.Typography.bodySemibold)
                         .foregroundColor(DesignSystem.Colors.textPrimary)
                         .lineLimit(1)
                     
                     Spacer()
                     
                     Text("\(conversation.messageCount)")
-                        .font(.system(size: 10))
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundColor(DesignSystem.Colors.textTertiary)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
                         .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(DesignSystem.Colors.surface.opacity(0.5))
+                            Capsule()
+                                .fill(DesignSystem.Colors.surface)
                         )
                 }
                 
                 Text(conversation.preview)
-                    .font(.system(size: 10))
+                    .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.textSecondary)
                     .lineLimit(2)
+                    .multilineTextAlignment(.leading)
                 
                 HStack {
                     Text(conversation.formattedDate)
-                        .font(.system(size: 9))
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundColor(DesignSystem.Colors.textTertiary)
                     
                     Spacer()
@@ -261,24 +335,39 @@ struct ConversationRowView: View {
                     if isHovered {
                         Button(action: onDelete) {
                             Image(systemName: "trash")
-                                .font(.system(size: 10))
+                                .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(DesignSystem.Colors.error)
+                                .padding(4)
+                                .background(
+                                    Circle()
+                                        .fill(DesignSystem.Colors.error.opacity(0.1))
+                                )
                         }
                         .buttonStyle(.plain)
+                        .transition(.opacity.combined(with: .scale))
                     }
                 }
             }
         }
-        .padding(DesignSystem.Spacing.sm)
+        .padding(DesignSystem.Spacing.md)
         .background(
-            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg, style: .continuous)
                 .fill(isSelected ? DesignSystem.Colors.primary.opacity(0.1) : 
-                     (isHovered ? DesignSystem.Colors.surface.opacity(0.3) : Color.clear))
+                     (isHovered ? DesignSystem.Colors.surface.opacity(0.5) : DesignSystem.Colors.surface.opacity(0.3)))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                .stroke(isSelected ? DesignSystem.Colors.primary.opacity(0.3) : Color.clear, lineWidth: 1)
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg, style: .continuous)
+                .stroke(isSelected ? DesignSystem.Colors.primary.opacity(0.4) : 
+                       (isHovered ? DesignSystem.Colors.border.opacity(0.8) : DesignSystem.Colors.border.opacity(0.3)), 
+                       lineWidth: isSelected ? 1.5 : 0.5)
         )
+        .shadow(
+            color: isSelected ? DesignSystem.Colors.primary.opacity(0.1) : .clear,
+            radius: isSelected ? 8 : 0,
+            x: 0,
+            y: isSelected ? 2 : 0
+        )
+        .scaleEffect(isHovered ? 1.02 : 1.0)
         .onTapGesture {
             onSelect()
         }
