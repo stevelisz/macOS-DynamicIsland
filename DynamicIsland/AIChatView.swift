@@ -1,365 +1,358 @@
 import SwiftUI
 
 struct AIChatView: View {
-    @ObservedObject var ollamaService: OllamaService
-    @State private var messageText = ""
-    @State private var isProcessing = false
-    @State private var currentResponse = ""
-    @State private var showingResponse = false
-    @State private var showingHistory = false
+    @StateObject private var ollamaService = OllamaService()
+    @State private var inputText = ""
     @State private var isDropTargeted = false
     @State private var draggedFiles: [URL] = []
+    @State private var showingHistory = false
     
     var body: some View {
-        VStack(spacing: DesignSystem.Spacing.sm) {
-            // Header with controls
+        VStack(spacing: 0) {
+            // Header with conversation info and controls
             headerView
             
-            if showingHistory {
-                // Chat History View
-                ChatHistoryView(ollamaService: ollamaService, showingHistory: $showingHistory)
-            } else {
-                // Regular Chat View
-                VStack(spacing: DesignSystem.Spacing.sm) {
-                    // Chat History
-                    chatHistory
-                    
-                    // Input Area
-                    inputArea
-                }
+            // Chat history area with drop support
+            chatHistoryView
+            
+            // Input area
+            inputView
+        }
+        .background(Color(NSColor.windowBackgroundColor))
+        .onAppear {
+            Task {
+                await ollamaService.checkConnection()
             }
         }
+        .sheet(isPresented: $showingHistory) {
+            ChatHistoryView(
+                ollamaService: ollamaService,
+                showingHistory: $showingHistory
+            )
+        }
     }
+    
+    // MARK: - Header View
     
     private var headerView: some View {
-        HStack {
-            // Conversation title (if available)
-            VStack(alignment: .leading, spacing: 2) {
-                if let conversation = ollamaService.currentConversation {
-                    Text(conversation.title)
-                        .font(DesignSystem.Typography.captionMedium)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                        .lineLimit(1)
+        VStack(spacing: 8) {
+            HStack {
+                // Current conversation info
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(ollamaService.currentConversation?.title ?? "New Chat")
+                        .font(.headline)
+                        .foregroundColor(.primary)
                     
-                    Text("\(conversation.messageCount) messages")
-                        .font(.system(size: 10))
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
-                } else {
-                    Text("AI Assistant")
-                        .font(DesignSystem.Typography.captionMedium)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                }
-            }
-            
-            Spacer()
-            
-            // History toggle button
-            Button(action: { showingHistory.toggle() }) {
-                Image(systemName: showingHistory ? "message" : "clock.arrow.circlepath")
-                    .font(.system(size: 14))
-                    .foregroundColor(DesignSystem.Colors.primary)
-            }
-            .buttonStyle(.plain)
-            
-            // New chat button
-            if !showingHistory {
-                Button(action: createNewChat) {
-                    Image(systemName: "plus.circle")
-                        .font(.system(size: 14))
-                        .foregroundColor(DesignSystem.Colors.primary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-    }
-    
-    private var chatHistory: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                if ollamaService.conversationHistory.isEmpty {
-                    emptyState
-                } else {
-                    ForEach(ollamaService.conversationHistory) { message in
-                        ChatMessageView(message: message)
-                    }
-                    
-                    // Current streaming response
-                    if showingResponse && !currentResponse.isEmpty {
-                        ChatMessageView(
-                            message: ChatMessage(
-                                role: .assistant,
-                                content: currentResponse
-                            ),
-                            isStreaming: true
-                        )
+                    HStack(spacing: 4) {
+                        Text("\(ollamaService.conversationHistory.count) messages")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        if ollamaService.webSearchEnabled {
+                            Text("•")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            HStack(spacing: 2) {
+                                Image(systemName: "globe")
+                                    .font(.caption)
+                                Text("Web Search")
+                                    .font(.caption)
+                            }
+                            .foregroundColor(.blue)
+                        }
+                        
+                        if ollamaService.webSearchService.isSearching {
+                            Text("•")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            HStack(spacing: 2) {
+                                ProgressView()
+                                    .scaleEffect(0.6)
+                                Text("Searching...")
+                                    .font(.caption)
+                            }
+                            .foregroundColor(.orange)
+                        }
                     }
                 }
                 
-                // Drag and drop overlay when files are being dragged
-                if isDropTargeted {
-                    dropTargetOverlay
+                Spacer()
+                
+                // Control buttons
+                HStack(spacing: 12) {
+                    // Web search toggle
+                    Button(action: {
+                        ollamaService.toggleWebSearch()
+                    }) {
+                        Image(systemName: ollamaService.webSearchEnabled ? "globe.americas.fill" : "globe.americas")
+                            .font(.system(size: 16))
+                            .foregroundColor(ollamaService.webSearchEnabled ? .blue : .secondary)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help(ollamaService.webSearchEnabled ? "Disable web search" : "Enable web search")
+                    
+                    // New chat button
+                    Button(action: {
+                        ollamaService.createNewConversation()
+                    }) {
+                        Image(systemName: "plus.circle")
+                            .font(.system(size: 16))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("New conversation")
+                    
+                    // History toggle button
+                    Button(action: {
+                        showingHistory.toggle()
+                    }) {
+                        Image(systemName: "clock")
+                            .font(.system(size: 16))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("Chat history")
                 }
             }
-            .padding(.horizontal, DesignSystem.Spacing.sm)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            
+            Divider()
         }
-        .frame(height: 180)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                .fill(isDropTargeted ? DesignSystem.Colors.primary.opacity(0.1) : DesignSystem.Colors.surface.opacity(0.3))
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                        .stroke(isDropTargeted ? DesignSystem.Colors.primary.opacity(0.5) : Color.clear, lineWidth: 2)
-                )
-        )
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+    
+    // MARK: - Chat History View
+    
+    private var chatHistoryView: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    if ollamaService.conversationHistory.isEmpty {
+                        emptyStateView
+                    } else {
+                        ForEach(ollamaService.conversationHistory) { message in
+                            MessageView(message: message)
+                                .id(message.id)
+                        }
+                    }
+                }
+                .padding()
+            }
+            .onChange(of: ollamaService.conversationHistory.count) { newCount in
+                if let lastMessage = ollamaService.conversationHistory.last {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                    }
+                }
+            }
+        }
         .dropDestination(for: URL.self) { urls, location in
             handleDroppedFiles(urls)
             return true
         } isTargeted: { isTargeted in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isDropTargeted = isTargeted
+            isDropTargeted = isTargeted
+        }
+        .overlay(alignment: .center) {
+            if isDropTargeted {
+                dropTargetOverlay
             }
         }
     }
+    
+    // MARK: - Empty State View
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "brain.head.profile")
+                .font(.system(size: 48))
+                .foregroundColor(.secondary)
+            
+            VStack(spacing: 8) {
+                Text("AI Assistant")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                VStack(spacing: 4) {
+                    Text("Ask me anything or drag files here to analyze")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                    
+                    if ollamaService.webSearchEnabled {
+                        HStack(spacing: 4) {
+                            Image(systemName: "globe")
+                                .font(.caption)
+                            Text("Web search is enabled for current information")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.blue)
+                        .padding(.top, 4)
+                    }
+                }
+            }
+            
+            VStack(spacing: 8) {
+                Text("Supported file types:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Text("Images: PNG, JPG, GIF, WebP")
+                    .font(.caption2)
+                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
+                
+                Text("Text: TXT, MD, Swift, Python, JS, HTML, CSS, JSON, XML")
+                    .font(.caption2)
+                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .multilineTextAlignment(.center)
+    }
+    
+    // MARK: - Drop Target Overlay
     
     private var dropTargetOverlay: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            Image(systemName: ollamaService.isVisionModel ? "photo.badge.plus" : "doc.badge.plus")
-                .font(.system(size: 32))
-                .foregroundColor(DesignSystem.Colors.primary)
+        ZStack {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.blue.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(Color.blue, style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
+                )
+                .animation(.easeInOut(duration: 0.2), value: isDropTargeted)
             
-            VStack(spacing: DesignSystem.Spacing.xs) {
-                Text("Drop files here")
-                    .font(DesignSystem.Typography.headline3)
-                    .foregroundColor(DesignSystem.Colors.primary)
+            VStack(spacing: 8) {
+                Image(systemName: "doc.on.doc.fill")
+                    .font(.system(size: 32))
+                    .foregroundColor(.blue)
                 
                 if ollamaService.isVisionModel {
-                    Text("Images & text files supported")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
-                } else {
-                    Text("Text files supported • Images need vision model")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                .fill(DesignSystem.Colors.primary.opacity(0.05))
-        )
-    }
-    
-    private var emptyState: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            Image(systemName: "message.circle")
-                .font(.system(size: 24))
-                .foregroundColor(DesignSystem.Colors.textSecondary)
-            
-            Text("Start a conversation")
-                .font(DesignSystem.Typography.body)
-                .foregroundColor(DesignSystem.Colors.textSecondary)
-            
-            // File support info
-            VStack(spacing: DesignSystem.Spacing.xs) {
-                HStack(spacing: DesignSystem.Spacing.xs) {
-                    Image(systemName: "square.and.arrow.down")
-                        .font(.system(size: 12))
-                        .foregroundColor(DesignSystem.Colors.primary)
+                    Text("Drop files to analyze with AI")
+                        .font(.headline)
+                        .foregroundColor(.blue)
                     
-                    if ollamaService.isVisionModel {
-                        Text("Drop images or files to analyze")
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.primary)
-                    } else {
-                        Text("Drop text files to analyze")
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.primary)
-                    }
+                    Text("Images and text files supported")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("Drop text files to analyze")
+                        .font(.headline)
+                        .foregroundColor(.blue)
+                    
+                    Text("Switch to a vision model (llava, etc.) for image support")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
-                
-                if !ollamaService.isVisionModel {
-                    Text("Use llava or bakllava for image support")
-                        .font(.system(size: 10))
-                        .foregroundColor(DesignSystem.Colors.textTertiary)
-                }
-            }
-            
-            // Quick starter prompts
-            VStack(spacing: DesignSystem.Spacing.xs) {
-                QuickPromptButton(
-                    text: "Explain Swift concurrency",
-                    action: { messageText = "Explain Swift concurrency" }
-                )
-                
-                QuickPromptButton(
-                    text: "Write a Python function",
-                    action: { messageText = "Write a Python function to calculate factorial" }
-                )
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(DesignSystem.Spacing.lg)
+        .padding(40)
     }
     
-    private var inputArea: some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
-            TextField("Ask me anything...", text: $messageText, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(DesignSystem.Typography.body)
-                .padding(.horizontal, DesignSystem.Spacing.md)
-                .padding(.vertical, DesignSystem.Spacing.sm)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                        .fill(DesignSystem.Colors.surface.opacity(0.5))
-                )
-                .disabled(isProcessing)
-                .onSubmit {
-                    sendMessage()
-                }
+    // MARK: - Input View
+    
+    private var inputView: some View {
+        VStack(spacing: 0) {
+            Divider()
             
-            Button(action: sendMessage) {
-                Group {
-                    if isProcessing {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    } else {
-                        Image(systemName: "paperplane.fill")
+            HStack(spacing: 12) {
+                // Text input
+                TextField("Ask me anything...", text: $inputText, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .lineLimit(1...5)
+                    .onSubmit {
+                        sendMessage()
                     }
+                
+                // Send button
+                Button(action: sendMessage) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .secondary : .accentColor)
                 }
-                .foregroundColor(.white)
-                .frame(width: 32, height: 32)
-                .background(
-                    Circle().fill(
-                        messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?
-                        DesignSystem.Colors.textSecondary : DesignSystem.Colors.primary
-                    )
-                )
+                .buttonStyle(PlainButtonStyle())
+                .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || ollamaService.isGenerating)
             }
-            .buttonStyle(.plain)
-            .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isProcessing)
+            .padding(16)
+            .background(Color(NSColor.controlBackgroundColor))
         }
     }
+    
+    // MARK: - Actions
     
     private func sendMessage() {
-        let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !message.isEmpty, !isProcessing else { return }
+        let message = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !message.isEmpty && !ollamaService.isGenerating else { return }
         
-        messageText = ""
-        isProcessing = true
-        showingResponse = true
-        currentResponse = ""
+        inputText = ""
         
         Task {
             await ollamaService.sendStreamingMessage(message) { response in
-                currentResponse = response
+                // Handle streaming response if needed
             }
-            
-            isProcessing = false
-            showingResponse = false
-            currentResponse = ""
         }
-    }
-    
-    private func createNewChat() {
-        ollamaService.createNewConversation()
     }
     
     private func handleDroppedFiles(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        
         draggedFiles = urls
-        
-        guard !isProcessing else { return }
-        
-        isProcessing = true
-        showingResponse = true
-        currentResponse = "Processing files..."
         
         Task {
             if let response = await ollamaService.processFiles(urls) {
-                currentResponse = response
-            } else {
-                currentResponse = "No supported files found or failed to process files."
+                // Files processed, response will be added to conversation
+                print("Files processed: \(response)")
             }
-            
-            // Small delay to show the final response
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
-            
-            isProcessing = false
-            showingResponse = false
-            currentResponse = ""
         }
     }
 }
 
-struct ChatMessageView: View {
+// MARK: - Message View
+
+struct MessageView: View {
     let message: ChatMessage
-    var isStreaming: Bool = false
     
     var body: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+        HStack(alignment: .top, spacing: 12) {
             // Avatar
             Circle()
-                .fill(message.role == .user ? DesignSystem.Colors.primary : DesignSystem.Colors.success)
-                .frame(width: 20, height: 20)
+                .fill(message.role == .user ? Color.blue : Color.green)
+                .frame(width: 24, height: 24)
                 .overlay(
                     Image(systemName: message.role == .user ? "person.fill" : "brain.head.profile")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 12))
                         .foregroundColor(.white)
                 )
             
-            // Message Content
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                Text(message.role.displayName)
-                    .font(DesignSystem.Typography.captionMedium)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
+            // Message content
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(message.role.displayName)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    Text(message.timestamp, style: .time)
+                        .font(.caption2)
+                        .foregroundColor(Color(NSColor.tertiaryLabelColor))
+                }
                 
                 Text(message.content)
-                    .font(DesignSystem.Typography.body)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .font(.body)
                     .textSelection(.enabled)
-                
-                if isStreaming {
-                    HStack(spacing: 4) {
-                        ForEach(0..<3) { index in
-                            Circle()
-                                .fill(DesignSystem.Colors.textSecondary)
-                                .frame(width: 4, height: 4)
-                                .scaleEffect(1.0)
-                                .animation(
-                                    Animation.easeInOut(duration: 0.6)
-                                        .repeatForever()
-                                        .delay(Double(index) * 0.2),
-                                    value: isStreaming
-                                )
-                        }
-                    }
-                    .padding(.top, DesignSystem.Spacing.xs)
-                }
+                    .fixedSize(horizontal: false, vertical: true)
             }
             
-            Spacer()
+            Spacer(minLength: 40)
         }
-        .padding(.vertical, DesignSystem.Spacing.xs)
+        .padding(.vertical, 4)
     }
 }
 
-struct QuickPromptButton: View {
-    let text: String
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(text)
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.primary)
-                .padding(.horizontal, DesignSystem.Spacing.sm)
-                .padding(.vertical, DesignSystem.Spacing.xs)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                        .stroke(DesignSystem.Colors.primary.opacity(0.3), lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-    }
+#Preview {
+    AIChatView()
+        .frame(width: 600, height: 500)
 } 

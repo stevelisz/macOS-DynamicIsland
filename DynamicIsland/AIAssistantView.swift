@@ -32,17 +32,20 @@ struct AIAssistantView: View {
     }
     
     private var connectedView: some View {
-        VStack(spacing: DesignSystem.Spacing.sm) {
+        VStack(spacing: 0) {
             // Model Selector & Status
-            statusHeader
+            VStack(spacing: DesignSystem.Spacing.sm) {
+                statusHeader
+                
+                // Tool Selector
+                toolSelector
+            }
+            .padding(DesignSystem.Spacing.lg)
+            .background(Color(NSColor.controlBackgroundColor))
             
-            // Tool Selector
-            toolSelector
-            
-            // Tool Content
+            // Tool Content - takes remaining space
             toolContent
         }
-        .padding(DesignSystem.Spacing.lg)
     }
     
     private var disconnectedView: some View {
@@ -220,7 +223,7 @@ struct AIAssistantView: View {
         Group {
             switch selectedTool {
             case .chat:
-                AIChatView(ollamaService: ollamaService)
+                AIChatView()
             case .codeAssistant:
                 CodeAssistantView(ollamaService: ollamaService)
             case .textProcessor:
@@ -232,6 +235,7 @@ struct AIAssistantView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
         .animation(DesignSystem.Animation.smooth, value: selectedTool)
     }
     

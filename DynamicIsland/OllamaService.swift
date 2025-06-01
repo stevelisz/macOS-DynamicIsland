@@ -12,6 +12,14 @@ class OllamaService: ObservableObject {
     @Published var currentConversation: ChatConversation?
     @Published var supportedFileTypes: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "txt", "md", "swift", "py", "js", "html", "css", "json", "xml"]
     
+    // Web Search Integration
+    @Published var webSearchService = WebSearchService()
+    @Published var webSearchEnabled: Bool {
+        didSet {
+            UserDefaults.standard.webSearchEnabled = webSearchEnabled
+        }
+    }
+    
     private let baseURL = "http://localhost:11434"
     private var quickSession: URLSession // For quick operations like version/tags
     private var generateSession: URLSession // For slower generate operations
@@ -34,6 +42,9 @@ class OllamaService: ObservableObject {
         generateConfig.timeoutIntervalForRequest = 120.0 // 2 minutes
         generateConfig.timeoutIntervalForResource = 300.0 // 5 minutes
         self.generateSession = URLSession(configuration: generateConfig)
+        
+        // Initialize web search setting
+        self.webSearchEnabled = UserDefaults.standard.webSearchEnabled
         
         // Load or create initial conversation
         loadCurrentConversation()
@@ -98,7 +109,10 @@ class OllamaService: ObservableObject {
         isGenerating = true
         defer { isGenerating = false }
         
-        let userMessage = ChatMessage(role: .user, content: message)
+        // Enhance query with web search if enabled
+        let enhancedMessage = await enhanceMessageWithWebSearch(message)
+        
+        let userMessage = ChatMessage(role: .user, content: message) // Store original message
         conversationHistory.append(userMessage)
         saveCurrentConversation()
         
@@ -108,10 +122,10 @@ class OllamaService: ObservableObject {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             
-            // Simplified request body without context for now
+            // Use enhanced message for AI processing
             let requestBody: [String: Any] = [
                 "model": selectedModel,
-                "prompt": message,
+                "prompt": enhancedMessage,
                 "stream": false
             ]
             
@@ -157,7 +171,10 @@ class OllamaService: ObservableObject {
         isGenerating = true
         defer { isGenerating = false }
         
-        let userMessage = ChatMessage(role: .user, content: message)
+        // Enhance query with web search if enabled
+        let enhancedMessage = await enhanceMessageWithWebSearch(message)
+        
+        let userMessage = ChatMessage(role: .user, content: message) // Store original message
         conversationHistory.append(userMessage)
         saveCurrentConversation()
         
@@ -167,10 +184,10 @@ class OllamaService: ObservableObject {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             
-            // Simplified request body
+            // Use enhanced message for AI processing
             let requestBody: [String: Any] = [
                 "model": selectedModel,
-                "prompt": message,
+                "prompt": enhancedMessage,
                 "stream": true
             ]
             
@@ -216,6 +233,26 @@ class OllamaService: ObservableObject {
                 onUpdate("Error: \(errorMsg)")
             }
         }
+    }
+    
+    // MARK: - Web Search Integration
+    
+    private func enhanceMessageWithWebSearch(_ message: String) async -> String {
+        guard webSearchEnabled else { return message }
+        
+        // Check if this query would benefit from web search
+        if webSearchService.shouldSuggestWebSearch(message) {
+            return await webSearchService.enhanceQueryWithSearch(
+                originalQuery: message,
+                searchProvider: UserDefaults.standard.webSearchProvider
+            )
+        }
+        
+        return message
+    }
+    
+    func toggleWebSearch() {
+        webSearchEnabled.toggle()
     }
     
     // MARK: - Specialized AI Tools
