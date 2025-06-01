@@ -14,6 +14,7 @@ struct DeveloperToolsView: View {
     @State private var draggedFileSize: String?
     @State private var isFileMode: Bool = false
     @State private var fileData: Data?
+    @FocusState private var isInputFocused: Bool
     
     var body: some View {
         VStack(spacing: DesignSystem.Spacing.md) {
@@ -44,6 +45,13 @@ struct DeveloperToolsView: View {
             draggedFileName = nil
             draggedFileSize = nil
             fileData = nil
+            
+            // Auto-focus input when tool changes
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                if selectedTool != .hash || !isFileMode {
+                    isInputFocused = true
+                }
+            }
         }
         .onChange(of: base64Mode) { _, _ in
             if selectedTool == .base64 {
@@ -53,6 +61,22 @@ struct DeveloperToolsView: View {
         .onChange(of: selectedHashType) { _, _ in
             if selectedTool == .hash {
                 processInput()
+            }
+        }
+        .onChange(of: isFileMode) { _, newValue in
+            // Focus input when switching from file mode to text mode
+            if !newValue {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    isInputFocused = true
+                }
+            }
+        }
+        .onAppear {
+            // Auto-focus input when view first appears
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                if selectedTool != .hash || !isFileMode {
+                    isInputFocused = true
+                }
             }
         }
     }
@@ -221,7 +245,8 @@ struct DeveloperToolsView: View {
             InputTextArea(
                 title: selectedTool == .base64 ? (base64Mode == .encode ? "Text" : "Base64") : "Input",
                 text: $inputText,
-                placeholder: getPlaceholder()
+                placeholder: getPlaceholder(),
+                focusBinding: $isInputFocused
             )
             
             // Output
@@ -303,6 +328,7 @@ struct DeveloperToolsView: View {
                 .background(Color.clear)
                 .frame(height: 80)
                 .padding(DesignSystem.Spacing.sm)
+                .focused($isInputFocused)
                 .background(
                     RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                         .fill(DesignSystem.Colors.surface.opacity(0.3))
@@ -311,6 +337,10 @@ struct DeveloperToolsView: View {
                                 .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
                         )
                 )
+                .onTapGesture {
+                    // Ensure focus when tapped
+                    isInputFocused = true
+                }
                 .overlay(
                     Group {
                         if inputText.isEmpty {
@@ -328,6 +358,7 @@ struct DeveloperToolsView: View {
                                 }
                                 Spacer()
                             }
+                            .allowsHitTesting(false)
                         }
                     }
                 )
@@ -559,6 +590,7 @@ struct InputTextArea: View {
     let title: String
     @Binding var text: String
     let placeholder: String
+    var focusBinding: FocusState<Bool>.Binding?
     
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
@@ -576,6 +608,7 @@ struct InputTextArea: View {
                 .background(Color.clear)
                 .frame(height: 80)
                 .padding(DesignSystem.Spacing.sm)
+                .focused(focusBinding ?? FocusState<Bool>().projectedValue)
                 .background(
                     RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                         .fill(DesignSystem.Colors.surface.opacity(0.3))
@@ -584,6 +617,10 @@ struct InputTextArea: View {
                                 .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
                         )
                 )
+                .onTapGesture {
+                    // Ensure focus when tapped
+                    focusBinding?.wrappedValue = true
+                }
                 .overlay(
                     Group {
                         if text.isEmpty {
@@ -601,9 +638,16 @@ struct InputTextArea: View {
                                 }
                                 Spacer()
                             }
+                            .allowsHitTesting(false)
                         }
                     }
                 )
+        }
+        .onAppear {
+            // Auto-focus when view appears
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                focusBinding?.wrappedValue = true
+            }
         }
     }
 }
