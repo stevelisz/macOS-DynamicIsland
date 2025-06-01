@@ -148,7 +148,22 @@ class WebSearchService: ObservableObject {
     }
     
     func shouldSuggestWebSearch(_ query: String) -> Bool {
-        return isWebSearchQuery(query)
+        let webSearchIndicators = [
+            // Time/Date related
+            "current", "latest", "recent", "news", "today", "tomorrow", "yesterday", 
+            "2024", "2025", "now", "date", "time", "when",
+            
+            // Question words that often need current info
+            "what's", "what is", "what are", "how to", "where is", "when did", "who is",
+            "how much", "what time", "what date",
+            
+            // Current events/data
+            "stock price", "weather", "score", "election", "breaking", "update",
+            "price of", "cost of", "exchange rate", "temperature"
+        ]
+        
+        let lowercaseQuery = query.lowercased()
+        return webSearchIndicators.contains { lowercaseQuery.contains($0) }
     }
 }
 

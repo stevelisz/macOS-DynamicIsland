@@ -242,10 +242,11 @@ class OllamaService: ObservableObject {
         
         // Check if this query would benefit from web search
         if webSearchService.shouldSuggestWebSearch(message) {
-            return await webSearchService.enhanceQueryWithSearch(
+            let enhanced = await webSearchService.enhanceQueryWithSearch(
                 originalQuery: message,
                 searchProvider: UserDefaults.standard.webSearchProvider
             )
+            return enhanced
         }
         
         return message
@@ -253,6 +254,8 @@ class OllamaService: ObservableObject {
     
     func toggleWebSearch() {
         webSearchEnabled.toggle()
+        // Sync with UserDefaults so web search actually works
+        UserDefaults.standard.webSearchEnabled = webSearchEnabled
     }
     
     // MARK: - Specialized AI Tools
