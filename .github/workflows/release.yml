@@ -14,10 +14,8 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Set up Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: latest-stable
+    - name: Select Xcode version
+      run: sudo xcode-select -s /Applications/Xcode_15.1.app/Contents/Developer
         
     - name: Build Release
       run: |
@@ -25,16 +23,25 @@ jobs:
         VERSION=${GITHUB_REF#refs/tags/v}
         echo "Building version: $VERSION"
         
+        # Show Xcode version for debugging
+        xcodebuild -version
+        
+        # Clean any previous builds
+        rm -rf build release
+        mkdir -p build release
+        
         # Build the app
+        echo "Starting build..."
         xcodebuild -project DynamicIsland.xcodeproj \
                    -scheme DynamicIsland \
                    -configuration Release \
-                   -archivePath build/DynamicIsland.xcarchive \
+                   -archivePath "build/DynamicIsland.xcarchive" \
                    -destination "generic/platform=macOS" \
                    archive
         
-        # Export the app
-        mkdir -p build
+        echo "Build completed, creating export options..."
+        
+        # Create export options
         cat > build/ExportOptions.plist << EOF
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -48,25 +55,41 @@ jobs:
         </plist>
         EOF
         
+        echo "Exporting app..."
+        
+        # Export the app
         xcodebuild -exportArchive \
-                   -archivePath build/DynamicIsland.xcarchive \
-                   -exportPath build \
-                   -exportOptionsPlist build/ExportOptions.plist
+                   -archivePath "build/DynamicIsland.xcarchive" \
+                   -exportPath "build" \
+                   -exportOptionsPlist "build/ExportOptions.plist"
+        
+        echo "Finding exported app..."
+        
+        # Find the exported app
+        APP_PATH=$(find build -name "*.app" -type d | head -1)
+        echo "Found app at: $APP_PATH"
+        
+        if [ -z "$APP_PATH" ]; then
+            echo "Error: Could not find exported app"
+            ls -la build/
+            exit 1
+        fi
+        
+        echo "Creating DMG..."
         
         # Create DMG
-        mkdir -p release
         DMG_NAME="Dynamic-Toolbox-v$VERSION"
         
         # Create temporary DMG directory
         mkdir -p build/dmg_temp
         
-        # Find and copy the app
-        APP_PATH=$(find build -name "*.app" -type d | head -1)
+        # Copy app to DMG directory
         cp -R "$APP_PATH" build/dmg_temp/
         
         # Rename app for proper display in DMG
         if [ -d "build/dmg_temp/DynamicIsland.app" ]; then
             mv "build/dmg_temp/DynamicIsland.app" "build/dmg_temp/Dynamic Toolbox.app"
+            echo "Renamed app to 'Dynamic Toolbox.app'"
         fi
         
         # Create Applications symlink
@@ -79,7 +102,17 @@ jobs:
                        -format UDZO \
                        "release/$DMG_NAME.dmg"
         
-        echo "DMG created: release/$DMG_NAME.dmg"
+        echo "DMG created successfully: release/$DMG_NAME.dmg"
+        
+        # Verify DMG was created
+        if [ -f "release/$DMG_NAME.dmg" ]; then
+            DMG_SIZE=$(du -h "release/$DMG_NAME.dmg" | cut -f1)
+            echo "DMG size: $DMG_SIZE"
+            ls -la release/
+        else
+            echo "Error: DMG was not created"
+            exit 1
+        fi
         
     - name: Create Release
       uses: softprops/action-gh-release@v1
@@ -103,7 +136,7 @@ jobs:
           
           ## 📋 Requirements
           - macOS 15.1 (Sequoia) or later
-          - Intel or Apple Silicon Mac
+          - Apple Silicon Mac recommended
           - ~50MB storage space
           - Internet connection (optional, for weather/currency/web search)
           
@@ -113,7 +146,7 @@ jobs:
           - Run: `ollama pull llama3.2:3b`
           
           ---
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/v2.0.0...${{ github.ref_name }}
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/v1.0.0...${{ github.ref_name }}
         files: |
           release/*.dmg
           README.md
