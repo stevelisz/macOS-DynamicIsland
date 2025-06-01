@@ -88,7 +88,7 @@ class SystemStatsHelper {
         return coreUsages
     }
     
-    // MARK: - RAM Statistics (Improved to match Activity Monitor)
+    // MARK: - RAM Statistics (Simplified to match Activity Monitor)
     func getRAMStats() -> (usedGB: Double, availableGB: Double, totalGB: Double, pressureLevel: String) {
         var stats = vm_statistics64()
         var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.stride / MemoryLayout<integer_t>.stride)
@@ -106,31 +106,49 @@ class SystemStatsHelper {
         let pageSize = Double(vm_kernel_page_size)
         let gb = 1024.0 * 1024.0 * 1024.0
         
-        // Get compressed memory count
-        var compressed: UInt64 = 0
+        // Get physical memory size (matches Activity Monitor's total)
+        var physicalMemory: UInt64 = 0
         var size = MemoryLayout<UInt64>.size
-        sysctlbyname("vm.compressor_page_count", &compressed, &size, nil, 0)
+        sysctlbyname("hw.memsize", &physicalMemory, &size, nil, 0)
+        let totalMemory = Double(physicalMemory)
         
-        // Calculate memory similar to Activity Monitor
-        let wired = Double(stats.wire_count) * pageSize
-        let active = Double(stats.active_count) * pageSize
-        let inactive = Double(stats.inactive_count) * pageSize
-        let free = Double(stats.free_count) * pageSize
-        let compressedBytes = Double(compressed) * pageSize
+        // Get compressed memory count - use occupied pages (actual compressed size)
+        var compressed: UInt64 = 0
+        size = MemoryLayout<UInt64>.size
+        // Try to get pages occupied by compressor (actual storage used) instead of stored pages
+        if sysctlbyname("vm.compressor_page_count", &compressed, &size, nil, 0) != 0 {
+            compressed = 0
+        }
         
-        // Activity Monitor calculation
-        let appMemory = active
-        let wiredMemory = wired
-        let compressedMemory = compressedBytes
-        // let cachedFiles = inactive // Simplified - Activity Monitor has more complex logic (unused)
+        // Calculate compressed memory bytes
+        let compressedBytes: Double
+        var compressorOccupied: UInt64 = 0
+        if sysctlbyname("vm.compressor_bytes_used", &compressorOccupied, &size, nil, 0) == 0 {
+            // Use actual bytes used by compressor (more accurate)
+            compressedBytes = Double(compressorOccupied)
+        } else {
+            // Fallback to page count method
+            compressedBytes = Double(compressed) * pageSize
+        }
         
-        let totalMemory = wired + active + inactive + free + compressedBytes
-        let usedMemory = appMemory + wiredMemory + compressedMemory
-        let availableMemory = free + inactive // Available for new allocations
+        // Calculate memory components (following Activity Monitor logic)
+        let wired = Double(stats.wire_count) * pageSize           // System/Kernel memory
+        let active = Double(stats.active_count) * pageSize        // App memory
+        let inactive = Double(stats.inactive_count) * pageSize    // Cached files
+        let speculative = Double(stats.speculative_count) * pageSize // Speculative memory
+        let free = Double(stats.free_count) * pageSize            // Free memory
         
-        // Memory pressure calculation
-        let memoryPressure: String
+        // Activity Monitor's "Memory Used" = App Memory + Wired Memory + Compressed Memory + Speculative Memory
+        // Speculative memory is included in Activity Monitor's "used" calculation
+        let usedMemory = active + wired + compressedBytes + speculative
+        
+        // Activity Monitor's "Memory Available" = Free + Cached Files (inactive)
+        // (Cached files can be freed if needed)
+        let availableMemory = free + inactive
+        
+        // Memory pressure calculation based on usage percentage
         let usagePercentage = (usedMemory / totalMemory) * 100
+        let memoryPressure: String
         if usagePercentage < 70 {
             memoryPressure = "Normal"
         } else if usagePercentage < 85 {
@@ -142,7 +160,7 @@ class SystemStatsHelper {
         return (
             usedMemory / gb,
             availableMemory / gb,
-            totalMemory / gb,
+            totalMemory / gb,  // This now matches the physical RAM exactly
             memoryPressure
         )
     }
