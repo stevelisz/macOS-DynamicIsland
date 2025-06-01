@@ -9,6 +9,7 @@ class OllamaService: ObservableObject {
     @Published var selectedModel = "llama3.2:3b"
     @Published var conversationHistory: [ChatMessage] = []
     @Published var isGenerating = false
+    @Published var currentConversation: ChatConversation?
     
     private let baseURL = "http://localhost:11434"
     private var quickSession: URLSession // For quick operations like version/tags
@@ -26,6 +27,9 @@ class OllamaService: ObservableObject {
         generateConfig.timeoutIntervalForRequest = 120.0 // 2 minutes
         generateConfig.timeoutIntervalForResource = 300.0 // 5 minutes
         self.generateSession = URLSession(configuration: generateConfig)
+        
+        // Load or create initial conversation
+        loadCurrentConversation()
     }
     
     // MARK: - Connection Management
@@ -89,6 +93,7 @@ class OllamaService: ObservableObject {
         
         let userMessage = ChatMessage(role: .user, content: message)
         conversationHistory.append(userMessage)
+        saveCurrentConversation()
         
         do {
             let url = URL(string: "\(baseURL)/api/generate")!
@@ -118,6 +123,7 @@ class OllamaService: ObservableObject {
                 if let responseText = json["response"] as? String {
                     let assistantMessage = ChatMessage(role: .assistant, content: responseText)
                     conversationHistory.append(assistantMessage)
+                    saveCurrentConversation()
                     return responseText
                 }
             }
@@ -146,6 +152,7 @@ class OllamaService: ObservableObject {
         
         let userMessage = ChatMessage(role: .user, content: message)
         conversationHistory.append(userMessage)
+        saveCurrentConversation()
         
         do {
             let url = URL(string: "\(baseURL)/api/generate")!
@@ -189,6 +196,7 @@ class OllamaService: ObservableObject {
             if !fullResponse.isEmpty {
                 let assistantMessage = ChatMessage(role: .assistant, content: fullResponse)
                 conversationHistory.append(assistantMessage)
+                saveCurrentConversation()
             }
             
         } catch {
@@ -237,16 +245,76 @@ class OllamaService: ObservableObject {
     
     func clearConversation() {
         conversationHistory.removeAll()
+        saveCurrentConversation()
+    }
+    
+    private func loadCurrentConversation() {
+        if let current = UserDefaults.standard.getCurrentConversation() {
+            currentConversation = current
+            conversationHistory = current.messages
+        } else {
+            // Create new conversation if none exists
+            let newConversation = UserDefaults.standard.createNewConversation()
+            currentConversation = newConversation
+            conversationHistory = []
+        }
+    }
+    
+    func loadConversation(_ conversation: ChatConversation) {
+        currentConversation = conversation
+        conversationHistory = conversation.messages
+        UserDefaults.standard.currentConversationId = conversation.id
+    }
+    
+    private func saveCurrentConversation() {
+        guard var conversation = currentConversation else { return }
+        
+        conversation.messages = conversationHistory
+        conversation.lastModified = Date()
+        
+        // Auto-generate title from first user message if it's still "New Chat"
+        if conversation.title == "New Chat" && !conversationHistory.isEmpty {
+            conversation.generateTitle()
+        }
+        
+        UserDefaults.standard.saveConversation(conversation)
+        currentConversation = conversation
+    }
+    
+    func createNewConversation(title: String = "New Chat") {
+        let newConversation = UserDefaults.standard.createNewConversation(title: title)
+        loadConversation(newConversation)
+    }
+    
+    func updateConversationTitle(_ title: String) {
+        guard var conversation = currentConversation else { return }
+        conversation.title = title
+        UserDefaults.standard.saveConversation(conversation)
+        currentConversation = conversation
     }
 }
 
 // MARK: - Models
 
 struct ChatMessage: Identifiable, Equatable {
-    let id = UUID()
+    let id: UUID
     let role: MessageRole
     let content: String
-    let timestamp = Date()
+    let timestamp: Date
+    
+    init(role: MessageRole, content: String) {
+        self.id = UUID()
+        self.role = role
+        self.content = content
+        self.timestamp = Date()
+    }
+    
+    init(id: UUID, role: MessageRole, content: String, timestamp: Date) {
+        self.id = id
+        self.role = role
+        self.content = content
+        self.timestamp = timestamp
+    }
 }
 
 enum MessageRole: String, CaseIterable {

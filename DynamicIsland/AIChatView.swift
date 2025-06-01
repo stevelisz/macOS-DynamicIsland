@@ -6,15 +6,70 @@ struct AIChatView: View {
     @State private var isProcessing = false
     @State private var currentResponse = ""
     @State private var showingResponse = false
+    @State private var showingHistory = false
     
     var body: some View {
         VStack(spacing: DesignSystem.Spacing.sm) {
-            // Chat History
-            chatHistory
+            // Header with controls
+            headerView
             
-            // Input Area
-            inputArea
+            if showingHistory {
+                // Chat History View
+                ChatHistoryView(ollamaService: ollamaService, showingHistory: $showingHistory)
+            } else {
+                // Regular Chat View
+                VStack(spacing: DesignSystem.Spacing.sm) {
+                    // Chat History
+                    chatHistory
+                    
+                    // Input Area
+                    inputArea
+                }
+            }
         }
+    }
+    
+    private var headerView: some View {
+        HStack {
+            // Conversation title (if available)
+            VStack(alignment: .leading, spacing: 2) {
+                if let conversation = ollamaService.currentConversation {
+                    Text(conversation.title)
+                        .font(DesignSystem.Typography.captionMedium)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .lineLimit(1)
+                    
+                    Text("\(conversation.messageCount) messages")
+                        .font(.system(size: 10))
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                } else {
+                    Text("AI Assistant")
+                        .font(DesignSystem.Typography.captionMedium)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                }
+            }
+            
+            Spacer()
+            
+            // History toggle button
+            Button(action: { showingHistory.toggle() }) {
+                Image(systemName: showingHistory ? "message" : "clock.arrow.circlepath")
+                    .font(.system(size: 14))
+                    .foregroundColor(DesignSystem.Colors.primary)
+            }
+            .buttonStyle(.plain)
+            
+            // New chat button
+            if !showingHistory {
+                Button(action: createNewChat) {
+                    Image(systemName: "plus.circle")
+                        .font(.system(size: 14))
+                        .foregroundColor(DesignSystem.Colors.primary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
     }
     
     private var chatHistory: some View {
@@ -132,6 +187,10 @@ struct AIChatView: View {
             showingResponse = false
             currentResponse = ""
         }
+    }
+    
+    private func createNewChat() {
+        ollamaService.createNewConversation()
     }
 }
 
