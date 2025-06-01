@@ -22,6 +22,27 @@ struct ChatConversation: Codable, Identifiable {
         if let firstUserMessage = messages.first(where: { $0.role == .user }) {
             var content = firstUserMessage.content.trimmingCharacters(in: .whitespacesAndNewlines)
             
+            // Check if this is a file drop (contains file emoji and filename pattern)
+            if content.contains("📄 **") || content.contains("📷 Image:") {
+                // Extract filename from file drop format: "📄 **filename**:"
+                if let range = content.range(of: #"📄 \*\*(.*?)\*\*:"#, options: .regularExpression) {
+                    let match = String(content[range])
+                    let filename = match.replacingOccurrences(of: "📄 **", with: "").replacingOccurrences(of: "**:", with: "")
+                    self.title = filename
+                    return
+                }
+                // Extract filename from image format: "📷 Image: filename"
+                else if let range = content.range(of: "📷 Image: ") {
+                    let afterImage = content[range.upperBound...]
+                    if let lineEnd = afterImage.firstIndex(of: "\n") {
+                        self.title = String(afterImage[..<lineEnd])
+                    } else {
+                        self.title = String(afterImage)
+                    }
+                    return
+                }
+            }
+            
             // Clean up common formatting that makes titles messy
             content = content.replacingOccurrences(of: "**", with: "") // Remove bold markdown
             content = content.replacingOccurrences(of: "```", with: "") // Remove code blocks
@@ -31,7 +52,7 @@ struct ChatConversation: Codable, Identifiable {
             content = content.replacingOccurrences(of: "  ", with: " ") // Clean up double spaces
             content = content.trimmingCharacters(in: .whitespacesAndNewlines)
             
-            // Extract filename if it looks like a file reference
+            // Extract filename if it looks like a file reference (fallback)
             if content.contains(".") && content.count > 30 {
                 // Look for file extensions
                 let commonExtensions = [".txt", ".md", ".swift", ".py", ".js", ".html", ".css", ".json", ".xml", ".jpg", ".png", ".gif", ".pdf"]

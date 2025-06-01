@@ -42,6 +42,8 @@ struct AIChatView: View {
                     Text(ollamaService.currentConversation?.title ?? "New Chat")
                         .font(.headline)
                         .foregroundColor(.primary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     
                     HStack(spacing: 4) {
                         Text("\(ollamaService.conversationHistory.count) messages")
