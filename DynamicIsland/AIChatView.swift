@@ -312,6 +312,8 @@ struct AIChatView: View {
 
 struct MessageView: View {
     let message: ChatMessage
+    @State private var isHovered = false
+    @State private var showCopiedFeedback = false
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -335,6 +337,27 @@ struct MessageView: View {
                     
                     Spacer()
                     
+                    // Copy button for AI responses
+                    if message.role == .assistant && (isHovered || showCopiedFeedback) {
+                        Button(action: copyMessage) {
+                            HStack(spacing: 4) {
+                                Image(systemName: showCopiedFeedback ? "checkmark" : "doc.on.doc")
+                                    .font(.system(size: 10, weight: .medium))
+                                Text(showCopiedFeedback ? "Copied" : "Copy")
+                                    .font(.system(size: 10, weight: .medium))
+                            }
+                            .foregroundColor(showCopiedFeedback ? .green : .blue)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(showCopiedFeedback ? Color.green.opacity(0.1) : Color.blue.opacity(0.1))
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                    }
+                    
                     Text(message.timestamp, style: .time)
                         .font(.caption2)
                         .foregroundColor(Color(NSColor.tertiaryLabelColor))
@@ -349,6 +372,26 @@ struct MessageView: View {
             Spacer(minLength: 40)
         }
         .padding(.vertical, 4)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovered = hovering
+            }
+        }
+    }
+    
+    private func copyMessage() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(message.content, forType: .string)
+        
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showCopiedFeedback = true
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showCopiedFeedback = false
+            }
+        }
     }
 }
 

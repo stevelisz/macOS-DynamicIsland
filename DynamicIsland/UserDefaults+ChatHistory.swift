@@ -20,9 +20,40 @@ struct ChatConversation: Codable, Identifiable {
     // Generate a smart title from the first user message
     mutating func generateTitle() {
         if let firstUserMessage = messages.first(where: { $0.role == .user }) {
-            let content = firstUserMessage.content.trimmingCharacters(in: .whitespacesAndNewlines)
-            if content.count > 50 {
-                self.title = String(content.prefix(47)) + "..."
+            var content = firstUserMessage.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // Clean up common formatting that makes titles messy
+            content = content.replacingOccurrences(of: "**", with: "") // Remove bold markdown
+            content = content.replacingOccurrences(of: "```", with: "") // Remove code blocks
+            content = content.replacingOccurrences(of: "*", with: "") // Remove italic markdown
+            content = content.replacingOccurrences(of: "`", with: "") // Remove inline code
+            content = content.replacingOccurrences(of: "\n", with: " ") // Replace newlines with spaces
+            content = content.replacingOccurrences(of: "  ", with: " ") // Clean up double spaces
+            content = content.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // Extract filename if it looks like a file reference
+            if content.contains(".") && content.count > 30 {
+                // Look for file extensions
+                let commonExtensions = [".txt", ".md", ".swift", ".py", ".js", ".html", ".css", ".json", ".xml", ".jpg", ".png", ".gif", ".pdf"]
+                for ext in commonExtensions {
+                    if let range = content.range(of: ext, options: .caseInsensitive) {
+                        // Find the filename before the extension
+                        let beforeExt = content[..<range.lowerBound]
+                        if let lastSpace = beforeExt.lastIndex(of: " ") {
+                            let filename = String(beforeExt[beforeExt.index(after: lastSpace)...]) + ext
+                            self.title = filename
+                            return
+                        }
+                    }
+                }
+            }
+            
+            // For regular messages, take first meaningful words
+            let words = content.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+            if words.count > 6 {
+                self.title = words.prefix(6).joined(separator: " ") + "..."
+            } else if content.count > 35 {
+                self.title = String(content.prefix(32)) + "..."
             } else {
                 self.title = content.isEmpty ? "Empty Chat" : content
             }

@@ -305,6 +305,7 @@ struct ConversationRowView: View {
                         .font(DesignSystem.Typography.bodySemibold)
                         .foregroundColor(DesignSystem.Colors.textPrimary)
                         .lineLimit(1)
+                        .truncationMode(.tail)
                     
                     Spacer()
                     
