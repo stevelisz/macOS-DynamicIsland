@@ -153,6 +153,29 @@
             color: #6272a4;
         }
         
+        .feature-screenshot {
+            width: 100%;
+            max-width: 300px;
+            height: auto;
+            border-radius: 8px;
+            margin: 15px 0 10px 0;
+            border: 1px solid #44475a;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .feature-screenshot:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .screenshot-caption {
+            font-size: 0.8rem;
+            color: #6272a4;
+            text-align: center;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        
         .install {
             background: #44475a;
             border-radius: 6px;
@@ -246,48 +269,64 @@
             <div class="features-grid">
                 <div class="feature-item">
                     <h3>AI Assistant</h3>
+                    <img src="../screenshot/AI.png" alt="AI Assistant Interface" class="feature-screenshot">
+                    <div class="screenshot-caption">Local AI chat with web search capabilities</div>
                     <p>Local AI processing via Ollama integration. Supports code analysis, text processing, file operations, and web search functionality.</p>
                     <div class="tech-details">Requires: Ollama runtime, compatible models (llama3.2:3b recommended)</div>
                 </div>
                 
                 <div class="feature-item">
                     <h3>System Monitor</h3>
+                    <img src="../screenshot/SystemUsage.png" alt="System Monitor Interface" class="feature-screenshot">
+                    <div class="screenshot-caption">Real-time CPU, memory, and disk usage tracking</div>
                     <p>Real-time hardware metrics visualization. CPU core usage, GPU utilization, memory statistics, and storage monitoring.</p>
                     <div class="tech-details">Implementation: IOKit APIs, host_statistics64, mach kernel interfaces</div>
                 </div>
                 
                 <div class="feature-item">
                     <h3>Clipboard Manager</h3>
+                    <img src="../screenshot/Clipboard.png" alt="Clipboard Manager Interface" class="feature-screenshot">
+                    <div class="screenshot-caption">Smart clipboard history with search and pinning</div>
                     <p>Persistent clipboard history with search and pin functionality. Supports text, images, and file references.</p>
                     <div class="tech-details">Storage: UserDefaults, NSPasteboard monitoring</div>
                 </div>
                 
                 <div class="feature-item">
                     <h3>App Launcher</h3>
+                    <img src="../screenshot/QuickApps.png" alt="Quick Apps Launcher Interface" class="feature-screenshot">
+                    <div class="screenshot-caption">Drag & drop app shortcuts for quick access</div>
                     <p>Custom application shortcuts via drag-and-drop configuration. Quick access to frequently used applications.</p>
                     <div class="tech-details">Integration: NSWorkspace, LaunchServices</div>
                 </div>
                 
                 <div class="feature-item">
                     <h3>Timer Functions</h3>
+                    <img src="../screenshot/Timer.png" alt="Pomodoro Timer Interface" class="feature-screenshot">
+                    <div class="screenshot-caption">Pomodoro timer with session tracking</div>
                     <p>Pomodoro technique implementation with session tracking and background operation support.</p>
                     <div class="tech-details">Features: Configurable intervals, statistics, notification system</div>
                 </div>
                 
                 <div class="feature-item">
                     <h3>Weather Data</h3>
+                    <img src="../screenshot/Weather.png" alt="Weather Display Interface" class="feature-screenshot">
+                    <div class="screenshot-caption">Location-based weather with beautiful design</div>
                     <p>Location-based weather information with automatic geolocation detection.</p>
                     <div class="tech-details">API: OpenWeatherMap, CoreLocation services</div>
                 </div>
                 
                 <div class="feature-item">
                     <h3>Unit Converter</h3>
+                    <img src="../screenshot/Converter.png" alt="Unit Converter Interface" class="feature-screenshot">
+                    <div class="screenshot-caption">Multi-category converter with live currency rates</div>
                     <p>Multi-category unit conversion including live currency exchange rates via API integration.</p>
                     <div class="tech-details">Categories: Length, weight, temperature, currency</div>
                 </div>
                 
                 <div class="feature-item">
                     <h3>Developer Tools</h3>
+                    <img src="../screenshot/DevTools.png" alt="Developer Tools Interface" class="feature-screenshot">
+                    <div class="screenshot-caption">JSON formatting, Base64, and hash utilities</div>
                     <p>JSON formatting/validation, Base64 encoding, hash generation (MD5, SHA family), and file hash calculation.</p>
                     <div class="tech-details">Crypto: CommonCrypto, CryptoKit frameworks</div>
                 </div>
