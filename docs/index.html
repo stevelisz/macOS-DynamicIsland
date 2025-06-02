@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Toolbox - Your All-in-One Productivity Hub for macOS</title>
-    <meta name="description" content="Transform your Mac's notch into a powerful productivity hub with Dynamic Toolbox - AI assistant, system monitoring, timers, and more!">
+    <title>Dynamic Toolbox - macOS Notch Productivity Tools</title>
+    <meta name="description" content="macOS productivity tools accessible through the notch area. AI assistant, system monitor, timers, and utilities.">
     
-    <!-- Open Graph / Social Media -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Dynamic Toolbox - Productivity Hub for macOS">
-    <meta property="og:description" content="All-in-one productivity tools living right in your Mac's notch area">
+    <meta property="og:title" content="Dynamic Toolbox - macOS Notch Tools">
+    <meta property="og:description" content="Productivity tools for macOS accessible through the notch">
     <meta property="og:image" content="https://raw.githubusercontent.com/stevelisz/macOS-DynamicIsland/main/icon.png">
     
     <link rel="icon" type="image/png" href="../icon.png">
@@ -22,301 +21,297 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
             line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #f8f8f2;
+            background: #282a36;
             min-height: 100vh;
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 0 20px;
         }
         
-        .hero {
-            text-align: center;
-            padding: 80px 0;
-            color: white;
+        .header {
+            padding: 40px 0;
+            border-bottom: 1px solid #44475a;
         }
         
-        .hero h1 {
-            font-size: 3.5rem;
-            margin-bottom: 20px;
-            font-weight: 700;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #50fa7b;
+            font-weight: 400;
         }
         
-        .hero .subtitle {
-            font-size: 1.3rem;
-            margin-bottom: 40px;
-            opacity: 0.9;
+        .header .description {
+            font-size: 1rem;
+            color: #6272a4;
             max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
         }
         
-        .download-section {
-            margin: 40px 0;
+        .nav-links {
+            margin-top: 20px;
         }
         
-        .download-btn {
+        .nav-links a {
             display: inline-block;
-            background: #28a745;
-            color: white;
-            padding: 15px 30px;
-            border-radius: 25px;
+            background: #44475a;
+            color: #f8f8f2;
+            padding: 8px 16px;
+            margin-right: 10px;
             text-decoration: none;
-            font-weight: 600;
-            font-size: 1.1rem;
-            margin: 10px;
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
-            transition: all 0.3s ease;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: background 0.2s;
         }
         
-        .download-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        .nav-links a:hover {
+            background: #6272a4;
         }
         
-        .download-btn.secondary {
-            background: transparent;
-            border: 2px solid white;
-            color: white;
-            box-shadow: none;
+        .nav-links a.primary {
+            background: #50fa7b;
+            color: #282a36;
         }
         
-        .download-btn.secondary:hover {
-            background: white;
-            color: #667eea;
+        .nav-links a.primary:hover {
+            background: #5af78e;
         }
         
         .requirements {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
+            background: #44475a;
+            border-radius: 6px;
             padding: 20px;
-            margin: 30px auto;
-            max-width: 500px;
-            border: 1px solid rgba(255,255,255,0.2);
+            margin: 30px 0;
+            border-left: 4px solid #ffb86c;
         }
         
         .requirements h3 {
-            margin-bottom: 15px;
-            color: #fff;
+            margin-bottom: 10px;
+            color: #ffb86c;
+            font-size: 1rem;
         }
         
         .requirements ul {
             list-style: none;
-            color: rgba(255,255,255,0.9);
+            font-size: 0.9rem;
         }
         
         .requirements li {
-            padding: 5px 0;
-            padding-left: 25px;
-            position: relative;
+            padding: 2px 0;
+            color: #f8f8f2;
         }
         
         .requirements li:before {
-            content: "✓";
-            position: absolute;
-            left: 0;
-            color: #28a745;
-            font-weight: bold;
+            content: "• ";
+            color: #50fa7b;
         }
         
         .features {
-            background: white;
-            padding: 80px 0;
+            padding: 40px 0;
         }
         
         .features h2 {
-            text-align: center;
-            font-size: 2.5rem;
-            margin-bottom: 60px;
-            color: #333;
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            color: #50fa7b;
+            font-weight: 400;
         }
         
         .features-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 40px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
         }
         
-        .feature-card {
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 30px;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease;
+        .feature-item {
+            background: #44475a;
+            border-radius: 6px;
+            padding: 20px;
+            border-left: 3px solid #8be9fd;
         }
         
-        .feature-card:hover {
-            transform: translateY(-5px);
+        .feature-item h3 {
+            margin-bottom: 8px;
+            color: #8be9fd;
+            font-size: 1rem;
+            font-weight: 500;
         }
         
-        .feature-icon {
-            font-size: 3rem;
-            margin-bottom: 20px;
+        .feature-item p {
+            color: #f8f8f2;
+            font-size: 0.9rem;
+            line-height: 1.5;
         }
         
-        .feature-card h3 {
+        .feature-item .tech-details {
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: #6272a4;
+        }
+        
+        .install {
+            background: #44475a;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 30px 0;
+            border-left: 4px solid #ff79c6;
+        }
+        
+        .install h3 {
+            color: #ff79c6;
             margin-bottom: 15px;
-            color: #333;
+            font-size: 1rem;
         }
         
-        .feature-card p {
-            color: #666;
-            line-height: 1.6;
+        .install-steps {
+            font-size: 0.9rem;
         }
         
-        .screenshots {
-            background: #f8f9fa;
-            padding: 80px 0;
+        .install-steps ol {
+            margin-left: 20px;
         }
         
-        .screenshots h2 {
-            text-align: center;
-            font-size: 2.5rem;
-            margin-bottom: 60px;
-            color: #333;
+        .install-steps li {
+            margin: 5px 0;
+            color: #f8f8f2;
         }
         
-        .screenshot-placeholder {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 15px;
-            height: 400px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.2rem;
-            margin: 20px 0;
+        .install-steps code {
+            background: #282a36;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #50fa7b;
+            font-family: inherit;
         }
         
         .footer {
-            background: #333;
-            color: white;
-            text-align: center;
-            padding: 40px 0;
+            border-top: 1px solid #44475a;
+            padding: 20px 0;
+            margin-top: 40px;
+            font-size: 0.9rem;
+            color: #6272a4;
         }
         
         .footer a {
-            color: #667eea;
+            color: #8be9fd;
             text-decoration: none;
         }
         
         @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2.5rem;
-            }
-            
-            .hero .subtitle {
-                font-size: 1.1rem;
-            }
-            
-            .download-btn {
+            .nav-links a {
                 display: block;
-                margin: 10px auto;
-                max-width: 250px;
+                margin: 5px 0;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Hero Section -->
-    <section class="hero">
+    <header class="header">
         <div class="container">
-            <h1>🧰 Dynamic Toolbox</h1>
-            <p class="subtitle">Specifically made for Macbook with notches(other Macbook should work too?). Transform your Mac's notch into a powerful hub with AI assistant, system monitoring, timers, and essential tools.</p>
+            <h1>Dynamic Toolbox</h1>
+            <p class="description">macOS productivity suite accessible through notch interaction. Features AI assistant, system monitoring, timers, and development utilities.</p>
             
-            <div class="download-section">
-                <a href="#" class="download-btn" id="download-dmg">
-                    📥 Download for macOS
-                </a>
-                <a href="https://github.com/stevelisz/macOS-DynamicIsland" class="download-btn secondary">
-                    📖 View on GitHub
-                </a>
+            <div class="nav-links">
+                <a href="#" class="primary" id="download-link">Download</a>
+                <a href="https://github.com/stevelisz/macOS-DynamicIsland">Source</a>
+                <a href="https://github.com/stevelisz/macOS-DynamicIsland/releases">Releases</a>
+                <a href="https://github.com/stevelisz/macOS-DynamicIsland/issues">Issues</a>
             </div>
             
             <div class="requirements">
-                <h3>📋 Requirements</h3>
+                <h3>System Requirements</h3>
                 <ul>
-                    <li>macOS 15.1 (Sequoia) or later</li>
-                    <li>Apple Silicon Mac</li>
-                    <li>~50MB storage space</li>
-                    <li>Internet connection (optional features)</li>
+                    <li>macOS 15.1+ (Sequoia)</li>
+                    <li>Apple Silicon or Intel Mac</li>
+                    <li>~50MB storage</li>
+                    <li>Network access (optional features)</li>
                 </ul>
             </div>
         </div>
-    </section>
+    </header>
     
-    <!-- Features Section -->
-    <section class="features">
+    <main class="features">
         <div class="container">
-            <h2>Features</h2>
+            <h2>Feature Set</h2>
             <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">🤖</div>
+                <div class="feature-item">
                     <h3>AI Assistant</h3>
-                    <p>Local AI powered by Ollama with web search capabilities. Chat, analyze files, and get real-time information without leaving your workflow.</p>
+                    <p>Local AI processing via Ollama integration. Supports code analysis, text processing, file operations, and web search functionality.</p>
+                    <div class="tech-details">Requires: Ollama runtime, compatible models (llama3.2:3b recommended)</div>
                 </div>
                 
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
+                <div class="feature-item">
                     <h3>System Monitor</h3>
-                    <p>Real-time CPU, GPU, RAM, and SSD monitoring with beautiful visualizations. Keep track of your Mac's performance at a glance.</p>
+                    <p>Real-time hardware metrics visualization. CPU core usage, GPU utilization, memory statistics, and storage monitoring.</p>
+                    <div class="tech-details">Implementation: IOKit APIs, host_statistics64, mach kernel interfaces</div>
                 </div>
                 
-                <div class="feature-card">
-                    <div class="feature-icon">⏰</div>
-                    <h3>Smart Timers</h3>
-                    <p>Pomodoro timer with session tracking and statistics. Focus timer with break reminders to boost your productivity.</p>
+                <div class="feature-item">
+                    <h3>Clipboard Manager</h3>
+                    <p>Persistent clipboard history with search and pin functionality. Supports text, images, and file references.</p>
+                    <div class="tech-details">Storage: UserDefaults, NSPasteboard monitoring</div>
                 </div>
                 
-                <div class="feature-card">
-                    <div class="feature-icon">🌤️</div>
-                    <h3>Live Weather</h3>
-                    <p>Current weather conditions and forecasts for your location. Beautiful weather display with detailed information.</p>
+                <div class="feature-item">
+                    <h3>App Launcher</h3>
+                    <p>Custom application shortcuts via drag-and-drop configuration. Quick access to frequently used applications.</p>
+                    <div class="tech-details">Integration: NSWorkspace, LaunchServices</div>
                 </div>
                 
-                <div class="feature-card">
-                    <div class="feature-icon">💱</div>
-                    <h3>Currency Converter</h3>
-                    <p>Real-time currency exchange rates with support for major world currencies. Quick and accurate conversions.</p>
+                <div class="feature-item">
+                    <h3>Timer Functions</h3>
+                    <p>Pomodoro technique implementation with session tracking and background operation support.</p>
+                    <div class="tech-details">Features: Configurable intervals, statistics, notification system</div>
                 </div>
                 
-                <div class="feature-card">
-                    <div class="feature-icon">🎛️</div>
-                    <h3>Quick Controls</h3>
-                    <p>Fast access to essential tools and utilities. One-click access to all your productivity needs from the notch area.</p>
+                <div class="feature-item">
+                    <h3>Weather Data</h3>
+                    <p>Location-based weather information with automatic geolocation detection.</p>
+                    <div class="tech-details">API: OpenWeatherMap, CoreLocation services</div>
+                </div>
+                
+                <div class="feature-item">
+                    <h3>Unit Converter</h3>
+                    <p>Multi-category unit conversion including live currency exchange rates via API integration.</p>
+                    <div class="tech-details">Categories: Length, weight, temperature, currency</div>
+                </div>
+                
+                <div class="feature-item">
+                    <h3>Developer Tools</h3>
+                    <p>JSON formatting/validation, Base64 encoding, hash generation (MD5, SHA family), and file hash calculation.</p>
+                    <div class="tech-details">Crypto: CommonCrypto, CryptoKit frameworks</div>
+                </div>
+            </div>
+            
+            <div class="install">
+                <h3>Installation</h3>
+                <div class="install-steps">
+                    <ol>
+                        <li>Download DMG from releases page</li>
+                        <li>Mount and drag to Applications folder</li>
+                        <li>Launch app, click notch area to activate</li>
+                        <li>Optional: Install <code>ollama</code> for AI features</li>
+                    </ol>
                 </div>
             </div>
         </div>
-    </section>
+    </main>
     
-    <!-- Screenshots Section -->
-    <section class="screenshots">
-        <div class="container">
-            <h2>📱 Screenshots</h2>
-            <div class="screenshot-placeholder">
-                Screenshots coming soon - Experience Dynamic Toolbox in action!
-            </div>
-        </div>
-    </section>
-    
-    <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <p>&copy; 2025 Dynamic Toolbox. Open source project. <a href="https://github.com/stevelisz/macOS-DynamicIsland">Contribute on GitHub</a></p>
-            <p>Built with ❤️ for macOS productivity enthusiasts</p>
+            <p>Open source project. <a href="https://github.com/stevelisz/macOS-DynamicIsland">Contribute on GitHub</a> | MIT License</p>
         </div>
     </footer>
     
     <script>
-        // Fetch latest release and update download link
         async function updateDownloadLink() {
             try {
                 const response = await fetch('https://api.github.com/repos/stevelisz/macOS-DynamicIsland/releases/latest');
@@ -324,17 +319,15 @@
                 
                 const dmgAsset = release.assets.find(asset => asset.name.endsWith('.dmg'));
                 if (dmgAsset) {
-                    document.getElementById('download-dmg').href = dmgAsset.browser_download_url;
-                    document.getElementById('download-dmg').innerHTML = `📥 Download ${release.tag_name} (${Math.round(dmgAsset.size / (1024*1024))}MB)`;
+                    const sizeInMB = Math.round(dmgAsset.size / (1024*1024));
+                    document.getElementById('download-link').href = dmgAsset.browser_download_url;
+                    document.getElementById('download-link').textContent = `Download ${release.tag_name} (${sizeInMB}MB)`;
                 }
             } catch (error) {
-                console.log('Could not fetch latest release');
-                // Fallback to releases page
-                document.getElementById('download-dmg').href = 'https://github.com/stevelisz/macOS-DynamicIsland/releases/latest';
+                document.getElementById('download-link').href = 'https://github.com/stevelisz/macOS-DynamicIsland/releases/latest';
             }
         }
         
-        // Update download link on page load
         updateDownloadLink();
     </script>
 </body>
