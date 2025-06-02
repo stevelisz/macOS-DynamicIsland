@@ -1,135 +1,139 @@
-# 🚀 Dynamic Toolbox Release Notes
+# Dynamic Toolbox Release Notes
 
-## Version 2.0.0 - "AI-Powered Productivity" (Latest)
+## v2.0.0 - Current Release
 
-**Release Date**: December 2024
+### Core Implementation
 
-### 🌟 Major Features
+**AI Assistant Subsystem**
+- Web search integration via DuckDuckGo API
+- Persistent chat history with SQLite backend
+- Response caching and one-click copy functionality
+- Drag-drop file analysis pipeline
+- Conversation title auto-generation
 
-#### 🤖 **Enhanced AI Assistant**
-- **🔍 Web Search Integration**: AI now has access to current information via DuckDuckGo search
-- **💬 Chat History Management**: Beautiful chat history viewer with search and organization
-- **📱 Copy AI Responses**: One-click copy feature for AI-generated content
-- **📂 Improved File Handling**: Better support for dragging files for AI analysis
-- **🎯 Smart Title Generation**: Cleaner, more readable conversation titles
+**UI/UX Refactoring**
+- Glassmorphism material implementation
+- Visual feedback system for copy operations
+- Text truncation handling for long conversation titles
+- Auto-hide prevention during active sessions
+- Enhanced transition animations
 
-#### 🎨 **UI/UX Improvements**
-- **✨ Enhanced Chat Interface**: Glassmorphism design with better visual hierarchy
-- **🔄 Improved Copy Feedback**: Visual confirmation when copying AI responses
-- **📝 Better Text Truncation**: Prevents long titles from wrapping to multiple lines
-- **🖱️ Auto-Hide Protection**: Chat windows no longer auto-hide when actively being used
-- **🎪 Smoother Animations**: Enhanced transitions and hover effects throughout
+**System Integration**
+- Real-time web search capabilities
+- Conversation persistence layer
+- Improved error handling and connection state management
+- Performance optimizations for smoother interactions
 
-#### 🛠️ **Technical Enhancements**
-- **🌐 Real Web Search**: Replaced limited API with proper web search capabilities
-- **💾 Persistent Chat Storage**: All conversations are saved and searchable
-- **🔧 Better Error Handling**: Improved connection status and error messages
-- **⚡ Performance Optimizations**: Faster loading and smoother interactions
-
-### 🐛 **Bug Fixes**
-- Fixed chat titles appearing on multiple lines
-- Resolved auto-hide interference with chat history
+### Bug Fixes
+- Fixed multi-line chat title rendering
+- Resolved auto-hide interference with chat history viewer
 - Improved file drop handling and title generation
-- Better handling of empty conversations
-- Fixed truncation issues in conversation previews
+- Enhanced empty conversation state handling
+- Fixed text truncation in conversation previews
 
-### 🔧 **Developer Experience**
-- Cleaner code architecture for maintainability
-- Better separation of concerns in UI components
+### Architecture Improvements
+- Cleaner component separation
 - Improved notification system for sheet management
+- Better state management patterns
 
 ---
 
-## Version 1.3.0 - "Smart Tools Update"
+## v1.3.0 - Smart Tools Update
 
-### ✨ New Features
-- Enhanced Pomodoro Timer with session statistics
-- Live currency exchange rates in Unit Converter
-- Improved system monitoring with animated charts
-- Better file drag-and-drop support
+### Features
+- Pomodoro timer with session analytics
+- Live currency exchange rate integration
+- System monitoring with animated performance charts
+- Enhanced drag-drop file support
 
-### 🐛 Bug Fixes
-- Fixed timer persistence when app is minimized
-- Improved clipboard history performance
-- Better error handling for network requests
-
----
-
-## Version 1.2.0 - "AI Integration"
-
-### 🤖 AI Assistant Launch
-- Local AI integration with Ollama
-- Multiple AI tools for coding and writing
-- Code analysis and text processing capabilities
-- Smart setup and model management
-
-### 🎨 Design Updates
-- Glassmorphism UI with translucent materials
-- Improved animations and micro-interactions
-- Better responsive design for different screen sizes
+### Fixes
+- Timer persistence during app minimization
+- Clipboard history performance optimizations
+- Network request error handling improvements
 
 ---
 
-## Version 1.1.0 - "Productivity Suite"
+## v1.2.0 - AI Integration
 
-### 📋 Core Features
-- Clipboard Manager with smart history
-- Quick Apps Launcher with drag-and-drop
-- System Monitor with real-time stats
-- Weather display with location detection
-- Developer tools (JSON, Base64, Hashing)
+### AI Subsystem
+- Local AI integration via Ollama
+- Multi-model support for different use cases
+- Code analysis and text processing pipelines
+- Model management and setup automation
 
----
-
-## Version 1.0.0 - "Foundation"
-
-### 🎉 Initial Release
-- Basic Dynamic Island interface
-- Core productivity tools
-- Beautiful macOS-native design
-- Customizable tab system
+### UI Framework
+- Glassmorphism design system implementation
+- Micro-interaction animations
+- Responsive layout system
 
 ---
 
-## 🎯 **What's Next?**
+## v1.1.0 - Productivity Suite
 
-### Coming Soon in v2.1.0
-- **🔐 Enhanced Privacy**: More local AI model options
-- **📅 Calendar Integration**: Quick event viewing and creation
-- **📝 Quick Notes**: Capture ideas instantly
-- **🎨 Custom Themes**: Personalize your Dynamic Toolbox
-- **⌨️ Keyboard Shortcuts**: Power user productivity features
+### Core Modules
+- Clipboard manager with smart history indexing
+- Quick app launcher with drag-drop registration
+- Real-time system monitoring with performance metrics
+- Weather integration with location services
+- Developer utilities (JSON formatter, Base64 codec, hash functions)
 
-### Future Roadmap
-- Plugin system for third-party integrations
-- Menu bar mode for minimal interface
+---
+
+## v1.0.0 - Foundation
+
+### Initial Implementation
+- Dynamic Island interface framework
+- Core productivity tool architecture
+- Native macOS design patterns
+- Configurable tab system
+
+---
+
+## Roadmap
+
+### v2.1.0 (Planned)
+- Enhanced privacy controls for AI processing
+- Calendar integration with EventKit
+- Quick notes module with persistent storage
+- Custom theme engine
+- Global keyboard shortcuts
+
+### Future Architecture
+- Plugin system with sandboxed third-party extensions
+- Menu bar mode for minimal resource usage
 - Shortcuts app integration
-- Advanced AI features and model support
-- Network monitoring tools
+- Advanced AI model management
+- Network monitoring utilities
 
 ---
 
-## 📋 **System Requirements**
+## Technical Requirements
 
-- **macOS 15.1** or later
-- **Intel or Apple Silicon** Mac
-- **~50MB** storage for app
-- **2GB+** additional storage for AI models (optional)
+**Minimum System**
+- macOS 15.1 (Sequoia)
+- Intel x86_64 or Apple Silicon arm64
+- 50MB storage for application bundle
 
-## 🤖 **AI Assistant Setup** (Optional)
+**AI Processing (Optional)**
+- Ollama runtime environment
+- 2GB+ storage for language models
+- Local inference processing
 
-1. Download [Ollama](https://ollama.ai) for macOS
-2. Install: `ollama pull llama3.2:3b` (recommended starter model)
-3. Dynamic Toolbox will auto-connect
+## AI Setup Procedure
 
-## 💬 **Community & Support**
+1. Install Ollama: `curl -fsSL https://ollama.ai/install.sh | sh`
+2. Pull model: `ollama pull llama3.2:3b`
+3. Verify: `ollama list`
+4. Dynamic Toolbox will auto-detect running instance
 
-- **GitHub Issues**: Report bugs and request features
-- **Documentation**: Comprehensive guides and tutorials
-- **Community**: Join discussions and share tips
+## Development & Support
+
+- **Source**: https://github.com/stevelisz/macOS-DynamicIsland
+- **Issues**: GitHub issue tracker
+- **Documentation**: Repository wiki
+- **License**: See repository for terms
 
 ---
 
-**Download Dynamic Toolbox v2.0.0 and experience the future of Mac productivity!**
-
-*Happy productivity! 🚀* 
+Build: Xcode 16.2, macOS 15.5
+Target: macOS 15.1+ Universal Binary 

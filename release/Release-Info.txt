@@ -1,34 +1,49 @@
-🧰 Dynamic Toolbox v2.0.0 - Release Package
-==============================================
+Dynamic Toolbox v2.0.0 - Build Information
+==========================================
 
-📅 Build Date: Sun Jun  1 20:14:28 EDT 2025
-💻 Built on: macOS 15.5
-🏗️  Xcode Version: Xcode 16.2
+Build Timestamp: Sun Jun  1 23:01:38 EDT 2025
+Host Platform: macOS 15.5 (24F5027e)
+Toolchain: Xcode 16.2 (16C5032a)
 
-📦 Package Contents:
-- Dynamic-Toolbox-v2.0.0.dmg (3.1M)
-- README.md (User documentation)
-- Release-Notes.md (Version changelog)
-- Installation-Guide.txt (Setup instructions)
+Distribution Package
+--------------------
+- Binary: Dynamic-Toolbox-v2.0.0.dmg (3.1MB)
+- Target: macOS 15.1+ (Universal: arm64, x86_64)
+- Code Signature: Ad-hoc (local development)
+- Notarization: None (manual distribution)
 
-🎯 Target Requirements:
-- macOS 15.1 (Sequoia) or later
-- Intel or Apple Silicon Mac
-- ~50MB storage space
-- Internet connection (optional, for weather/currency/web search)
+Runtime Dependencies
+--------------------
+- System: macOS 15.1 (Sequoia) minimum
+- Architecture: Intel x86_64 or Apple Silicon arm64
+- Storage: ~50MB application bundle
+- Network: Optional (weather/currency/search APIs)
 
-🤖 AI Features (Optional):
-- Requires Ollama (https://ollama.ai)
-- Recommended: llama3.2:3b model (~2GB)
+Optional AI Stack
+-----------------
+- Runtime: Ollama (https://ollama.ai)
+- Models: llama3.2:3b recommended (~2GB)
+- Processing: Local inference only
+- Network: DuckDuckGo search integration
 
-🔐 Security:
-- Notarized: TBD (run 'xcrun notarytool' after build)
-- Code Signed: Automatic with Xcode
-- Local Processing: AI runs entirely on user's Mac
+Security Profile
+----------------
+- Sandboxing: Standard macOS app sandbox
+- Entitlements: Network client, file access
+- Privacy: Local-first architecture
+- Data Flow: No telemetry, no cloud dependencies
 
-📧 Support:
-- GitHub Issues: https://github.com/[username]/Dynamic-Toolbox/issues
-- Documentation: Full guides available
-- Community: Join discussions and share tips
+Build Artifacts
+---------------
+Documentation:
+  - README.md (user guide)
+  - Release-Notes.md (changelog)
+  - Installation-Guide.txt (setup procedures)
 
-Happy productivity! 🚀
+Verification:
+  spctl -a -vv "./Dynamic Toolbox.app"
+  codesign -dv --verbose=4 "./Dynamic Toolbox.app"
+
+Repository: https://github.com/stevelisz/macOS-DynamicIsland
+Issues: Use GitHub issue tracker for bug reports
+License: See repository for license terms
