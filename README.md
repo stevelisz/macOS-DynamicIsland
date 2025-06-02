@@ -1,5 +1,5 @@
 # Dynamic Toolbox
-
+Made for Macbooks that have a notch, other Macbook should be able to use it too.
 A macOS productivity app that provides quick access to essential tools through your Mac's notch area.
 
 ![Dynamic Toolbox](https://img.shields.io/badge/Platform-macOS%2015.1+-blue?style=flat-square)
