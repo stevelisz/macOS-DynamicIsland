@@ -266,7 +266,7 @@
                 <a href="https://github.com/stevelisz/macOS-DynamicIsland/releases">Releases</a>
                 <a href="https://github.com/stevelisz/macOS-DynamicIsland/issues">Issues</a>
                 <div class="download-counter">
-                    <span id="download-count">0</span> downloads from this browser
+                    <span id="download-count">Loading...</span> total downloads
                 </div>
             </div>
             
@@ -373,28 +373,52 @@
     </footer>
     
     <script>
-        // Download counter functionality
-        function initDownloadCounter() {
+        // Global download counter functionality using CountAPI
+        const COUNTER_API_URL = 'https://api.countapi.xyz';
+        const COUNTER_KEY = 'dynamic-toolbox-downloads';
+        
+        async function initDownloadCounter() {
             const countElement = document.getElementById('download-count');
             const downloadLink = document.getElementById('download-link');
             
-            // Get current count from localStorage
-            let downloadCount = parseInt(localStorage.getItem('dynamicToolboxDownloads') || '0');
-            countElement.textContent = downloadCount;
+            try {
+                // Get current global count
+                const response = await fetch(`${COUNTER_API_URL}/get/dynamic-toolbox/${COUNTER_KEY}`);
+                const data = await response.json();
+                
+                if (data.value !== undefined) {
+                    countElement.textContent = data.value.toLocaleString();
+                } else {
+                    // Initialize counter if it doesn't exist
+                    const initResponse = await fetch(`${COUNTER_API_URL}/create?namespace=dynamic-toolbox&key=${COUNTER_KEY}&value=0`);
+                    countElement.textContent = '0';
+                }
+            } catch (error) {
+                console.error('Error loading download count:', error);
+                countElement.textContent = '---';
+            }
             
             // Add click listener to download button
-            downloadLink.addEventListener('click', function(e) {
+            downloadLink.addEventListener('click', async function(e) {
                 // Only increment if it's actually downloading (has href)
                 if (downloadLink.href && downloadLink.href !== '#') {
-                    downloadCount++;
-                    localStorage.setItem('dynamicToolboxDownloads', downloadCount.toString());
-                    countElement.textContent = downloadCount;
-                    
-                    // Add visual feedback
-                    countElement.style.color = '#ffb86c';
-                    setTimeout(() => {
-                        countElement.style.color = '#50fa7b';
-                    }, 300);
+                    try {
+                        // Increment global counter
+                        const response = await fetch(`${COUNTER_API_URL}/hit/dynamic-toolbox/${COUNTER_KEY}`);
+                        const data = await response.json();
+                        
+                        if (data.value !== undefined) {
+                            countElement.textContent = data.value.toLocaleString();
+                            
+                            // Add visual feedback
+                            countElement.style.color = '#ffb86c';
+                            setTimeout(() => {
+                                countElement.style.color = '#50fa7b';
+                            }, 500);
+                        }
+                    } catch (error) {
+                        console.error('Error incrementing download count:', error);
+                    }
                 }
             });
         }
