@@ -92,7 +92,19 @@
             border-left: 3px solid #50fa7b;
         }
         
-        .download-counter #download-count {
+        .counter-item {
+            margin: 2px 0;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .counter-item:not(:last-child) {
+            margin-bottom: 6px;
+        }
+        
+        .download-counter #download-count, 
+        .download-counter #visitor-count {
             color: #50fa7b;
             font-weight: bold;
             font-size: 0.9rem;
@@ -266,7 +278,12 @@
                 <a href="https://github.com/stevelisz/macOS-DynamicIsland/releases">Releases</a>
                 <a href="https://github.com/stevelisz/macOS-DynamicIsland/issues">Issues</a>
                 <div class="download-counter">
-                    <span id="download-count">Loading...</span> total downloads
+                    <div class="counter-item">
+                        🌍 <span id="visitor-count">Loading...</span> visitors
+                    </div>
+                    <div class="counter-item">
+                        📥 <span id="download-count">Loading...</span> total downloads
+                    </div>
                 </div>
             </div>
             
@@ -373,6 +390,31 @@
     </footer>
     
     <script>
+        // Visitor counter functionality
+        async function initVisitorCounter() {
+            const visitorElement = document.getElementById('visitor-count');
+            
+            try {
+                // Using a simple visitor counter API
+                const response = await fetch('https://api.visitorbadge.io/api/combined?path=https%3A%2F%2Fgithub.com%2Fstevelisz%2FmacOS-DynamicIsland&countColor=%2350fa7b&style=flat');
+                const data = await response.json();
+                
+                if (data.visits) {
+                    visitorElement.textContent = data.visits.toLocaleString();
+                } else {
+                    // Fallback: try a different visitor counter
+                    const altResponse = await fetch('https://visitor-badge-reloaded.herokuapp.com/badge?page_id=dynamic-toolbox-docs&color=50fa7b&style=flat&logo=none');
+                    visitorElement.textContent = '---';
+                }
+            } catch (error) {
+                console.error('Error loading visitor count:', error);
+                // Simple localStorage fallback for unique visitors
+                const visits = parseInt(localStorage.getItem('dynamicToolboxVisits') || '0') + 1;
+                localStorage.setItem('dynamicToolboxVisits', visits.toString());
+                visitorElement.textContent = visits.toLocaleString();
+            }
+        }
+        
         // Download counter functionality
         async function initDownloadCounter() {
             const countElement = document.getElementById('download-count');
@@ -432,6 +474,7 @@
         
         // Initialize everything when page loads
         document.addEventListener('DOMContentLoaded', function() {
+            initVisitorCounter();
             initDownloadCounter();
             updateDownloadLink();
         });
