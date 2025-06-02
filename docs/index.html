@@ -373,52 +373,43 @@
     </footer>
     
     <script>
-        // Global download counter functionality using CountAPI
-        const COUNTER_API_URL = 'https://api.countapi.xyz';
-        const COUNTER_KEY = 'dynamic-toolbox-downloads';
-        
+        // Download counter functionality
         async function initDownloadCounter() {
             const countElement = document.getElementById('download-count');
             const downloadLink = document.getElementById('download-link');
             
             try {
-                // Get current global count
-                const response = await fetch(`${COUNTER_API_URL}/get/dynamic-toolbox/${COUNTER_KEY}`);
-                const data = await response.json();
+                // Get actual download count from GitHub releases
+                const response = await fetch('https://api.github.com/repos/stevelisz/macOS-DynamicIsland/releases');
+                const releases = await response.json();
                 
-                if (data.value !== undefined) {
-                    countElement.textContent = data.value.toLocaleString();
-                } else {
-                    // Initialize counter if it doesn't exist
-                    const initResponse = await fetch(`${COUNTER_API_URL}/create?namespace=dynamic-toolbox&key=${COUNTER_KEY}&value=0`);
-                    countElement.textContent = '0';
-                }
+                let totalDownloads = 0;
+                releases.forEach(release => {
+                    release.assets.forEach(asset => {
+                        if (asset.name.endsWith('.dmg')) {
+                            totalDownloads += asset.download_count;
+                        }
+                    });
+                });
+                
+                countElement.textContent = totalDownloads.toLocaleString();
             } catch (error) {
                 console.error('Error loading download count:', error);
-                countElement.textContent = '---';
+                countElement.textContent = '0';
             }
             
-            // Add click listener to download button
-            downloadLink.addEventListener('click', async function(e) {
-                // Only increment if it's actually downloading (has href)
+            // Add click listener to download button for visual feedback
+            downloadLink.addEventListener('click', function(e) {
                 if (downloadLink.href && downloadLink.href !== '#') {
-                    try {
-                        // Increment global counter
-                        const response = await fetch(`${COUNTER_API_URL}/hit/dynamic-toolbox/${COUNTER_KEY}`);
-                        const data = await response.json();
-                        
-                        if (data.value !== undefined) {
-                            countElement.textContent = data.value.toLocaleString();
-                            
-                            // Add visual feedback
-                            countElement.style.color = '#ffb86c';
-                            setTimeout(() => {
-                                countElement.style.color = '#50fa7b';
-                            }, 500);
-                        }
-                    } catch (error) {
-                        console.error('Error incrementing download count:', error);
-                    }
+                    // Add visual feedback
+                    countElement.style.color = '#ffb86c';
+                    setTimeout(() => {
+                        countElement.style.color = '#50fa7b';
+                        // Refresh count after a delay to get updated GitHub stats
+                        setTimeout(() => {
+                            initDownloadCounter();
+                        }, 2000);
+                    }, 500);
                 }
             });
         }
