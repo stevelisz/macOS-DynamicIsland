@@ -460,7 +460,7 @@ struct AIToolButton: View {
                     .lineLimit(1)
             }
             .foregroundColor(isSelected ? .white : DesignSystem.Colors.textSecondary)
-            .padding(.horizontal, DesignSystem.Spacing.sm)
+            .frame(width: 50)
             .padding(.vertical, DesignSystem.Spacing.xs)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
