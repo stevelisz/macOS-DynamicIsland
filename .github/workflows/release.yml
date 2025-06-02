@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-release:
-    runs-on: macos-14
+    runs-on: macos-latest
     
     steps:
     - name: Checkout code
@@ -18,7 +18,18 @@ jobs:
       run: ls /Applications/ | grep -E '^Xcode.*\.app$'
       
     - name: Select Xcode version
-      run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+      run: |
+        # Try to find the newest available Xcode
+        if [ -d "/Applications/Xcode_16.app" ]; then
+          sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
+          echo "Using Xcode 16"
+        elif [ -d "/Applications/Xcode_15.4.app" ]; then
+          sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+          echo "Using Xcode 15.4"
+        else
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          echo "Using default Xcode"
+        fi
         
     - name: Build Release
       run: |
