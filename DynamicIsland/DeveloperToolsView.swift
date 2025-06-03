@@ -193,7 +193,7 @@ struct DeveloperToolsView: View {
                 title: "Headers (Optional)",
                 text: $curlHeaders,
                 placeholder: "Content-Type: application/json\nAuthorization: Bearer token",
-                focusBinding: FocusState<Bool>().projectedValue
+                focusBinding: nil
             )
             .onChange(of: curlHeaders) { _, _ in generateCURL() }
             
@@ -203,7 +203,7 @@ struct DeveloperToolsView: View {
                     title: "Request Body",
                     text: $curlBody,
                     placeholder: curlMethod.bodyPlaceholder,
-                    focusBinding: FocusState<Bool>().projectedValue
+                    focusBinding: nil
                 )
                 .onChange(of: curlBody) { _, _ in generateCURL() }
             }
@@ -459,7 +459,7 @@ struct DeveloperToolsView: View {
                 title: "Variables (JSON)",
                 text: $graphqlVariables,
                 placeholder: graphqlOperation.variablesPlaceholder,
-                focusBinding: FocusState<Bool>().projectedValue
+                focusBinding: nil
             )
             .onChange(of: graphqlVariables) { _, _ in generateGraphQLQuery() }
             
@@ -718,7 +718,7 @@ spec:
                     title: "Text 2",
                     text: $diffText2,
                     placeholder: "Enter second text...",
-                    focusBinding: FocusState<Bool>().projectedValue
+                    focusBinding: nil
                 )
             }
             
@@ -772,7 +772,7 @@ spec:
                 title: "Test Text",
                 text: $regexText,
                 placeholder: "Enter text to test against...",
-                focusBinding: FocusState<Bool>().projectedValue
+                focusBinding: nil
             )
             .onChange(of: regexText) { _, _ in testRegex() }
             
@@ -2192,43 +2192,55 @@ struct CompactInputArea: View {
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.textSecondary)
             
-            TextEditor(text: $text)
-                .font(.system(size: 12, design: .monospaced))
-                .foregroundColor(DesignSystem.Colors.textPrimary)
-                .scrollContentBackground(.hidden)
-                .background(Color.clear)
-                .frame(height: 60)
-                .padding(DesignSystem.Spacing.sm)
-                .focused(focusBinding ?? FocusState<Bool>().projectedValue)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                        .fill(DesignSystem.Colors.surface.opacity(0.3))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                                .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
-                        )
-                )
-                .overlay(
-                    Group {
-                        if text.isEmpty {
-                            HStack {
-                                VStack {
-                                    HStack {
-                                        Text(placeholder)
-                                            .font(.system(size: 12, design: .monospaced))
-                                            .foregroundColor(DesignSystem.Colors.textSecondary.opacity(0.6))
-                                            .padding(.leading, DesignSystem.Spacing.sm)
-                                            .padding(.top, DesignSystem.Spacing.sm + 2)
-                                        Spacer()
-                                    }
+            Group {
+                if let focusBinding = focusBinding {
+                    TextEditor(text: $text)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .scrollContentBackground(.hidden)
+                        .background(Color.clear)
+                        .frame(height: 60)
+                        .padding(DesignSystem.Spacing.sm)
+                        .focused(focusBinding)
+                } else {
+                    TextEditor(text: $text)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .scrollContentBackground(.hidden)
+                        .background(Color.clear)
+                        .frame(height: 60)
+                        .padding(DesignSystem.Spacing.sm)
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                    .fill(DesignSystem.Colors.surface.opacity(0.3))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                            .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
+                    )
+            )
+            .overlay(
+                Group {
+                    if text.isEmpty {
+                        HStack {
+                            VStack {
+                                HStack {
+                                    Text(placeholder)
+                                        .font(.system(size: 12, design: .monospaced))
+                                        .foregroundColor(DesignSystem.Colors.textSecondary.opacity(0.6))
+                                        .padding(.leading, DesignSystem.Spacing.sm)
+                                        .padding(.top, DesignSystem.Spacing.sm + 2)
                                     Spacer()
                                 }
                                 Spacer()
                             }
-                            .allowsHitTesting(false)
+                            Spacer()
                         }
+                        .allowsHitTesting(false)
                     }
-                )
+                }
+            )
         }
     }
 }
