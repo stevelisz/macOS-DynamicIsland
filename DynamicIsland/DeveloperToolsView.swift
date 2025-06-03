@@ -23,10 +23,22 @@ struct DeveloperToolsView: View {
     @State private var uuidCount: Int = 1
     @State private var uuidFormat: UUIDFormat = .uppercase
     
-    // Timestamp Converter
-    @State private var timestampInput: String = ""
-    @State private var timestampMode: TimestampMode = .toHuman
-    @State private var timestampResult: String = ""
+    // GraphQL Query Generator
+    @State private var graphqlOperation: GraphQLOperation = .query
+    @State private var graphqlQuery: String = ""
+    @State private var graphqlVariables: String = ""
+    @State private var graphqlResult: String = ""
+    
+    // API Response Mockup
+    @State private var apiResponseType: APIResponseType = .user
+    @State private var apiResponseCount: Int = 1
+    @State private var apiResponseResult: String = ""
+    @State private var apiCustomSchema: String = ""
+    
+    // YAML ↔ JSON Converter
+    @State private var yamlJsonInput: String = ""
+    @State private var yamlJsonOutput: String = ""
+    @State private var yamlJsonMode: YAMLJSONMode = .yamlToJson
     
     // Text Diff
     @State private var diffText1: String = ""
@@ -81,8 +93,12 @@ struct DeveloperToolsView: View {
                     jwtDecoderInterface
                 case .uuidGenerator:
                     uuidGeneratorInterface
-                case .timestampConverter:
-                    timestampConverterInterface
+                case .graphqlGenerator:
+                    graphqlGeneratorInterface
+                case .apiMockup:
+                    apiMockupInterface
+                case .yamlJsonConverter:
+                    yamlJsonConverterInterface
                 case .textDiff:
                     textDiffInterface
                 case .regexTester:
@@ -203,15 +219,11 @@ struct DeveloperToolsView: View {
                 }
                 
                 ActionButton(title: "Clear", icon: "trash") {
-                    curlURL = ""
-                    curlHeaders = ""
-                    curlBody = ""
-                    curlResult = ""
+                    clearCURLInputs()
                 }
-                
-                Spacer()
             }
             
+            // Output
             if !curlResult.isEmpty {
                 CompactOutputArea(
                     title: "Generated cURL Command",
@@ -398,27 +410,27 @@ struct DeveloperToolsView: View {
         }
     }
     
-    // MARK: - Timestamp Converter
-    private var timestampConverterInterface: some View {
+    // MARK: - GraphQL Query Generator
+    private var graphqlGeneratorInterface: some View {
         VStack(spacing: DesignSystem.Spacing.sm) {
             HStack {
-                Text("Timestamp Converter")
+                Text("GraphQL Query Generator")
                     .font(DesignSystem.Typography.captionMedium)
                     .foregroundColor(DesignSystem.Colors.textSecondary)
                 
                 Spacer()
                 
-                // Compact mode dropdown
+                // Operation type dropdown
                 Menu {
-                    ForEach(TimestampMode.allCases, id: \.self) { mode in
-                        Button(mode.title) {
-                            timestampMode = mode
-                            processTimestamp()
+                    ForEach(GraphQLOperation.allCases, id: \.self) { operation in
+                        Button(operation.title) {
+                            graphqlOperation = operation
+                            generateGraphQLQuery()
                         }
                     }
                 } label: {
                     HStack(spacing: DesignSystem.Spacing.xxs) {
-                        Text(timestampMode.title)
+                        Text(graphqlOperation.title)
                             .font(DesignSystem.Typography.micro)
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                         Image(systemName: "chevron.down")
@@ -435,37 +447,245 @@ struct DeveloperToolsView: View {
                 .buttonStyle(.plain)
             }
             
-            HStack(spacing: DesignSystem.Spacing.sm) {
-                CompactInputArea(
-                    title: timestampMode == .toHuman ? "Unix Timestamp" : "Date/Time",
-                    text: $timestampInput,
-                    placeholder: timestampMode == .toHuman ? "1640995200" : "2025-01-01 12:00:00",
-                    focusBinding: $isInputFocused
-                )
-                .onChange(of: timestampInput) { _, _ in processTimestamp() }
+            CompactInputArea(
+                title: "GraphQL \(graphqlOperation.title)",
+                text: $graphqlQuery,
+                placeholder: graphqlOperation.placeholder,
+                focusBinding: $isInputFocused
+            )
+            .onChange(of: graphqlQuery) { _, _ in generateGraphQLQuery() }
+            
+            CompactInputArea(
+                title: "Variables (JSON)",
+                text: $graphqlVariables,
+                placeholder: graphqlOperation.variablesPlaceholder,
+                focusBinding: FocusState<Bool>().projectedValue
+            )
+            .onChange(of: graphqlVariables) { _, _ in generateGraphQLQuery() }
+            
+            // Quick action buttons
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ActionButton(title: "Sample Query", icon: "doc.text") {
+                    graphqlOperation = .query
+                    graphqlQuery = "users(limit: $limit) {\n  id\n  name\n  email\n  posts {\n    title\n    content\n  }\n}"
+                    graphqlVariables = "{\n  \"limit\": 10\n}"
+                    generateGraphQLQuery()
+                }
                 
-                VStack {
-                    Spacer()
-                    ActionButton(title: "Now", icon: "clock") {
-                        if timestampMode == .toHuman {
-                            timestampInput = String(Int(Date().timeIntervalSince1970))
-                        } else {
-                            let formatter = DateFormatter()
-                            formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-                            timestampInput = formatter.string(from: Date())
-                        }
-                        processTimestamp()
-                    }
-                    Spacer()
+                ActionButton(title: "Clear", icon: "trash") {
+                    clearGraphQLInputs()
                 }
             }
             
-            if !timestampResult.isEmpty {
+            // Output
+            if !graphqlResult.isEmpty {
                 CompactOutputArea(
-                    title: timestampMode == .toHuman ? "Human Readable" : "Unix Timestamp",
-                    text: timestampResult
+                    title: "Complete GraphQL Request",
+                    text: graphqlResult
                 ) {
-                    copyToClipboard(timestampResult)
+                    copyToClipboard(graphqlResult)
+                }
+            }
+        }
+    }
+    
+    // MARK: - API Response Mockup
+    private var apiMockupInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Text("API Response Mockup")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    // Count stepper
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        Button("-") {
+                            if apiResponseCount > 1 {
+                                apiResponseCount -= 1
+                                generateAPIResponse()
+                            }
+                        }
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .frame(width: 16, height: 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
+                        .buttonStyle(.plain)
+                        
+                        Text("\(apiResponseCount)")
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .frame(minWidth: 20)
+                        
+                        Button("+") {
+                            if apiResponseCount < 50 {
+                                apiResponseCount += 1
+                                generateAPIResponse()
+                            }
+                        }
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .frame(width: 16, height: 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
+                        .buttonStyle(.plain)
+                    }
+                    
+                    // Response type dropdown
+                    Menu {
+                        ForEach(APIResponseType.allCases, id: \.self) { type in
+                            Button(type.title) {
+                                apiResponseType = type
+                                generateAPIResponse()
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: DesignSystem.Spacing.xxs) {
+                            Text(apiResponseType.title)
+                                .font(DesignSystem.Typography.micro)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                        }
+                        .padding(.horizontal, DesignSystem.Spacing.xs)
+                        .padding(.vertical, DesignSystem.Spacing.xxs)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            
+            if apiResponseType == .custom {
+                CompactInputArea(
+                    title: "Custom Schema (JSON)",
+                    text: $apiCustomSchema,
+                    placeholder: "{\n  \"name\": \"{{name}}\",\n  \"email\": \"{{email}}\",\n  \"age\": \"{{number}}\"\n}",
+                    focusBinding: $isInputFocused
+                )
+                .onChange(of: apiCustomSchema) { _, _ in generateAPIResponse() }
+            }
+            
+            // Quick action buttons
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ActionButton(title: "Generate", icon: "arrow.clockwise") {
+                    generateAPIResponse()
+                }
+                
+                ActionButton(title: "Clear", icon: "trash") {
+                    clearAPIResponse()
+                }
+            }
+            
+            // Output
+            if !apiResponseResult.isEmpty {
+                CompactOutputArea(
+                    title: "Generated API Response",
+                    text: apiResponseResult
+                ) {
+                    copyToClipboard(apiResponseResult)
+                }
+            }
+        }
+    }
+    
+    // MARK: - YAML ↔ JSON Converter
+    private var yamlJsonConverterInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Text("YAML ↔ JSON Converter")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                // Conversion mode dropdown
+                Menu {
+                    ForEach(YAMLJSONMode.allCases, id: \.self) { mode in
+                        Button(mode.title) {
+                            yamlJsonMode = mode
+                            convertYAMLJSON()
+                        }
+                    }
+                } label: {
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        Text(yamlJsonMode.title)
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
+                    .padding(.horizontal, DesignSystem.Spacing.xs)
+                    .padding(.vertical, DesignSystem.Spacing.xxs)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                            .fill(DesignSystem.Colors.surface.opacity(0.3))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            
+            CompactInputArea(
+                title: yamlJsonMode.inputTitle,
+                text: $yamlJsonInput,
+                placeholder: yamlJsonMode.placeholder,
+                focusBinding: $isInputFocused
+            )
+            .onChange(of: yamlJsonInput) { _, _ in convertYAMLJSON() }
+            
+            // Quick action buttons
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ActionButton(title: "Sample K8s", icon: "doc.text") {
+                    yamlJsonMode = .yamlToJson
+                    yamlJsonInput = """
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.20
+        ports:
+        - containerPort: 80
+"""
+                    convertYAMLJSON()
+                }
+                
+                ActionButton(title: "Clear", icon: "trash") {
+                    clearYAMLJSON()
+                }
+            }
+            
+            // Output
+            if !yamlJsonOutput.isEmpty {
+                CompactOutputArea(
+                    title: yamlJsonMode.outputTitle,
+                    text: yamlJsonOutput
+                ) {
+                    copyToClipboard(yamlJsonOutput)
                 }
             }
         }
@@ -1020,33 +1240,679 @@ struct DeveloperToolsView: View {
         generatedUUID = uuids.joined(separator: "\n")
     }
     
-    private func processTimestamp() {
-        guard !timestampInput.isEmpty else {
-            timestampResult = ""
+    private func generateGraphQLQuery() {
+        guard !graphqlQuery.isEmpty else {
+            graphqlResult = ""
             return
         }
         
-        switch timestampMode {
-        case .toHuman:
-            if let timestamp = Double(timestampInput) {
-                let date = Date(timeIntervalSince1970: timestamp)
-                let formatter = DateFormatter()
-                formatter.dateFormat = "yyyy-MM-dd HH:mm:ss (EEEE)"
-                formatter.timeZone = TimeZone.current
-                timestampResult = formatter.string(from: date)
-            } else {
-                timestampResult = "Invalid timestamp"
+        let operationType = graphqlOperation.title.lowercased()
+        var result = "# GraphQL \(graphqlOperation.title)\n\n"
+        
+        result += "\(operationType) {\n"
+        
+        // Clean up the query - remove extra newlines and format properly
+        let cleanQuery = graphqlQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lines = cleanQuery.components(separatedBy: .newlines)
+        for line in lines {
+            if !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                result += "  \(line.trimmingCharacters(in: .whitespacesAndNewlines))\n"
             }
-        case .toUnix:
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-            if let date = formatter.date(from: timestampInput) {
-                timestampResult = String(Int(date.timeIntervalSince1970))
+        }
+        
+        result += "}\n"
+        
+        // Add variables if present
+        if !graphqlVariables.isEmpty {
+            result += "\n# Variables:\n"
+            result += graphqlVariables
+        }
+        
+        // Add HTTP request example
+        result += "\n\n# HTTP Request Example:\n"
+        result += "POST /graphql\n"
+        result += "Content-Type: application/json\n\n"
+        result += "{\n"
+        result += "  \"query\": \"\(cleanQuery.replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "\n", with: "\\n"))\""
+        
+        if !graphqlVariables.isEmpty {
+            result += ",\n  \"variables\": \(graphqlVariables.trimmingCharacters(in: .whitespacesAndNewlines))"
+        }
+        
+        result += "\n}"
+        
+        graphqlResult = result
+    }
+    
+    private func generateAPIResponse() {
+        var result = ""
+        
+        if apiResponseType == .custom {
+            guard !apiCustomSchema.isEmpty else {
+                apiResponseResult = ""
+                return
+            }
+            result = generateCustomAPIResponse()
+        } else {
+            result = generatePresetAPIResponse()
+        }
+        
+        apiResponseResult = result
+    }
+    
+    private func generatePresetAPIResponse() -> String {
+        var responses: [[String: Any]] = []
+        
+        for i in 0..<apiResponseCount {
+            var response: [String: Any] = [:]
+            
+            switch apiResponseType {
+            case .user:
+                response = [
+                    "id": i + 1,
+                    "name": generateRandomName(),
+                    "email": generateRandomEmail(),
+                    "username": generateRandomUsername(),
+                    "phone": generateRandomPhone(),
+                    "website": generateRandomWebsite(),
+                    "address": [
+                        "street": generateRandomStreet(),
+                        "city": generateRandomCity(),
+                        "zipcode": generateRandomZipcode()
+                    ],
+                    "company": [
+                        "name": generateRandomCompany(),
+                        "catchPhrase": generateRandomCatchPhrase()
+                    ]
+                ]
+            case .post:
+                response = [
+                    "id": i + 1,
+                    "userId": Int.random(in: 1...10),
+                    "title": generateRandomTitle(),
+                    "body": generateRandomBody(),
+                    "tags": generateRandomTags(),
+                    "reactions": Int.random(in: 0...100)
+                ]
+            case .comment:
+                response = [
+                    "id": i + 1,
+                    "postId": Int.random(in: 1...100),
+                    "name": generateRandomName(),
+                    "email": generateRandomEmail(),
+                    "body": generateRandomCommentBody()
+                ]
+            case .product:
+                response = [
+                    "id": i + 1,
+                    "title": generateRandomProductName(),
+                    "description": generateRandomProductDescription(),
+                    "price": Double.random(in: 9.99...999.99),
+                    "discountPercentage": Double.random(in: 5...30),
+                    "rating": Double.random(in: 3.0...5.0),
+                    "stock": Int.random(in: 0...100),
+                    "brand": generateRandomBrand(),
+                    "category": generateRandomCategory()
+                ]
+            case .order:
+                response = [
+                    "id": i + 1,
+                    "userId": Int.random(in: 1...1000),
+                    "products": generateRandomOrderProducts(),
+                    "total": Double.random(in: 25.99...599.99),
+                    "discountedTotal": Double.random(in: 20.99...549.99),
+                    "totalProducts": Int.random(in: 1...5),
+                    "totalQuantity": Int.random(in: 1...10)
+                ]
+            default:
+                break
+            }
+            
+            responses.append(response)
+        }
+        
+        do {
+            let finalResponse: Any
+            if apiResponseCount == 1 {
+                finalResponse = responses.first!
             } else {
-                timestampResult = "Invalid date format"
+                finalResponse = responses
+            }
+            let jsonData = try JSONSerialization.data(withJSONObject: finalResponse, options: [.prettyPrinted, .sortedKeys])
+            return String(data: jsonData, encoding: .utf8) ?? "Error generating response"
+        } catch {
+            return "Error: \(error.localizedDescription)"
+        }
+    }
+    
+    private func generateCustomAPIResponse() -> String {
+        guard let customData = apiCustomSchema.data(using: .utf8) else {
+            return "Error: Invalid custom schema"
+        }
+        
+        do {
+            let template = try JSONSerialization.jsonObject(with: customData, options: [])
+            var responses: [[String: Any]] = []
+            
+            for _ in 0..<apiResponseCount {
+                if let processedResponse = processTemplate(template) as? [String: Any] {
+                    responses.append(processedResponse)
+                }
+            }
+            
+            let finalResponse: Any
+            if apiResponseCount == 1 {
+                finalResponse = responses.first!
+            } else {
+                finalResponse = responses
+            }
+            let jsonData = try JSONSerialization.data(withJSONObject: finalResponse, options: [.prettyPrinted, .sortedKeys])
+            return String(data: jsonData, encoding: .utf8) ?? "Error generating response"
+        } catch {
+            return "Error: \(error.localizedDescription)"
+        }
+    }
+    
+    private func processTemplate(_ template: Any) -> Any {
+        if let dict = template as? [String: Any] {
+            var result: [String: Any] = [:]
+            for (key, value) in dict {
+                result[key] = processTemplate(value)
+            }
+            return result
+        } else if let array = template as? [Any] {
+            return array.map { processTemplate($0) }
+        } else if let string = template as? String {
+            return processPlaceholder(string)
+        } else {
+            return template
+        }
+    }
+    
+    private func processPlaceholder(_ template: String) -> Any {
+        switch template {
+        case "{{name}}": return generateRandomName()
+        case "{{email}}": return generateRandomEmail()
+        case "{{username}}": return generateRandomUsername()
+        case "{{phone}}": return generateRandomPhone()
+        case "{{number}}": return Int.random(in: 1...100)
+        case "{{price}}": return Double.random(in: 9.99...999.99)
+        case "{{boolean}}": return Bool.random()
+        case "{{date}}": return ISO8601DateFormatter().string(from: Date())
+        case "{{url}}": return generateRandomWebsite()
+        case "{{text}}": return generateRandomBody()
+        case "{{title}}": return generateRandomTitle()
+        case "{{id}}": return UUID().uuidString
+        default: return template
+        }
+    }
+    
+    private func convertYAMLJSON() {
+        guard !yamlJsonInput.isEmpty else {
+            yamlJsonOutput = ""
+            return
+        }
+        
+        switch yamlJsonMode {
+        case .yamlToJson:
+            yamlJsonOutput = convertYAMLToJSON(yamlJsonInput)
+        case .jsonToYaml:
+            yamlJsonOutput = convertJSONToYAML(yamlJsonInput)
+        }
+    }
+    
+    private func convertYAMLToJSON(_ yaml: String) -> String {
+        // This is a simplified YAML to JSON converter
+        // For production use, you'd want to use a proper YAML parser like Yams
+        
+        do {
+            // Try to parse as if it's already JSON-like structure
+            let lines = yaml.components(separatedBy: .newlines)
+            let result: [String: Any] = [:]
+            // var stack: [[String: Any]] = [] // Unused for this simplified parser
+            var currentDict = result
+            
+            for line in lines {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.isEmpty || trimmed.hasPrefix("#") { continue }
+                
+                if trimmed.contains(":") {
+                    let parts = trimmed.components(separatedBy: ":")
+                    if parts.count >= 2 {
+                        let key = parts[0].trimmingCharacters(in: .whitespaces)
+                        let value = parts[1].trimmingCharacters(in: .whitespaces)
+                        
+                        if value.isEmpty {
+                            // This is a parent key
+                            currentDict[key] = [String: Any]()
+                        } else {
+                            // This is a key-value pair
+                            currentDict[key] = parseValue(value)
+                        }
+                    }
+                }
+            }
+            
+            let jsonData = try JSONSerialization.data(withJSONObject: currentDict, options: [.prettyPrinted, .sortedKeys])
+            return String(data: jsonData, encoding: .utf8) ?? "Conversion failed"
+        } catch {
+            return "Error: \(error.localizedDescription)\n\nNote: This is a simplified YAML parser. For complex YAML, consider using a dedicated YAML library."
+        }
+    }
+    
+    private func convertJSONToYAML(_ json: String) -> String {
+        // This is a simplified JSON to YAML converter
+        
+        do {
+            guard let data = json.data(using: .utf8) else {
+                return "Error: Invalid JSON string"
+            }
+            
+            let jsonObject = try JSONSerialization.jsonObject(with: data, options: [])
+            return convertObjectToYAML(jsonObject, indent: 0)
+        } catch {
+            return "Error: \(error.localizedDescription)"
+        }
+    }
+    
+    private func convertObjectToYAML(_ object: Any, indent: Int) -> String {
+        let indentString = String(repeating: "  ", count: indent)
+        
+        if let dict = object as? [String: Any] {
+            var result = ""
+            for (key, value) in dict.sorted(by: { $0.key < $1.key }) {
+                if let dictValue = value as? [String: Any], !dictValue.isEmpty {
+                    result += "\(indentString)\(key):\n"
+                    result += convertObjectToYAML(value, indent: indent + 1)
+                } else if let arrayValue = value as? [Any], !arrayValue.isEmpty {
+                    result += "\(indentString)\(key):\n"
+                    result += convertObjectToYAML(value, indent: indent + 1)
+                } else {
+                    result += "\(indentString)\(key): \(formatYAMLValue(value))\n"
+                }
+            }
+            return result
+        } else if let array = object as? [Any] {
+            var result = ""
+            for item in array {
+                if let dictItem = item as? [String: Any] {
+                    result += "\(indentString)-\n"
+                    let dictYAML = convertObjectToYAML(dictItem, indent: indent + 1)
+                    // Remove the first indent from each line since we're using "-"
+                    let lines = dictYAML.components(separatedBy: .newlines)
+                    for line in lines {
+                        if !line.isEmpty {
+                            result += "\(indentString)  \(line.dropFirst(2))\n"
+                        }
+                    }
+                } else {
+                    result += "\(indentString)- \(formatYAMLValue(item))\n"
+                }
+            }
+            return result
+        } else {
+            return "\(formatYAMLValue(object))\n"
+        }
+    }
+    
+    private func formatYAMLValue(_ value: Any) -> String {
+        if let string = value as? String {
+            // Quote strings that contain special characters or start with numbers
+            if string.contains(":") || string.contains("#") || string.contains("'") || string.contains("\"") || 
+               string.hasPrefix("0") || string.hasPrefix("1") || string.hasPrefix("2") || string.hasPrefix("3") || 
+               string.hasPrefix("4") || string.hasPrefix("5") || string.hasPrefix("6") || string.hasPrefix("7") || 
+               string.hasPrefix("8") || string.hasPrefix("9") {
+                return "\"\(string.replacingOccurrences(of: "\"", with: "\\\""))\""
+            }
+            return string
+        } else if let number = value as? NSNumber {
+            return "\(number)"
+        } else if value is NSNull {
+            return "null"
+        } else {
+            return "\(value)"
+        }
+    }
+    
+    private func parseValue(_ value: String) -> Any {
+        // Try to parse as number
+        if let intValue = Int(value) {
+            return intValue
+        }
+        if let doubleValue = Double(value) {
+            return doubleValue
+        }
+        // Try to parse as boolean
+        if value.lowercased() == "true" {
+            return true
+        }
+        if value.lowercased() == "false" {
+            return false
+        }
+        // Remove quotes if present
+        if (value.hasPrefix("\"") && value.hasSuffix("\"")) || (value.hasPrefix("'") && value.hasSuffix("'")) {
+            return String(value.dropFirst().dropLast())
+        }
+        return value
+    }
+    
+    private func processHash() {
+        if isFileMode {
+            if let fileData = fileData {
+                hashResult = generateHashFromData(fileData, type: hashType)
+            } else {
+                hashResult = ""
+            }
+        } else {
+            guard !hashInput.isEmpty else {
+                hashResult = ""
+                return
+            }
+            hashResult = generateHashFromText(hashInput, type: hashType)
+        }
+    }
+    
+    private func handleFileDrop(providers: [NSItemProvider]) {
+        // Implementation of handleFileDrop
+    }
+    
+    private func generateHashFromText(_ text: String, type: HashType) -> String {
+        let data = Data(text.utf8)
+        return generateHashFromData(data, type: type)
+    }
+    
+    private func generateHashFromData(_ data: Data, type: HashType) -> String {
+        switch type {
+        case .md5:
+            return data.md5
+        case .sha1:
+            return data.sha1
+        case .sha256:
+            return data.sha256
+        case .sha384:
+            return data.sha384
+        case .sha512:
+            return data.sha512
+        }
+    }
+    
+    // MARK: - Helper Functions
+    
+    private func base64Decode(_ string: String) -> Data? {
+        // Add padding if needed
+        var base64 = string
+        let remainder = base64.count % 4
+        if remainder > 0 {
+            base64 += String(repeating: "=", count: 4 - remainder)
+        }
+        return Data(base64Encoded: base64)
+    }
+    
+    private func formatJSON(_ jsonString: String) -> String {
+        guard let data = jsonString.data(using: .utf8),
+              let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []),
+              let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys])
+        else {
+            return jsonString
+        }
+        return String(data: prettyData, encoding: .utf8) ?? "Formatting failed"
+    }
+    
+    private func copyToClipboard(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        
+        withAnimation(DesignSystem.Animation.gentle) {
+            showCopiedFeedback = true
+            lastCopiedText = text.prefix(20) + (text.count > 20 ? "..." : "")
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation(DesignSystem.Animation.gentle) {
+                showCopiedFeedback = false
             }
         }
     }
+    
+    private func clearAllInputs() {
+        // Clear cURL inputs
+        curlURL = ""
+        curlHeaders = ""
+        curlBody = ""
+        curlResult = ""
+        
+        // Clear JWT inputs
+        jwtToken = ""
+        jwtHeader = ""
+        jwtPayload = ""
+        jwtSignature = ""
+        
+        // Clear UUID inputs
+        generatedUUID = ""
+        
+        // Clear GraphQL inputs
+        graphqlQuery = ""
+        graphqlVariables = ""
+        graphqlResult = ""
+        
+        // Clear API Response inputs
+        apiResponseResult = ""
+        apiCustomSchema = ""
+        
+        // Clear YAML/JSON inputs
+        yamlJsonInput = ""
+        yamlJsonOutput = ""
+        
+        // Clear Diff inputs
+        diffText1 = ""
+        diffText2 = ""
+        diffResult = []
+        
+        // Clear Regex inputs
+        regexPattern = ""
+        regexText = ""
+        regexMatches = []
+        
+        // Clear QR inputs
+        qrText = ""
+        qrImage = nil
+        
+        // Clear JSON inputs
+        jsonInput = ""
+        jsonOutput = ""
+        
+        // Clear Hash inputs
+        hashInput = ""
+        hashResult = ""
+        draggedFileName = nil
+        fileData = nil
+    }
+    
+    private func clearCURLInputs() {
+        curlURL = ""
+        curlHeaders = ""
+        curlBody = ""
+        curlResult = ""
+    }
+    
+    private func clearGraphQLInputs() {
+        graphqlQuery = ""
+        graphqlVariables = ""
+        graphqlResult = ""
+    }
+    
+    private func clearAPIResponse() {
+        apiResponseResult = ""
+        apiCustomSchema = ""
+    }
+    
+    private func clearYAMLJSON() {
+        yamlJsonInput = ""
+        yamlJsonOutput = ""
+    }
+    
+    private func focusInput() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isInputFocused = true
+        }
+    }
+    
+    // MARK: - Random Data Generators
+    
+    private func generateRandomName() -> String {
+        let firstNames = ["John", "Jane", "Michael", "Sarah", "David", "Emily", "Chris", "Lisa", "Matt", "Anna", "James", "Maria", "Robert", "Jennifer", "William", "Linda"]
+        let lastNames = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas"]
+        return "\(firstNames.randomElement()!) \(lastNames.randomElement()!)"
+    }
+    
+    private func generateRandomEmail() -> String {
+        let domains = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "company.com", "example.org"]
+        let name = generateRandomName().lowercased().replacingOccurrences(of: " ", with: ".")
+        return "\(name)@\(domains.randomElement()!)"
+    }
+    
+    private func generateRandomUsername() -> String {
+        let prefixes = ["user", "dev", "admin", "test", "demo"]
+        let suffixes = ["123", "456", "007", "2024", "pro", "x"]
+        return "\(prefixes.randomElement()!)\(suffixes.randomElement()!)"
+    }
+    
+    private func generateRandomPhone() -> String {
+        return "+1-\(Int.random(in: 200...999))-\(Int.random(in: 200...999))-\(Int.random(in: 1000...9999))"
+    }
+    
+    private func generateRandomWebsite() -> String {
+        let domains = ["example.com", "test.org", "demo.net", "sample.io", "placeholder.co"]
+        return "https://\(domains.randomElement()!)"
+    }
+    
+    private func generateRandomStreet() -> String {
+        let streets = ["Main St", "Oak Ave", "Pine Rd", "Elm Dr", "Maple Way", "Cedar Ln", "First Ave", "Second St"]
+        return "\(Int.random(in: 1...9999)) \(streets.randomElement()!)"
+    }
+    
+    private func generateRandomCity() -> String {
+        let cities = ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego", "Dallas", "San Jose"]
+        return cities.randomElement()!
+    }
+    
+    private func generateRandomZipcode() -> String {
+        return String(format: "%05d", Int.random(in: 10000...99999))
+    }
+    
+    private func generateRandomCompany() -> String {
+        let companies = ["TechCorp", "DataSystems", "CloudWorks", "InnovateLab", "FutureTech", "DevSolutions", "CodeCraft", "PixelForge"]
+        return companies.randomElement()!
+    }
+    
+    private func generateRandomCatchPhrase() -> String {
+        let phrases = [
+            "Innovating the future",
+            "Empowering your business",
+            "Technology that works",
+            "Building tomorrow today",
+            "Solutions that scale",
+            "Connecting possibilities",
+            "Driving digital transformation",
+            "Excellence in every detail"
+        ]
+        return phrases.randomElement()!
+    }
+    
+    private func generateRandomTitle() -> String {
+        let titles = [
+            "Getting Started with Modern Development",
+            "The Future of Cloud Computing",
+            "Best Practices for API Design",
+            "Understanding Machine Learning",
+            "Building Scalable Applications",
+            "Introduction to DevOps",
+            "Microservices Architecture Guide",
+            "Data Security Fundamentals"
+        ]
+        return titles.randomElement()!
+    }
+    
+    private func generateRandomBody() -> String {
+        let bodies = [
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+            "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+            "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+            "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+            "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium.",
+            "Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores.",
+            "At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti.",
+            "Et harum quidem rerum facilis est et expedita distinctio nam libero tempore cum soluta nobis est eligendi."
+        ]
+        return bodies.randomElement()!
+    }
+    
+    private func generateRandomTags() -> [String] {
+        let allTags = ["javascript", "python", "swift", "react", "node", "ios", "web", "mobile", "api", "database", "cloud", "ai"]
+        return Array(allTags.shuffled().prefix(Int.random(in: 1...4)))
+    }
+    
+    private func generateRandomCommentBody() -> String {
+        let comments = [
+            "Great article! Thanks for sharing.",
+            "This was very helpful, appreciate the detailed explanation.",
+            "Interesting perspective on this topic.",
+            "I have a question about the implementation details.",
+            "Could you provide more examples?",
+            "This solution worked perfectly for my use case.",
+            "Looking forward to more content like this.",
+            "Well written and easy to understand."
+        ]
+        return comments.randomElement()!
+    }
+    
+    private func generateRandomProductName() -> String {
+        let adjectives = ["Premium", "Professional", "Advanced", "Ultra", "Smart", "Eco", "Digital", "Classic"]
+        let products = ["Laptop", "Smartphone", "Headphones", "Camera", "Watch", "Tablet", "Monitor", "Keyboard"]
+        return "\(adjectives.randomElement()!) \(products.randomElement()!)"
+    }
+    
+    private func generateRandomProductDescription() -> String {
+        let descriptions = [
+            "High-quality product designed for modern professionals.",
+            "Innovative technology meets elegant design.",
+            "Perfect for both work and personal use.",
+            "Exceptional performance and reliability.",
+            "Cutting-edge features in a sleek package.",
+            "Built to last with premium materials.",
+            "User-friendly interface with powerful capabilities.",
+            "The perfect balance of style and functionality."
+        ]
+        return descriptions.randomElement()!
+    }
+    
+    private func generateRandomBrand() -> String {
+        let brands = ["TechBrand", "InnovateCorp", "FutureTech", "EliteGear", "ProSystems", "DigitalWorks", "SmartDevices", "ModernTech"]
+        return brands.randomElement()!
+    }
+    
+    private func generateRandomCategory() -> String {
+        let categories = ["Electronics", "Computing", "Mobile", "Audio", "Photography", "Wearables", "Gaming", "Accessories"]
+        return categories.randomElement()!
+    }
+    
+    private func generateRandomOrderProducts() -> [[String: Any]] {
+        let productCount = Int.random(in: 1...3)
+        var products: [[String: Any]] = []
+        
+        for i in 0..<productCount {
+            products.append([
+                "id": i + 1,
+                "title": generateRandomProductName(),
+                "price": Double.random(in: 19.99...299.99),
+                "quantity": Int.random(in: 1...3)
+            ])
+        }
+        
+        return products
+    }
+    
+    // MARK: - Missing Method Implementations
     
     private func compareDiff() {
         let lines1 = diffText1.components(separatedBy: .newlines)
@@ -1284,149 +2150,6 @@ struct DeveloperToolsView: View {
         
         return Array(Set(keys)).sorted()
     }
-    
-    private func processHash() {
-        if isFileMode {
-            if let fileData = fileData {
-                hashResult = generateHashFromData(fileData, type: hashType)
-            } else {
-                hashResult = ""
-            }
-        } else {
-            guard !hashInput.isEmpty else {
-                hashResult = ""
-                return
-            }
-            hashResult = generateHashFromText(hashInput, type: hashType)
-        }
-    }
-    
-    private func handleFileDrop(providers: [NSItemProvider]) {
-        for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier("public.file-url") {
-                provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { (item, error) in
-                    if let data = item as? Data,
-                       let url = URL(dataRepresentation: data, relativeTo: nil) {
-                        processDroppedFile(url: url)
-                    } else if let url = item as? URL {
-                        processDroppedFile(url: url)
-                    }
-                }
-            }
-        }
-    }
-    
-    private func processDroppedFile(url: URL) {
-        do {
-            let data = try Data(contentsOf: url)
-            let fileName = url.lastPathComponent
-            
-            DispatchQueue.main.async {
-                self.draggedFileName = fileName
-                self.fileData = data
-                self.processHash()
-            }
-        } catch {
-            DispatchQueue.main.async {
-                self.hashResult = "❌ Could not read file: \(error.localizedDescription)"
-            }
-        }
-    }
-    
-    private func generateHashFromText(_ text: String, type: HashType) -> String {
-        let data = Data(text.utf8)
-        return generateHashFromData(data, type: type)
-    }
-    
-    private func generateHashFromData(_ data: Data, type: HashType) -> String {
-        switch type {
-        case .md5:
-            return data.md5
-        case .sha1:
-            return data.sha1
-        case .sha256:
-            return data.sha256
-        case .sha384:
-            return data.sha384
-        case .sha512:
-            return data.sha512
-        }
-    }
-    
-    // MARK: - Helper Functions
-    
-    private func base64Decode(_ string: String) -> Data? {
-        // Add padding if needed
-        var base64 = string
-        let remainder = base64.count % 4
-        if remainder > 0 {
-            base64 += String(repeating: "=", count: 4 - remainder)
-        }
-        return Data(base64Encoded: base64)
-    }
-    
-    private func formatJSON(_ jsonString: String) -> String {
-        guard let data = jsonString.data(using: .utf8),
-              let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []),
-              let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted]),
-              let prettyString = String(data: prettyData, encoding: .utf8) else {
-            return jsonString
-        }
-        return prettyString
-    }
-    
-    private func copyToClipboard(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        
-        withAnimation(DesignSystem.Animation.gentle) {
-            showCopiedFeedback = true
-            lastCopiedText = text.prefix(20) + (text.count > 20 ? "..." : "")
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation(DesignSystem.Animation.gentle) {
-                showCopiedFeedback = false
-            }
-        }
-    }
-    
-    private func clearAllInputs() {
-        curlURL = ""
-        curlHeaders = ""
-        curlBody = ""
-        curlResult = ""
-        jwtToken = ""
-        jwtHeader = ""
-        jwtPayload = ""
-        jwtSignature = ""
-        timestampInput = ""
-        timestampResult = ""
-        diffText1 = ""
-        diffText2 = ""
-        diffResult = []
-        regexPattern = ""
-        regexText = ""
-        regexMatches = []
-        qrText = ""
-        qrImage = nil
-        qrStyle = .standard
-        jsonInput = ""
-        jsonOutput = ""
-        jsonOperation = .format
-        hashInput = ""
-        hashType = .sha256
-        hashResult = ""
-        isFileMode = false
-        draggedFileName = nil
-        fileData = nil
-    }
-    
-    private func focusInput() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            isInputFocused = true
-        }
-    }
 }
 
 // MARK: - Supporting Views
@@ -1580,36 +2303,30 @@ struct DiffResultView: View {
     let diffLines: [DiffLine]
     
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            Text("Differences")
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.textSecondary)
-            
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 1) {
-                    ForEach(Array(diffLines.enumerated()), id: \.offset) { _, line in
-                        HStack {
-                            Text(line.text)
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundColor(line.type.color)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .padding(.horizontal, DesignSystem.Spacing.xs)
-                        .padding(.vertical, 1)
-                        .background(line.type.backgroundColor)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(diffLines.indices, id: \.self) { index in
+                    HStack {
+                        Text(diffLines[index].text)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(diffLines[index].type.color)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .padding(.horizontal, DesignSystem.Spacing.sm)
+                    .padding(.vertical, 2)
+                    .background(diffLines[index].type.backgroundColor)
                 }
             }
-            .frame(height: 100)
-            .background(
-                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                    .fill(DesignSystem.Colors.surface.opacity(0.2))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                            .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
-                    )
-            )
         }
+        .frame(height: 120)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                .fill(DesignSystem.Colors.surface.opacity(0.2))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                        .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
+                )
+        )
     }
 }
 
@@ -1619,39 +2336,48 @@ struct RegexResultView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            Text("\(matches.count) matches found")
+            Text("\(matches.count) match\(matches.count == 1 ? "" : "es") found")
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.success)
             
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                    ForEach(Array(matches.enumerated()), id: \.offset) { index, match in
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    ForEach(matches.indices, id: \.self) { index in
+                        let match = matches[index]
                         let range = Range(match.range, in: text)
                         if let range = range {
                             HStack {
-                                Text("#\(index + 1):")
+                                Text("Match \(index + 1):")
                                     .font(.system(size: 10, weight: .medium))
                                     .foregroundColor(DesignSystem.Colors.textSecondary)
-                                Text(String(text[range]))
-                                    .font(.system(size: 11, design: .monospaced))
+                                
+                                Text("\"\(String(text[range]))\"")
+                                    .font(.system(size: 10, design: .monospaced))
                                     .foregroundColor(DesignSystem.Colors.success)
+                                    .padding(.horizontal, DesignSystem.Spacing.xs)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                            .fill(DesignSystem.Colors.success.opacity(0.1))
+                                    )
+                                
                                 Spacer()
+                                
+                                Text("Position: \(match.range.location)-\(match.range.location + match.range.length)")
+                                    .font(.system(size: 9))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
                             }
-                            .padding(.horizontal, DesignSystem.Spacing.xs)
-                            .padding(.vertical, DesignSystem.Spacing.xxs)
-                            .background(DesignSystem.Colors.success.opacity(0.1))
-                            .cornerRadius(DesignSystem.BorderRadius.sm)
                         }
                     }
                 }
+                .padding(DesignSystem.Spacing.sm)
             }
-            .frame(height: 80)
+            .frame(height: 100)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                     .fill(DesignSystem.Colors.surface.opacity(0.2))
                     .overlay(
                         RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                            .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
+                            .stroke(DesignSystem.Colors.success.opacity(0.3), lineWidth: 1)
                     )
             )
         }
@@ -1698,14 +2424,16 @@ struct HashRow: View {
 // MARK: - Supporting Types
 
 enum DeveloperTool: CaseIterable {
-    case curlGenerator, jwtDecoder, uuidGenerator, timestampConverter, textDiff, regexTester, qrGenerator, jsonFormatter, hashGenerator
+    case curlGenerator, jwtDecoder, uuidGenerator, graphqlGenerator, apiMockup, yamlJsonConverter, textDiff, regexTester, qrGenerator, jsonFormatter, hashGenerator
     
     var title: String {
         switch self {
         case .curlGenerator: return "cURL"
         case .jwtDecoder: return "JWT"
         case .uuidGenerator: return "UUID"
-        case .timestampConverter: return "Time"
+        case .graphqlGenerator: return "GraphQL"
+        case .apiMockup: return "API Mockup"
+        case .yamlJsonConverter: return "YAML ↔ JSON"
         case .textDiff: return "Diff"
         case .regexTester: return "Regex"
         case .qrGenerator: return "QR"
@@ -1719,7 +2447,9 @@ enum DeveloperTool: CaseIterable {
         case .curlGenerator: return "terminal"
         case .jwtDecoder: return "key"
         case .uuidGenerator: return "number.square"
-        case .timestampConverter: return "clock"
+        case .graphqlGenerator: return "doc.text.magnifyingglass"
+        case .apiMockup: return "doc.text.magnifyingglass"
+        case .yamlJsonConverter: return "doc.text"
         case .textDiff: return "doc.text.magnifyingglass"
         case .regexTester: return "textformat.size"
         case .qrGenerator: return "qrcode"
@@ -1733,7 +2463,9 @@ enum DeveloperTool: CaseIterable {
         case .curlGenerator: return DesignSystem.Colors.primary
         case .jwtDecoder: return DesignSystem.Colors.success
         case .uuidGenerator: return DesignSystem.Colors.warning
-        case .timestampConverter: return DesignSystem.Colors.files
+        case .graphqlGenerator: return DesignSystem.Colors.files
+        case .apiMockup: return DesignSystem.Colors.files
+        case .yamlJsonConverter: return DesignSystem.Colors.files
         case .textDiff: return DesignSystem.Colors.error
         case .regexTester: return DesignSystem.Colors.developer
         case .qrGenerator: return DesignSystem.Colors.ai
@@ -1801,49 +2533,74 @@ enum UUIDFormat: CaseIterable {
     }
 }
 
-enum TimestampMode: CaseIterable {
-    case toHuman, toUnix
+enum GraphQLOperation: CaseIterable {
+    case query, mutation
     
     var title: String {
         switch self {
-        case .toHuman: return "To Human"
-        case .toUnix: return "To Unix"
+        case .query: return "Query"
+        case .mutation: return "Mutation"
+        }
+    }
+    
+    var placeholder: String {
+        switch self {
+        case .query: return "Enter GraphQL query here..."
+        case .mutation: return "Enter GraphQL mutation here..."
+        }
+    }
+    
+    var variablesPlaceholder: String {
+        switch self {
+        case .query: return "Enter variables (JSON) here..."
+        case .mutation: return "Enter variables (JSON) here..."
         }
     }
 }
 
-enum QRSize: CGFloat, CaseIterable {
-    case small = 128
-    case medium = 256
-    case large = 512
+enum APIResponseType: CaseIterable {
+    case user, post, comment, product, order, custom
     
     var title: String {
         switch self {
-        case .small: return "Small"
-        case .medium: return "Medium"
-        case .large: return "Large"
-        }
-    }
-    
-    var displaySize: CGFloat {
-        switch self {
-        case .small: return 80
-        case .medium: return 120
-        case .large: return 160
+        case .user: return "User"
+        case .post: return "Post"
+        case .comment: return "Comment"
+        case .product: return "Product"
+        case .order: return "Order"
+        case .custom: return "Custom"
         }
     }
 }
 
-enum RegexFlag: String, CaseIterable {
-    case caseInsensitive = "i"
-    case multiline = "m"
-    case dotMatchesLineSeparators = "s"
+enum YAMLJSONMode: CaseIterable {
+    case yamlToJson, jsonToYaml
     
     var title: String {
         switch self {
-        case .caseInsensitive: return "Case Insensitive"
-        case .multiline: return "Multiline"
-        case .dotMatchesLineSeparators: return "Dot All"
+        case .yamlToJson: return "YAML to JSON"
+        case .jsonToYaml: return "JSON to YAML"
+        }
+    }
+    
+    var inputTitle: String {
+        switch self {
+        case .yamlToJson: return "YAML Input"
+        case .jsonToYaml: return "JSON Input"
+        }
+    }
+    
+    var placeholder: String {
+        switch self {
+        case .yamlToJson: return "Enter YAML here..."
+        case .jsonToYaml: return "Enter JSON here..."
+        }
+    }
+    
+    var outputTitle: String {
+        switch self {
+        case .yamlToJson: return "JSON Output"
+        case .jsonToYaml: return "YAML Output"
         }
     }
 }
@@ -1962,6 +2719,42 @@ enum QRStyle: CaseIterable {
         switch self {
         case .gradientSunset, .gradientOcean, .gradientForest: return true
         default: return false
+        }
+    }
+}
+
+enum QRSize: CGFloat, CaseIterable {
+    case small = 128
+    case medium = 256
+    case large = 512
+    
+    var title: String {
+        switch self {
+        case .small: return "Small"
+        case .medium: return "Medium"
+        case .large: return "Large"
+        }
+    }
+    
+    var displaySize: CGFloat {
+        switch self {
+        case .small: return 80
+        case .medium: return 120
+        case .large: return 160
+        }
+    }
+}
+
+enum RegexFlag: String, CaseIterable {
+    case caseInsensitive = "i"
+    case multiline = "m"
+    case dotMatchesLineSeparators = "s"
+    
+    var title: String {
+        switch self {
+        case .caseInsensitive: return "Case Insensitive"
+        case .multiline: return "Multiline"
+        case .dotMatchesLineSeparators: return "Dot All"
         }
     }
 }
