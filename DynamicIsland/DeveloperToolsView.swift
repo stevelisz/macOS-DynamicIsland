@@ -3,7 +3,7 @@ import CommonCrypto
 import Foundation
 
 struct DeveloperToolsView: View {
-    @State private var selectedTool: DeveloperTool = .urlEncoder
+    @State private var selectedTool: DeveloperTool = .curlGenerator
     @State private var showCopiedFeedback = false
     @State private var lastCopiedText = ""
     
@@ -58,6 +58,13 @@ struct DeveloperToolsView: View {
     @State private var draggedFileName: String?
     @State private var fileData: Data?
     
+    // cURL Generator
+    @State private var curlURL: String = ""
+    @State private var curlMethod: HTTPMethod = .GET
+    @State private var curlHeaders: String = ""
+    @State private var curlBody: String = ""
+    @State private var curlResult: String = ""
+    
     @FocusState private var isInputFocused: Bool
     
     var body: some View {
@@ -68,8 +75,8 @@ struct DeveloperToolsView: View {
             // Tool Interface
             Group {
                 switch selectedTool {
-                case .urlEncoder:
-                    urlEncoderInterface
+                case .curlGenerator:
+                    curlGeneratorInterface
                 case .jwtDecoder:
                     jwtDecoderInterface
                 case .uuidGenerator:
@@ -119,40 +126,98 @@ struct DeveloperToolsView: View {
         }
     }
     
-    // MARK: - URL Encoder/Decoder
-    private var urlEncoderInterface: some View {
+    // MARK: - cURL Generator
+    private var curlGeneratorInterface: some View {
         VStack(spacing: DesignSystem.Spacing.sm) {
             HStack {
-                Text("URL Encoder/Decoder")
+                Text("cURL Generator")
                     .font(DesignSystem.Typography.captionMedium)
                     .foregroundColor(DesignSystem.Colors.textSecondary)
                 
                 Spacer()
                 
-                Picker("Mode", selection: $urlMode) {
-                    ForEach(URLMode.allCases, id: \.self) { mode in
-                        Text(mode.title).tag(mode)
+                // HTTP Method dropdown
+                Menu {
+                    ForEach(HTTPMethod.allCases, id: \.self) { method in
+                        Button(method.rawValue) {
+                            curlMethod = method
+                            generateCURL()
+                        }
                     }
+                } label: {
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        Text(curlMethod.rawValue)
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
+                    .padding(.horizontal, DesignSystem.Spacing.xs)
+                    .padding(.vertical, DesignSystem.Spacing.xxs)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                            .fill(DesignSystem.Colors.surface.opacity(0.3))
+                    )
                 }
-                .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 130)
-                .onChange(of: urlMode) { _, _ in processURL() }
+                .buttonStyle(.plain)
             }
             
+            // URL Input
             CompactInputArea(
-                title: urlMode == .encode ? "Plain Text" : "Encoded URL",
-                text: $urlText,
-                placeholder: urlMode == .encode ? "Enter text to encode..." : "Enter URL to decode...",
+                title: "URL",
+                text: $curlURL,
+                placeholder: "https://api.example.com/users",
                 focusBinding: $isInputFocused
             )
-            .onChange(of: urlText) { _, _ in processURL() }
+            .onChange(of: curlURL) { _, _ in generateCURL() }
             
-            if !urlResult.isEmpty {
+            // Headers Input (optional)
+            CompactInputArea(
+                title: "Headers (Optional)",
+                text: $curlHeaders,
+                placeholder: "Content-Type: application/json\nAuthorization: Bearer token",
+                focusBinding: FocusState<Bool>().projectedValue
+            )
+            .onChange(of: curlHeaders) { _, _ in generateCURL() }
+            
+            // Body Input (for POST/PUT/PATCH)
+            if curlMethod.hasBody {
+                CompactInputArea(
+                    title: "Request Body",
+                    text: $curlBody,
+                    placeholder: curlMethod.bodyPlaceholder,
+                    focusBinding: FocusState<Bool>().projectedValue
+                )
+                .onChange(of: curlBody) { _, _ in generateCURL() }
+            }
+            
+            // Quick action buttons
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ActionButton(title: "Sample API", icon: "doc.text") {
+                    curlURL = "https://jsonplaceholder.typicode.com/posts/1"
+                    curlMethod = .GET
+                    curlHeaders = "Accept: application/json"
+                    curlBody = ""
+                    generateCURL()
+                }
+                
+                ActionButton(title: "Clear", icon: "trash") {
+                    curlURL = ""
+                    curlHeaders = ""
+                    curlBody = ""
+                    curlResult = ""
+                }
+                
+                Spacer()
+            }
+            
+            if !curlResult.isEmpty {
                 CompactOutputArea(
-                    title: urlMode == .encode ? "Encoded URL" : "Decoded Text",
-                    text: urlResult
+                    title: "Generated cURL Command",
+                    text: curlResult
                 ) {
-                    copyToClipboard(urlResult)
+                    copyToClipboard(curlResult)
                 }
             }
         }
@@ -871,18 +936,38 @@ struct DeveloperToolsView: View {
     
     // MARK: - Processing Functions
     
-    private func processURL() {
-        guard !urlText.isEmpty else {
-            urlResult = ""
+    private func generateCURL() {
+        guard !curlURL.isEmpty else {
+            curlResult = ""
             return
         }
         
-        switch urlMode {
-        case .encode:
-            urlResult = urlText.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "Encoding failed"
-        case .decode:
-            urlResult = urlText.removingPercentEncoding ?? "Decoding failed"
+        var curlCommand = "curl"
+        
+        // Add method if not GET
+        if curlMethod != .GET {
+            curlCommand += " -X \(curlMethod.rawValue)"
         }
+        
+        // Add headers
+        if !curlHeaders.isEmpty {
+            let headerLines = curlHeaders.components(separatedBy: .newlines)
+                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            
+            for header in headerLines {
+                curlCommand += " \\\n  -H '\(header.trimmingCharacters(in: .whitespaces))'"
+            }
+        }
+        
+        // Add body for methods that support it
+        if curlMethod.hasBody && !curlBody.isEmpty {
+            curlCommand += " \\\n  -d '\(curlBody)'"
+        }
+        
+        // Add URL (always last)
+        curlCommand += " \\\n  '\(curlURL)'"
+        
+        curlResult = curlCommand
     }
     
     private func processJWT() {
@@ -1043,51 +1128,63 @@ struct DeveloperToolsView: View {
         case .standard:
             return image
         case .rounded:
-            // Apply rounded corners filter
-            if let roundedFilter = CIFilter(name: "CIRoundedRectangleGenerator") {
-                // For rounded style, we'll return the original for now
-                // More complex styling would require custom Core Image filters
-                return image
+            // Apply subtle rounding effect
+            if let morphologyFilter = CIFilter(name: "CIMorphologyRectangleMinimum") {
+                morphologyFilter.setValue(image, forKey: kCIInputImageKey)
+                morphologyFilter.setValue(CIVector(x: 2, y: 2), forKey: kCIInputRadiusKey)
+                return morphologyFilter.outputImage ?? image
             }
             return image
-        case .circular:
-            // Apply circular dots filter
-            if let circularFilter = CIFilter(name: "CIDiscBlur") {
-                circularFilter.setValue(image, forKey: kCIInputImageKey)
-                circularFilter.setValue(1.0, forKey: kCIInputRadiusKey)
-                return circularFilter.outputImage ?? image
-            }
-            return image
-        case .colorful:
-            // Apply color filter
-            if let colorFilter = CIFilter(name: "CIFalseColor") {
-                colorFilter.setValue(image, forKey: kCIInputImageKey)
-                colorFilter.setValue(CIColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1.0), forKey: "inputColor0") // Blue
-                colorFilter.setValue(CIColor.white, forKey: "inputColor1")
-                return colorFilter.outputImage ?? image
-            }
-            return image
-        case .gradient:
-            // Apply gradient effect
-            if let gradientFilter = CIFilter(name: "CILinearGradient") {
-                // Create a gradient overlay
-                let gradientImage = createGradientImage(size: image.extent.size)
-                if let blendFilter = CIFilter(name: "CIMultiplyBlendMode") {
-                    blendFilter.setValue(image, forKey: kCIInputImageKey)
-                    blendFilter.setValue(gradientImage, forKey: kCIInputBackgroundImageKey)
-                    return blendFilter.outputImage ?? image
-                }
-            }
-            return image
+        case .colorfulBlue:
+            return applyColorFilter(to: image, foregroundColor: CIColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1.0))
+        case .colorfulGreen:
+            return applyColorFilter(to: image, foregroundColor: CIColor(red: 0.2, green: 0.7, blue: 0.3, alpha: 1.0))
+        case .colorfulRed:
+            return applyColorFilter(to: image, foregroundColor: CIColor(red: 0.8, green: 0.2, blue: 0.2, alpha: 1.0))
+        case .colorfulPurple:
+            return applyColorFilter(to: image, foregroundColor: CIColor(red: 0.6, green: 0.2, blue: 0.8, alpha: 1.0))
+        case .gradientSunset:
+            return applyGradientFilter(to: image, 
+                                     color1: CIColor(red: 1.0, green: 0.6, blue: 0.2, alpha: 1.0), // Orange
+                                     color2: CIColor(red: 1.0, green: 0.2, blue: 0.4, alpha: 1.0)) // Pink
+        case .gradientOcean:
+            return applyGradientFilter(to: image,
+                                     color1: CIColor(red: 0.2, green: 0.6, blue: 1.0, alpha: 1.0), // Light Blue
+                                     color2: CIColor(red: 0.1, green: 0.3, blue: 0.7, alpha: 1.0)) // Dark Blue
+        case .gradientForest:
+            return applyGradientFilter(to: image,
+                                     color1: CIColor(red: 0.4, green: 0.8, blue: 0.4, alpha: 1.0), // Light Green
+                                     color2: CIColor(red: 0.1, green: 0.4, blue: 0.2, alpha: 1.0)) // Dark Green
         }
     }
     
-    private func createGradientImage(size: CGSize) -> CIImage? {
+    private func applyColorFilter(to image: CIImage, foregroundColor: CIColor) -> CIImage {
+        if let colorFilter = CIFilter(name: "CIFalseColor") {
+            colorFilter.setValue(image, forKey: kCIInputImageKey)
+            colorFilter.setValue(foregroundColor, forKey: "inputColor0")
+            colorFilter.setValue(CIColor.white, forKey: "inputColor1")
+            return colorFilter.outputImage ?? image
+        }
+        return image
+    }
+    
+    private func applyGradientFilter(to image: CIImage, color1: CIColor, color2: CIColor) -> CIImage {
+        let gradientImage = createCustomGradientImage(size: image.extent.size, color1: color1, color2: color2)
+        if let gradientImage = gradientImage,
+           let blendFilter = CIFilter(name: "CIMultiplyBlendMode") {
+            blendFilter.setValue(image, forKey: kCIInputImageKey)
+            blendFilter.setValue(gradientImage, forKey: kCIInputBackgroundImageKey)
+            return blendFilter.outputImage ?? image
+        }
+        return image
+    }
+    
+    private func createCustomGradientImage(size: CGSize, color1: CIColor, color2: CIColor) -> CIImage? {
         let gradient = CIFilter(name: "CILinearGradient")
         gradient?.setValue(CIVector(x: 0, y: 0), forKey: "inputPoint0")
         gradient?.setValue(CIVector(x: size.width, y: size.height), forKey: "inputPoint1")
-        gradient?.setValue(CIColor(red: 0.8, green: 0.2, blue: 0.8, alpha: 1.0), forKey: "inputColor0") // Purple
-        gradient?.setValue(CIColor(red: 0.2, green: 0.6, blue: 1.0, alpha: 1.0), forKey: "inputColor1") // Blue
+        gradient?.setValue(color1, forKey: "inputColor0")
+        gradient?.setValue(color2, forKey: "inputColor1")
         
         return gradient?.outputImage?.cropped(to: CGRect(origin: .zero, size: size))
     }
@@ -1295,8 +1392,10 @@ struct DeveloperToolsView: View {
     }
     
     private func clearAllInputs() {
-        urlText = ""
-        urlResult = ""
+        curlURL = ""
+        curlHeaders = ""
+        curlBody = ""
+        curlResult = ""
         jwtToken = ""
         jwtHeader = ""
         jwtPayload = ""
@@ -1599,11 +1698,11 @@ struct HashRow: View {
 // MARK: - Supporting Types
 
 enum DeveloperTool: CaseIterable {
-    case urlEncoder, jwtDecoder, uuidGenerator, timestampConverter, textDiff, regexTester, qrGenerator, jsonFormatter, hashGenerator
+    case curlGenerator, jwtDecoder, uuidGenerator, timestampConverter, textDiff, regexTester, qrGenerator, jsonFormatter, hashGenerator
     
     var title: String {
         switch self {
-        case .urlEncoder: return "URL"
+        case .curlGenerator: return "cURL"
         case .jwtDecoder: return "JWT"
         case .uuidGenerator: return "UUID"
         case .timestampConverter: return "Time"
@@ -1617,7 +1716,7 @@ enum DeveloperTool: CaseIterable {
     
     var icon: String {
         switch self {
-        case .urlEncoder: return "link"
+        case .curlGenerator: return "terminal"
         case .jwtDecoder: return "key"
         case .uuidGenerator: return "number.square"
         case .timestampConverter: return "clock"
@@ -1631,7 +1730,7 @@ enum DeveloperTool: CaseIterable {
     
     var color: Color {
         switch self {
-        case .urlEncoder: return DesignSystem.Colors.primary
+        case .curlGenerator: return DesignSystem.Colors.primary
         case .jwtDecoder: return DesignSystem.Colors.success
         case .uuidGenerator: return DesignSystem.Colors.warning
         case .timestampConverter: return DesignSystem.Colors.files
@@ -1640,6 +1739,41 @@ enum DeveloperTool: CaseIterable {
         case .qrGenerator: return DesignSystem.Colors.ai
         case .jsonFormatter: return DesignSystem.Colors.files
         case .hashGenerator: return DesignSystem.Colors.files
+        }
+    }
+}
+
+enum HTTPMethod: String, CaseIterable {
+    case GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
+    
+    var hasBody: Bool {
+        switch self {
+        case .POST, .PUT, .PATCH: return true
+        case .GET, .DELETE, .HEAD, .OPTIONS: return false
+        }
+    }
+    
+    var bodyPlaceholder: String {
+        switch self {
+        case .POST: return """
+{
+  "name": "John Doe",
+  "email": "john@example.com"
+}
+"""
+        case .PUT: return """
+{
+  "id": 1,
+  "name": "Updated Name",
+  "status": "active"
+}
+"""
+        case .PATCH: return """
+{
+  "status": "completed"
+}
+"""
+        default: return ""
         }
     }
 }
@@ -1784,31 +1918,50 @@ enum HashType: CaseIterable {
 }
 
 enum QRStyle: CaseIterable {
-    case standard, rounded, circular, colorful, gradient
+    case standard, rounded, colorfulBlue, colorfulGreen, colorfulRed, colorfulPurple, gradientSunset, gradientOcean, gradientForest
     
     var title: String {
         switch self {
         case .standard: return "Standard"
         case .rounded: return "Rounded"
-        case .circular: return "Circular"
-        case .colorful: return "Colorful"
-        case .gradient: return "Gradient"
+        case .colorfulBlue: return "Blue"
+        case .colorfulGreen: return "Green"
+        case .colorfulRed: return "Red"
+        case .colorfulPurple: return "Purple"
+        case .gradientSunset: return "Sunset"
+        case .gradientOcean: return "Ocean"
+        case .gradientForest: return "Forest"
         }
     }
     
     var backgroundColor: Color {
         switch self {
-        case .standard, .rounded, .circular: return Color.white
-        case .colorful: return Color.white
-        case .gradient: return Color.white
+        case .standard, .rounded: return Color.white
+        case .colorfulBlue, .colorfulGreen, .colorfulRed, .colorfulPurple: return Color.white
+        case .gradientSunset, .gradientOcean, .gradientForest: return Color.white
         }
     }
     
     var cornerRadius: CGFloat {
         switch self {
-        case .standard, .colorful, .gradient: return DesignSystem.BorderRadius.md
+        case .standard: return DesignSystem.BorderRadius.md
         case .rounded: return DesignSystem.BorderRadius.lg
-        case .circular: return 20
+        case .colorfulBlue, .colorfulGreen, .colorfulRed, .colorfulPurple: return DesignSystem.BorderRadius.md
+        case .gradientSunset, .gradientOcean, .gradientForest: return DesignSystem.BorderRadius.md
+        }
+    }
+    
+    var isColorStyle: Bool {
+        switch self {
+        case .colorfulBlue, .colorfulGreen, .colorfulRed, .colorfulPurple: return true
+        default: return false
+        }
+    }
+    
+    var isGradientStyle: Bool {
+        switch self {
+        case .gradientSunset, .gradientOcean, .gradientForest: return true
+        default: return false
         }
     }
 }
