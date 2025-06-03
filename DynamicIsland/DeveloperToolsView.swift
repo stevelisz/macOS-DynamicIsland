@@ -43,6 +43,7 @@ struct DeveloperToolsView: View {
     @State private var qrText: String = ""
     @State private var qrImage: NSImage?
     @State private var qrSize: QRSize = .medium
+    @State private var qrStyle: QRStyle = .standard
     
     // JSON Formatter
     @State private var jsonInput: String = ""
@@ -516,14 +517,60 @@ struct DeveloperToolsView: View {
                 
                 Spacer()
                 
-                Picker("Size", selection: $qrSize) {
-                    ForEach(QRSize.allCases, id: \.self) { size in
-                        Text(size.title).tag(size)
+                // Compact controls - moved left and added style selector
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    // Style dropdown
+                    Menu {
+                        ForEach(QRStyle.allCases, id: \.self) { style in
+                            Button(style.title) {
+                                qrStyle = style
+                                generateQRCode()
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: DesignSystem.Spacing.xxs) {
+                            Text(qrStyle.title)
+                                .font(DesignSystem.Typography.micro)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                        }
+                        .padding(.horizontal, DesignSystem.Spacing.xs)
+                        .padding(.vertical, DesignSystem.Spacing.xxs)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
                     }
+                    .buttonStyle(.plain)
+                    
+                    // Size dropdown
+                    Menu {
+                        ForEach(QRSize.allCases, id: \.self) { size in
+                            Button(size.title) {
+                                qrSize = size
+                                generateQRCode()
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: DesignSystem.Spacing.xxs) {
+                            Text(qrSize.title)
+                                .font(DesignSystem.Typography.micro)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                        }
+                        .padding(.horizontal, DesignSystem.Spacing.xs)
+                        .padding(.vertical, DesignSystem.Spacing.xxs)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
-                .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 120)
-                .onChange(of: qrSize) { _, _ in generateQRCode() }
             }
             
             CompactInputArea(
@@ -541,8 +588,8 @@ struct DeveloperToolsView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: qrSize.displaySize, height: qrSize.displaySize)
-                        .background(Color.white)
-                        .cornerRadius(DesignSystem.BorderRadius.md)
+                        .background(qrStyle.backgroundColor)
+                        .cornerRadius(qrStyle.cornerRadius)
                     
                     ActionButton(title: "Save Image", icon: "square.and.arrow.down") {
                         saveQRCode()
@@ -981,11 +1028,68 @@ struct DeveloperToolsView: View {
             let scaleY = qrSize.rawValue / outputImage.extent.size.height
             let scaledImage = outputImage.transformed(by: CGAffineTransform(scaleX: scaleX, y: scaleY))
             
-            let rep = NSCIImageRep(ciImage: scaledImage)
+            // Apply style transformations
+            let styledImage = applyQRStyle(to: scaledImage, style: qrStyle)
+            
+            let rep = NSCIImageRep(ciImage: styledImage)
             let nsImage = NSImage(size: rep.size)
             nsImage.addRepresentation(rep)
             qrImage = nsImage
         }
+    }
+    
+    private func applyQRStyle(to image: CIImage, style: QRStyle) -> CIImage {
+        switch style {
+        case .standard:
+            return image
+        case .rounded:
+            // Apply rounded corners filter
+            if let roundedFilter = CIFilter(name: "CIRoundedRectangleGenerator") {
+                // For rounded style, we'll return the original for now
+                // More complex styling would require custom Core Image filters
+                return image
+            }
+            return image
+        case .circular:
+            // Apply circular dots filter
+            if let circularFilter = CIFilter(name: "CIDiscBlur") {
+                circularFilter.setValue(image, forKey: kCIInputImageKey)
+                circularFilter.setValue(1.0, forKey: kCIInputRadiusKey)
+                return circularFilter.outputImage ?? image
+            }
+            return image
+        case .colorful:
+            // Apply color filter
+            if let colorFilter = CIFilter(name: "CIFalseColor") {
+                colorFilter.setValue(image, forKey: kCIInputImageKey)
+                colorFilter.setValue(CIColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1.0), forKey: "inputColor0") // Blue
+                colorFilter.setValue(CIColor.white, forKey: "inputColor1")
+                return colorFilter.outputImage ?? image
+            }
+            return image
+        case .gradient:
+            // Apply gradient effect
+            if let gradientFilter = CIFilter(name: "CILinearGradient") {
+                // Create a gradient overlay
+                let gradientImage = createGradientImage(size: image.extent.size)
+                if let blendFilter = CIFilter(name: "CIMultiplyBlendMode") {
+                    blendFilter.setValue(image, forKey: kCIInputImageKey)
+                    blendFilter.setValue(gradientImage, forKey: kCIInputBackgroundImageKey)
+                    return blendFilter.outputImage ?? image
+                }
+            }
+            return image
+        }
+    }
+    
+    private func createGradientImage(size: CGSize) -> CIImage? {
+        let gradient = CIFilter(name: "CILinearGradient")
+        gradient?.setValue(CIVector(x: 0, y: 0), forKey: "inputPoint0")
+        gradient?.setValue(CIVector(x: size.width, y: size.height), forKey: "inputPoint1")
+        gradient?.setValue(CIColor(red: 0.8, green: 0.2, blue: 0.8, alpha: 1.0), forKey: "inputColor0") // Purple
+        gradient?.setValue(CIColor(red: 0.2, green: 0.6, blue: 1.0, alpha: 1.0), forKey: "inputColor1") // Blue
+        
+        return gradient?.outputImage?.cropped(to: CGRect(origin: .zero, size: size))
     }
     
     private func saveQRCode() {
@@ -1207,6 +1311,7 @@ struct DeveloperToolsView: View {
         regexMatches = []
         qrText = ""
         qrImage = nil
+        qrStyle = .standard
         jsonInput = ""
         jsonOutput = ""
         jsonOperation = .format
@@ -1674,6 +1779,36 @@ enum HashType: CaseIterable {
         case .sha256: return DesignSystem.Colors.success
         case .sha384: return DesignSystem.Colors.primary
         case .sha512: return DesignSystem.Colors.ai
+        }
+    }
+}
+
+enum QRStyle: CaseIterable {
+    case standard, rounded, circular, colorful, gradient
+    
+    var title: String {
+        switch self {
+        case .standard: return "Standard"
+        case .rounded: return "Rounded"
+        case .circular: return "Circular"
+        case .colorful: return "Colorful"
+        case .gradient: return "Gradient"
+        }
+    }
+    
+    var backgroundColor: Color {
+        switch self {
+        case .standard, .rounded, .circular: return Color.white
+        case .colorful: return Color.white
+        case .gradient: return Color.white
+        }
+    }
+    
+    var cornerRadius: CGFloat {
+        switch self {
+        case .standard, .colorful, .gradient: return DesignSystem.BorderRadius.md
+        case .rounded: return DesignSystem.BorderRadius.lg
+        case .circular: return 20
         }
     }
 }
