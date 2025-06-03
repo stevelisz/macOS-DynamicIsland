@@ -483,7 +483,7 @@ struct DeveloperToolsView: View {
                 CompactOutputArea(
                     title: "Complete GraphQL Request",
                     text: graphqlResult,
-                    height: 120
+                    height: 60
                 ) {
                     copyToClipboard(graphqlResult)
                 }
@@ -594,7 +594,7 @@ struct DeveloperToolsView: View {
                 CompactOutputArea(
                     title: "Generated API Response",
                     text: apiResponseResult,
-                    height: 140
+                    height: 60
                 ) {
                     copyToClipboard(apiResponseResult)
                 }
@@ -687,7 +687,7 @@ spec:
                 CompactOutputArea(
                     title: yamlJsonMode.outputTitle,
                     text: yamlJsonOutput,
-                    height: 120
+                    height: 60
                 ) {
                     copyToClipboard(yamlJsonOutput)
                 }
@@ -2169,14 +2169,14 @@ struct ToolButton: View {
         Button(action: action) {
             VStack(spacing: DesignSystem.Spacing.xxs) {
                 Image(systemName: tool.icon)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                 Text(tool.title)
                     .font(DesignSystem.Typography.micro)
                     .lineLimit(1)
             }
             .foregroundColor(isSelected ? .white : DesignSystem.Colors.textSecondary)
-            .frame(width: 80)
-            .padding(.vertical, DesignSystem.Spacing.sm)
+            .frame(width: 70)
+            .padding(.vertical, DesignSystem.Spacing.xs)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                     .fill(isSelected ? tool.color : DesignSystem.Colors.surface.opacity(0.3))
