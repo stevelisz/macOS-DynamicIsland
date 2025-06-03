@@ -3,17 +3,47 @@ import CommonCrypto
 import Foundation
 
 struct DeveloperToolsView: View {
-    @State private var selectedTool: DeveloperTool = .json
-    @State private var inputText: String = ""
-    @State private var outputText: String = ""
-    @State private var base64Mode: Base64Mode = .encode
-    @State private var selectedHashType: HashType = .sha256
+    @State private var selectedTool: DeveloperTool = .urlEncoder
     @State private var showCopiedFeedback = false
     @State private var lastCopiedText = ""
-    @State private var draggedFileName: String?
-    @State private var draggedFileSize: String?
-    @State private var isFileMode: Bool = false
-    @State private var fileData: Data?
+    
+    // URL Encoder/Decoder
+    @State private var urlText: String = ""
+    @State private var urlMode: URLMode = .encode
+    @State private var urlResult: String = ""
+    
+    // JWT Decoder
+    @State private var jwtToken: String = ""
+    @State private var jwtHeader: String = ""
+    @State private var jwtPayload: String = ""
+    @State private var jwtSignature: String = ""
+    
+    // UUID Generator
+    @State private var generatedUUID: String = ""
+    @State private var uuidCount: Int = 1
+    @State private var uuidFormat: UUIDFormat = .uppercase
+    
+    // Timestamp Converter
+    @State private var timestampInput: String = ""
+    @State private var timestampMode: TimestampMode = .toHuman
+    @State private var timestampResult: String = ""
+    
+    // Text Diff
+    @State private var diffText1: String = ""
+    @State private var diffText2: String = ""
+    @State private var diffResult: [DiffLine] = []
+    
+    // Regex Tester
+    @State private var regexPattern: String = ""
+    @State private var regexText: String = ""
+    @State private var regexMatches: [NSTextCheckingResult] = []
+    @State private var regexFlags: Set<RegexFlag> = []
+    
+    // QR Code
+    @State private var qrText: String = ""
+    @State private var qrImage: NSImage?
+    @State private var qrSize: QRSize = .medium
+    
     @FocusState private var isInputFocused: Bool
     
     var body: some View {
@@ -24,464 +54,589 @@ struct DeveloperToolsView: View {
             // Tool Interface
             Group {
                 switch selectedTool {
-                case .json:
-                    jsonFormatterInterface
-                case .base64:
-                    base64Interface
-                case .hash:
-                    hashInterface
+                case .urlEncoder:
+                    urlEncoderInterface
+                case .jwtDecoder:
+                    jwtDecoderInterface
+                case .uuidGenerator:
+                    uuidGeneratorInterface
+                case .timestampConverter:
+                    timestampConverterInterface
+                case .textDiff:
+                    textDiffInterface
+                case .regexTester:
+                    regexTesterInterface
+                case .qrGenerator:
+                    qrGeneratorInterface
                 }
             }
             .animation(DesignSystem.Animation.smooth, value: selectedTool)
         }
         .padding(.vertical, DesignSystem.Spacing.sm)
-        .onChange(of: inputText) { _, _ in
-            processInput()
-        }
         .onChange(of: selectedTool) { _, _ in
-            inputText = ""
-            outputText = ""
-            isFileMode = false
-            draggedFileName = nil
-            draggedFileSize = nil
-            fileData = nil
-            
-            // Auto-focus input when tool changes
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                if selectedTool != .hash || !isFileMode {
-                    isInputFocused = true
-                }
-            }
-        }
-        .onChange(of: base64Mode) { _, _ in
-            if selectedTool == .base64 {
-                processInput()
-            }
-        }
-        .onChange(of: selectedHashType) { _, _ in
-            if selectedTool == .hash {
-                processInput()
-            }
-        }
-        .onChange(of: isFileMode) { _, newValue in
-            // Focus input when switching from file mode to text mode
-            if !newValue {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    isInputFocused = true
-                }
-            }
+            clearAllInputs()
+            focusInput()
         }
         .onAppear {
-            // Auto-focus input when view first appears
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                if selectedTool != .hash || !isFileMode {
-                    isInputFocused = true
+            focusInput()
+        }
+    }
+    
+    // MARK: - Tool Selector
+    private var toolSelector: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ForEach(DeveloperTool.allCases, id: \.self) { tool in
+                    ToolButton(
+                        tool: tool,
+                        isSelected: selectedTool == tool
+                    ) {
+                        withAnimation(DesignSystem.Animation.gentle) {
+                            selectedTool = tool
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, DesignSystem.Spacing.sm)
+        }
+    }
+    
+    // MARK: - URL Encoder/Decoder
+    private var urlEncoderInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Text("URL Encoder/Decoder")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                Picker("Mode", selection: $urlMode) {
+                    ForEach(URLMode.allCases, id: \.self) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .frame(width: 130)
+                .onChange(of: urlMode) { _, _ in processURL() }
+            }
+            
+            CompactInputArea(
+                title: urlMode == .encode ? "Plain Text" : "Encoded URL",
+                text: $urlText,
+                placeholder: urlMode == .encode ? "Enter text to encode..." : "Enter URL to decode...",
+                focusBinding: $isInputFocused
+            )
+            .onChange(of: urlText) { _, _ in processURL() }
+            
+            if !urlResult.isEmpty {
+                CompactOutputArea(
+                    title: urlMode == .encode ? "Encoded URL" : "Decoded Text",
+                    text: urlResult
+                ) {
+                    copyToClipboard(urlResult)
                 }
             }
         }
     }
     
-    private var toolSelector: some View {
-        HStack(spacing: DesignSystem.Spacing.xs) {
-            ForEach(DeveloperTool.allCases, id: \.self) { tool in
-                ToolButton(
-                    tool: tool,
-                    isSelected: selectedTool == tool
-                ) {
-                    withAnimation(DesignSystem.Animation.gentle) {
-                        selectedTool = tool
+    // MARK: - JWT Decoder
+    private var jwtDecoderInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Text("JWT Token Decoder")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                if !jwtToken.isEmpty && jwtPayload.isEmpty {
+                    Text("❌ Invalid JWT")
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(DesignSystem.Colors.error)
+                }
+            }
+            
+            CompactInputArea(
+                title: "JWT Token",
+                text: $jwtToken,
+                placeholder: "Paste JWT token here...",
+                focusBinding: $isInputFocused
+            )
+            .onChange(of: jwtToken) { _, _ in processJWT() }
+            
+            if !jwtHeader.isEmpty {
+                VStack(spacing: DesignSystem.Spacing.xs) {
+                    CompactOutputArea(title: "Header", text: jwtHeader) {
+                        copyToClipboard(jwtHeader)
+                    }
+                    
+                    CompactOutputArea(title: "Payload", text: jwtPayload) {
+                        copyToClipboard(jwtPayload)
+                    }
+                    
+                    if !jwtSignature.isEmpty {
+                        CompactOutputArea(title: "Signature", text: jwtSignature) {
+                            copyToClipboard(jwtSignature)
+                        }
                     }
                 }
             }
         }
-        .padding(.horizontal, DesignSystem.Spacing.xs)
     }
     
-    private var jsonFormatterInterface: some View {
+    // MARK: - UUID Generator
+    private var uuidGeneratorInterface: some View {
         VStack(spacing: DesignSystem.Spacing.sm) {
-            // JSON Controls
             HStack {
-                Text("JSON")
+                Text("UUID Generator")
                     .font(DesignSystem.Typography.captionMedium)
                     .foregroundColor(DesignSystem.Colors.textSecondary)
                 
                 Spacer()
                 
                 HStack(spacing: DesignSystem.Spacing.xs) {
-                    ActionButton(title: "Format", icon: "text.alignleft") {
-                        formatJSON()
-                    }
+                    Stepper("Count: \(uuidCount)", value: $uuidCount, in: 1...10)
+                        .frame(width: 100)
                     
-                    ActionButton(title: "Minify", icon: "text.compress") {
-                        minifyJSON()
+                    Picker("Format", selection: $uuidFormat) {
+                        ForEach(UUIDFormat.allCases, id: \.self) { format in
+                            Text(format.title).tag(format)
+                        }
                     }
-                    
-                    ActionButton(title: "Validate", icon: "checkmark.shield") {
-                        validateJSON()
-                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 100)
                 }
             }
             
-            // Input/Output
-            inputOutputInterface
+            HStack {
+                ActionButton(title: "Generate", icon: "arrow.clockwise") {
+                    generateUUIDs()
+                }
+                
+                if !generatedUUID.isEmpty {
+                    ActionButton(title: "Copy All", icon: "doc.on.doc") {
+                        copyToClipboard(generatedUUID)
+                    }
+                }
+                
+                Spacer()
+            }
+            
+            if !generatedUUID.isEmpty {
+                CompactOutputArea(title: "Generated UUIDs", text: generatedUUID) {
+                    copyToClipboard(generatedUUID)
+                }
+            }
         }
     }
     
-    private var base64Interface: some View {
+    // MARK: - Timestamp Converter
+    private var timestampConverterInterface: some View {
         VStack(spacing: DesignSystem.Spacing.sm) {
-            // Base64 Controls
             HStack {
-                Text("Base64")
+                Text("Timestamp Converter")
                     .font(DesignSystem.Typography.captionMedium)
                     .foregroundColor(DesignSystem.Colors.textSecondary)
                 
                 Spacer()
                 
-                // Mode Selector
-                Picker("Mode", selection: $base64Mode) {
-                    ForEach(Base64Mode.allCases, id: \.self) { mode in
+                Picker("Mode", selection: $timestampMode) {
+                    ForEach(TimestampMode.allCases, id: \.self) { mode in
                         Text(mode.title).tag(mode)
                     }
                 }
                 .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 120)
+                .frame(width: 150)
+                .onChange(of: timestampMode) { _, _ in processTimestamp() }
             }
             
-            // Input/Output
-            inputOutputInterface
+            HStack {
+                CompactInputArea(
+                    title: timestampMode == .toHuman ? "Unix Timestamp" : "Date/Time",
+                    text: $timestampInput,
+                    placeholder: timestampMode == .toHuman ? "1640995200" : "2025-01-01 12:00:00",
+                    focusBinding: $isInputFocused
+                )
+                .onChange(of: timestampInput) { _, _ in processTimestamp() }
+                
+                ActionButton(title: "Now", icon: "clock") {
+                    if timestampMode == .toHuman {
+                        timestampInput = String(Int(Date().timeIntervalSince1970))
+                    } else {
+                        let formatter = DateFormatter()
+                        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                        timestampInput = formatter.string(from: Date())
+                    }
+                    processTimestamp()
+                }
+            }
+            
+            if !timestampResult.isEmpty {
+                CompactOutputArea(
+                    title: timestampMode == .toHuman ? "Human Readable" : "Unix Timestamp",
+                    text: timestampResult
+                ) {
+                    copyToClipboard(timestampResult)
+                }
+            }
         }
     }
     
-    private var hashInterface: some View {
+    // MARK: - Text Diff
+    private var textDiffInterface: some View {
         VStack(spacing: DesignSystem.Spacing.sm) {
-            // Hash Controls
             HStack {
-                Text("Hash")
+                Text("Text Diff Tool")
                     .font(DesignSystem.Typography.captionMedium)
                     .foregroundColor(DesignSystem.Colors.textSecondary)
                 
                 Spacer()
                 
-                // Mode Toggle
-                Button(action: {
-                    withAnimation(DesignSystem.Animation.gentle) {
-                        isFileMode.toggle()
-                        inputText = ""
-                        outputText = ""
-                        draggedFileName = nil
-                        draggedFileSize = nil
-                        fileData = nil
-                    }
-                }) {
-                    HStack(spacing: DesignSystem.Spacing.xxs) {
-                        Image(systemName: isFileMode ? "doc.fill" : "textformat")
-                            .font(.system(size: 10, weight: .medium))
-                        Text(isFileMode ? "File" : "Text")
-                            .font(DesignSystem.Typography.micro)
-                    }
-                    .foregroundColor(DesignSystem.Colors.primary)
-                    .padding(.horizontal, DesignSystem.Spacing.xs)
-                    .padding(.vertical, DesignSystem.Spacing.xxs)
-                    .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
-                            .fill(DesignSystem.Colors.primary.opacity(0.1))
-                    )
+                ActionButton(title: "Compare", icon: "eye") {
+                    compareDiff()
                 }
-                .buttonStyle(.plain)
-                
-                // Hash Type Selector
-                Menu {
-                    ForEach(HashType.allCases, id: \.self) { hashType in
-                        Button(action: {
-                            selectedHashType = hashType
-                        }) {
-                            HStack {
-                                Text(hashType.title)
-                                if selectedHashType == hashType {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: DesignSystem.Spacing.xxs) {
-                        Text(selectedHashType.title)
-                            .font(DesignSystem.Typography.captionMedium)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                    }
-                    .padding(.horizontal, DesignSystem.Spacing.sm)
-                    .padding(.vertical, DesignSystem.Spacing.xs)
-                    .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
-                            .fill(DesignSystem.Colors.surface.opacity(0.5))
-                    )
-                }
-                .buttonStyle(.plain)
             }
             
-            // Input/Output for hash
-            VStack(spacing: DesignSystem.Spacing.sm) {
-                // Input
-                if isFileMode {
-                    fileDropArea
-                } else {
-                    textHashInput
-                }
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                CompactInputArea(
+                    title: "Text 1",
+                    text: $diffText1,
+                    placeholder: "Enter first text...",
+                    focusBinding: $isInputFocused
+                )
                 
-                // Hash Outputs
-                if !inputText.isEmpty {
-                    hashOutputs
-                }
+                CompactInputArea(
+                    title: "Text 2",
+                    text: $diffText2,
+                    placeholder: "Enter second text...",
+                    focusBinding: FocusState<Bool>().projectedValue
+                )
+            }
+            
+            if !diffResult.isEmpty {
+                DiffResultView(diffLines: diffResult)
             }
         }
     }
     
-    private var inputOutputInterface: some View {
+    // MARK: - Regex Tester
+    private var regexTesterInterface: some View {
         VStack(spacing: DesignSystem.Spacing.sm) {
-            // Input
-            InputTextArea(
-                title: selectedTool == .base64 ? (base64Mode == .encode ? "Text" : "Base64") : "Input",
-                text: $inputText,
-                placeholder: getPlaceholder(),
+            HStack {
+                Text("Regex Tester")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                HStack(spacing: DesignSystem.Spacing.xxs) {
+                    ForEach(RegexFlag.allCases, id: \.self) { flag in
+                        Button(flag.rawValue) {
+                            if regexFlags.contains(flag) {
+                                regexFlags.remove(flag)
+                            } else {
+                                regexFlags.insert(flag)
+                            }
+                            testRegex()
+                        }
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(regexFlags.contains(flag) ? .white : DesignSystem.Colors.textSecondary)
+                        .padding(.horizontal, DesignSystem.Spacing.xs)
+                        .padding(.vertical, DesignSystem.Spacing.xxs)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(regexFlags.contains(flag) ? DesignSystem.Colors.primary : DesignSystem.Colors.surface.opacity(0.3))
+                        )
+                    }
+                }
+            }
+            
+            CompactInputArea(
+                title: "Regex Pattern",
+                text: $regexPattern,
+                placeholder: "Enter regex pattern...",
                 focusBinding: $isInputFocused
             )
+            .onChange(of: regexPattern) { _, _ in testRegex() }
             
-            // Output
-            if !outputText.isEmpty {
-                OutputTextArea(
-                    title: selectedTool == .base64 ? (base64Mode == .encode ? "Base64" : "Text") : "Output",
-                    text: outputText,
-                    isSuccess: isOutputSuccess()
-                ) {
-                    copyToClipboard(outputText)
-                }
+            CompactInputArea(
+                title: "Test Text",
+                text: $regexText,
+                placeholder: "Enter text to test against...",
+                focusBinding: FocusState<Bool>().projectedValue
+            )
+            .onChange(of: regexText) { _, _ in testRegex() }
+            
+            if !regexMatches.isEmpty {
+                RegexResultView(matches: regexMatches, text: regexText)
+            } else if !regexPattern.isEmpty && !regexText.isEmpty {
+                Text("No matches found")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .padding(DesignSystem.Spacing.sm)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                            .fill(DesignSystem.Colors.surface.opacity(0.3))
+                    )
             }
         }
     }
     
-    private var fileDropArea: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+    // MARK: - QR Code Generator
+    private var qrGeneratorInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
             HStack {
-                Text("Drop File")
-                    .font(DesignSystem.Typography.caption)
+                Text("QR Code Generator")
+                    .font(DesignSystem.Typography.captionMedium)
                     .foregroundColor(DesignSystem.Colors.textSecondary)
                 
-                if let fileName = draggedFileName {
-                    Spacer()
-                    HStack(spacing: DesignSystem.Spacing.xxs) {
-                        Image(systemName: "doc.fill")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(DesignSystem.Colors.success)
-                        Text(fileName)
-                            .font(DesignSystem.Typography.micro)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        if let fileSize = draggedFileSize {
-                            Text("(\(fileSize))")
-                                .font(DesignSystem.Typography.micro)
-                                .foregroundColor(DesignSystem.Colors.textSecondary)
-                        }
-                    }
-                }
-            }
-            
-            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                .fill(DesignSystem.Colors.surface.opacity(0.3))
-                .frame(height: 80)
-                .overlay(
-                    VStack(spacing: DesignSystem.Spacing.xs) {
-                        Image(systemName: draggedFileName != nil ? "checkmark.circle.fill" : "doc.badge.plus")
-                            .font(.system(size: 24, weight: .medium))
-                            .foregroundColor(draggedFileName != nil ? DesignSystem.Colors.success : DesignSystem.Colors.textSecondary)
-                        
-                        Text(draggedFileName != nil ? "File loaded" : "Drop file here")
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                    }
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                        .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
-                )
-                .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in
-                    handleFileDrop(providers: providers)
-                    return true
-                }
-        }
-    }
-    
-    private var textHashInput: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            HStack {
-                Text("Input")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
                 Spacer()
+                
+                Picker("Size", selection: $qrSize) {
+                    ForEach(QRSize.allCases, id: \.self) { size in
+                        Text(size.title).tag(size)
+                    }
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .frame(width: 120)
+                .onChange(of: qrSize) { _, _ in generateQRCode() }
             }
             
-            TextEditor(text: $inputText)
-                .font(.system(size: 13, design: .monospaced))
-                .foregroundColor(DesignSystem.Colors.textPrimary)
-                .scrollContentBackground(.hidden)
-                .background(Color.clear)
-                .frame(height: 80)
-                .padding(DesignSystem.Spacing.sm)
-                .focused($isInputFocused)
+            CompactInputArea(
+                title: "Text/URL",
+                text: $qrText,
+                placeholder: "Enter text or URL to encode...",
+                focusBinding: $isInputFocused
+            )
+            .onChange(of: qrText) { _, _ in generateQRCode() }
+            
+            if let qrImage = qrImage {
+                VStack(spacing: DesignSystem.Spacing.xs) {
+                    Image(nsImage: qrImage)
+                        .interpolation(.none)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: qrSize.displaySize, height: qrSize.displaySize)
+                        .background(Color.white)
+                        .cornerRadius(DesignSystem.BorderRadius.md)
+                    
+                    ActionButton(title: "Save Image", icon: "square.and.arrow.down") {
+                        saveQRCode()
+                    }
+                }
+                .padding(DesignSystem.Spacing.md)
                 .background(
                     RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                         .fill(DesignSystem.Colors.surface.opacity(0.3))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                                .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
-                        )
                 )
-                .onTapGesture {
-                    // Ensure focus when tapped
-                    isInputFocused = true
-                }
-                .overlay(
-                    Group {
-                        if inputText.isEmpty {
-                            HStack {
-                                VStack {
-                                    HStack {
-                                        Text("Enter text to hash...")
-                                            .font(.system(size: 13, design: .monospaced))
-                                            .foregroundColor(DesignSystem.Colors.textSecondary.opacity(0.6))
-                                            .padding(.leading, DesignSystem.Spacing.sm)
-                                            .padding(.top, DesignSystem.Spacing.sm + 2)
-                                        Spacer()
-                                    }
-                                    Spacer()
-                                }
-                                Spacer()
-                            }
-                            .allowsHitTesting(false)
-                        }
-                    }
-                )
-        }
-    }
-    
-    private var hashOutputs: some View {
-        VStack(spacing: DesignSystem.Spacing.xs) {
-            ForEach(HashType.allCases, id: \.self) { hashType in
-                HashOutputRow(
-                    type: hashType,
-                    hash: isFileMode && fileData != nil ? 
-                        generateHashFromData(fileData!, type: hashType) : 
-                        generateHash(inputText, type: hashType),
-                    isSelected: selectedHashType == hashType
-                ) {
-                    let hash = isFileMode && fileData != nil ? 
-                        generateHashFromData(fileData!, type: hashType) : 
-                        generateHash(inputText, type: hashType)
-                    copyToClipboard(hash)
-                }
             }
         }
     }
     
-    // MARK: - Helper Methods
+    // MARK: - Processing Functions
     
-    private func processInput() {
-        guard !inputText.isEmpty else {
-            outputText = ""
+    private func processURL() {
+        guard !urlText.isEmpty else {
+            urlResult = ""
             return
         }
         
-        switch selectedTool {
-        case .json:
-            formatJSON()
-        case .base64:
-            processBase64()
-        case .hash:
-            outputText = generateHash(inputText, type: selectedHashType)
-        }
-    }
-    
-    private func formatJSON() {
-        guard !inputText.isEmpty else { return }
-        
-        do {
-            let jsonData = inputText.data(using: .utf8) ?? Data()
-            let jsonObject = try JSONSerialization.jsonObject(with: jsonData, options: [])
-            let formattedData = try JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted])
-            outputText = String(data: formattedData, encoding: .utf8) ?? "Invalid JSON"
-        } catch {
-            outputText = "❌ Invalid JSON: \(error.localizedDescription)"
-        }
-    }
-    
-    private func minifyJSON() {
-        guard !inputText.isEmpty else { return }
-        
-        do {
-            let jsonData = inputText.data(using: .utf8) ?? Data()
-            let jsonObject = try JSONSerialization.jsonObject(with: jsonData, options: [])
-            let minifiedData = try JSONSerialization.data(withJSONObject: jsonObject, options: [])
-            outputText = String(data: minifiedData, encoding: .utf8) ?? "Invalid JSON"
-        } catch {
-            outputText = "❌ Invalid JSON: \(error.localizedDescription)"
-        }
-    }
-    
-    private func validateJSON() {
-        guard !inputText.isEmpty else { return }
-        
-        do {
-            let jsonData = inputText.data(using: .utf8) ?? Data()
-            _ = try JSONSerialization.jsonObject(with: jsonData, options: [])
-            outputText = "✅ Valid JSON"
-        } catch {
-            outputText = "❌ Invalid JSON: \(error.localizedDescription)"
-        }
-    }
-    
-    private func processBase64() {
-        guard !inputText.isEmpty else { return }
-        
-        switch base64Mode {
+        switch urlMode {
         case .encode:
-            let encoded = Data(inputText.utf8).base64EncodedString()
-            outputText = encoded
+            urlResult = urlText.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "Encoding failed"
         case .decode:
-            guard let decodedData = Data(base64Encoded: inputText) else {
-                outputText = "❌ Invalid Base64"
-                return
-            }
-            outputText = String(data: decodedData, encoding: .utf8) ?? "❌ Invalid UTF-8"
+            urlResult = urlText.removingPercentEncoding ?? "Decoding failed"
         }
     }
     
-    private func generateHash(_ input: String, type: HashType) -> String {
-        let data = Data(input.utf8)
+    private func processJWT() {
+        guard !jwtToken.isEmpty else {
+            jwtHeader = ""
+            jwtPayload = ""
+            jwtSignature = ""
+            return
+        }
         
-        switch type {
-        case .md5:
-            return data.md5
-        case .sha1:
-            return data.sha1
-        case .sha256:
-            return data.sha256
-        case .sha512:
-            return data.sha512
+        let parts = jwtToken.components(separatedBy: ".")
+        guard parts.count >= 2 else {
+            jwtHeader = ""
+            jwtPayload = ""
+            jwtSignature = ""
+            return
+        }
+        
+        // Decode header
+        if let headerData = base64Decode(parts[0]),
+           let headerString = String(data: headerData, encoding: .utf8) {
+            jwtHeader = formatJSON(headerString)
+        }
+        
+        // Decode payload
+        if let payloadData = base64Decode(parts[1]),
+           let payloadString = String(data: payloadData, encoding: .utf8) {
+            jwtPayload = formatJSON(payloadString)
+        }
+        
+        // Store signature (no need to decode)
+        if parts.count > 2 {
+            jwtSignature = parts[2]
         }
     }
     
-    private func generateHashFromData(_ data: Data, type: HashType) -> String {
-        switch type {
-        case .md5:
-            return data.md5
-        case .sha1:
-            return data.sha1
-        case .sha256:
-            return data.sha256
-        case .sha512:
-            return data.sha512
+    private func generateUUIDs() {
+        var uuids: [String] = []
+        for _ in 0..<uuidCount {
+            let uuid = UUID().uuidString
+            switch uuidFormat {
+            case .uppercase:
+                uuids.append(uuid)
+            case .lowercase:
+                uuids.append(uuid.lowercased())
+            case .noDashes:
+                uuids.append(uuid.replacingOccurrences(of: "-", with: ""))
+            }
         }
+        generatedUUID = uuids.joined(separator: "\n")
+    }
+    
+    private func processTimestamp() {
+        guard !timestampInput.isEmpty else {
+            timestampResult = ""
+            return
+        }
+        
+        switch timestampMode {
+        case .toHuman:
+            if let timestamp = Double(timestampInput) {
+                let date = Date(timeIntervalSince1970: timestamp)
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd HH:mm:ss (EEEE)"
+                formatter.timeZone = TimeZone.current
+                timestampResult = formatter.string(from: date)
+            } else {
+                timestampResult = "Invalid timestamp"
+            }
+        case .toUnix:
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+            if let date = formatter.date(from: timestampInput) {
+                timestampResult = String(Int(date.timeIntervalSince1970))
+            } else {
+                timestampResult = "Invalid date format"
+            }
+        }
+    }
+    
+    private func compareDiff() {
+        let lines1 = diffText1.components(separatedBy: .newlines)
+        let lines2 = diffText2.components(separatedBy: .newlines)
+        
+        diffResult = []
+        let maxLines = max(lines1.count, lines2.count)
+        
+        for i in 0..<maxLines {
+            let line1 = i < lines1.count ? lines1[i] : ""
+            let line2 = i < lines2.count ? lines2[i] : ""
+            
+            if line1 == line2 {
+                diffResult.append(DiffLine(text: line1, type: .same))
+            } else {
+                if !line1.isEmpty {
+                    diffResult.append(DiffLine(text: "- \(line1)", type: .removed))
+                }
+                if !line2.isEmpty {
+                    diffResult.append(DiffLine(text: "+ \(line2)", type: .added))
+                }
+            }
+        }
+    }
+    
+    private func testRegex() {
+        guard !regexPattern.isEmpty && !regexText.isEmpty else {
+            regexMatches = []
+            return
+        }
+        
+        do {
+            var options: NSRegularExpression.Options = []
+            if regexFlags.contains(.caseInsensitive) {
+                options.insert(.caseInsensitive)
+            }
+            if regexFlags.contains(.multiline) {
+                options.insert(.anchorsMatchLines)
+            }
+            if regexFlags.contains(.dotMatchesLineSeparators) {
+                options.insert(.dotMatchesLineSeparators)
+            }
+            
+            let regex = try NSRegularExpression(pattern: regexPattern, options: options)
+            regexMatches = regex.matches(in: regexText, options: [], range: NSRange(location: 0, length: regexText.count))
+        } catch {
+            regexMatches = []
+        }
+    }
+    
+    private func generateQRCode() {
+        guard !qrText.isEmpty else {
+            qrImage = nil
+            return
+        }
+        
+        let data = qrText.data(using: .utf8)
+        let filter = CIFilter(name: "CIQRCodeGenerator")
+        filter?.setValue(data, forKey: "inputMessage")
+        filter?.setValue("Q", forKey: "inputCorrectionLevel")
+        
+        if let outputImage = filter?.outputImage {
+            let scaleX = qrSize.rawValue / outputImage.extent.size.width
+            let scaleY = qrSize.rawValue / outputImage.extent.size.height
+            let scaledImage = outputImage.transformed(by: CGAffineTransform(scaleX: scaleX, y: scaleY))
+            
+            let rep = NSCIImageRep(ciImage: scaledImage)
+            let nsImage = NSImage(size: rep.size)
+            nsImage.addRepresentation(rep)
+            qrImage = nsImage
+        }
+    }
+    
+    private func saveQRCode() {
+        guard let qrImage = qrImage else { return }
+        
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.png]
+        savePanel.nameFieldStringValue = "qrcode.png"
+        
+        if savePanel.runModal() == .OK, let url = savePanel.url {
+            if let tiffData = qrImage.tiffRepresentation,
+               let bitmapRep = NSBitmapImageRep(data: tiffData),
+               let pngData = bitmapRep.representation(using: .png, properties: [:]) {
+                try? pngData.write(to: url)
+            }
+        }
+    }
+    
+    // MARK: - Helper Functions
+    
+    private func base64Decode(_ string: String) -> Data? {
+        // Add padding if needed
+        var base64 = string
+        let remainder = base64.count % 4
+        if remainder > 0 {
+            base64 += String(repeating: "=", count: 4 - remainder)
+        }
+        return Data(base64Encoded: base64)
+    }
+    
+    private func formatJSON(_ jsonString: String) -> String {
+        guard let data = jsonString.data(using: .utf8),
+              let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []),
+              let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted]),
+              let prettyString = String(data: prettyData, encoding: .utf8) else {
+            return jsonString
+        }
+        return prettyString
     }
     
     private func copyToClipboard(_ text: String) {
@@ -500,61 +655,29 @@ struct DeveloperToolsView: View {
         }
     }
     
-    private func getPlaceholder() -> String {
-        switch selectedTool {
-        case .json:
-            return "Paste your JSON here..."
-        case .base64:
-            return base64Mode == .encode ? "Enter text to encode..." : "Paste Base64 to decode..."
-        case .hash:
-            return "Enter text to hash..."
+    private func clearAllInputs() {
+        urlText = ""
+        urlResult = ""
+        jwtToken = ""
+        jwtHeader = ""
+        jwtPayload = ""
+        jwtSignature = ""
+        timestampInput = ""
+        timestampResult = ""
+        diffText1 = ""
+        diffText2 = ""
+        diffResult = []
+        regexPattern = ""
+        regexText = ""
+        regexMatches = []
+        qrText = ""
+        qrImage = nil
+    }
+    
+    private func focusInput() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isInputFocused = true
         }
-    }
-    
-    private func isOutputSuccess() -> Bool {
-        return !outputText.hasPrefix("❌")
-    }
-    
-    private func handleFileDrop(providers: [NSItemProvider]) {
-        for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier("public.file-url") {
-                provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { (item, error) in
-                    if let data = item as? Data,
-                       let url = URL(dataRepresentation: data, relativeTo: nil) {
-                        processDroppedFile(url: url)
-                    } else if let url = item as? URL {
-                        processDroppedFile(url: url)
-                    }
-                }
-            }
-        }
-    }
-    
-    private func processDroppedFile(url: URL) {
-        do {
-            let rawFileData = try Data(contentsOf: url)
-            let fileName = url.lastPathComponent
-            let fileSize = formatFileSize(rawFileData.count)
-            
-            DispatchQueue.main.async {
-                self.draggedFileName = fileName
-                self.draggedFileSize = fileSize
-                self.fileData = rawFileData
-                // Set a placeholder for inputText to trigger hash display
-                self.inputText = "FILE_DATA_LOADED"
-            }
-        } catch {
-            DispatchQueue.main.async {
-                self.outputText = "❌ Could not read file: \(error.localizedDescription)"
-            }
-        }
-    }
-    
-    private func formatFileSize(_ bytes: Int) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: Int64(bytes))
     }
 }
 
@@ -569,13 +692,13 @@ struct ToolButton: View {
         Button(action: action) {
             VStack(spacing: DesignSystem.Spacing.xxs) {
                 Image(systemName: tool.icon)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(size: 14, weight: .medium))
                 Text(tool.title)
                     .font(DesignSystem.Typography.micro)
                     .lineLimit(1)
             }
             .foregroundColor(isSelected ? .white : DesignSystem.Colors.textSecondary)
-            .frame(width: 70)
+            .frame(width: 80)
             .padding(.vertical, DesignSystem.Spacing.sm)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
@@ -586,7 +709,7 @@ struct ToolButton: View {
     }
 }
 
-struct InputTextArea: View {
+struct CompactInputArea: View {
     let title: String
     @Binding var text: String
     let placeholder: String
@@ -594,19 +717,16 @@ struct InputTextArea: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            HStack {
-                Text(title)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                Spacer()
-            }
+            Text(title)
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
             
             TextEditor(text: $text)
-                .font(.system(size: 13, design: .monospaced))
+                .font(.system(size: 12, design: .monospaced))
                 .foregroundColor(DesignSystem.Colors.textPrimary)
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
-                .frame(height: 80)
+                .frame(height: 60)
                 .padding(DesignSystem.Spacing.sm)
                 .focused(focusBinding ?? FocusState<Bool>().projectedValue)
                 .background(
@@ -617,10 +737,6 @@ struct InputTextArea: View {
                                 .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
                         )
                 )
-                .onTapGesture {
-                    // Ensure focus when tapped
-                    focusBinding?.wrappedValue = true
-                }
                 .overlay(
                     Group {
                         if text.isEmpty {
@@ -628,7 +744,7 @@ struct InputTextArea: View {
                                 VStack {
                                     HStack {
                                         Text(placeholder)
-                                            .font(.system(size: 13, design: .monospaced))
+                                            .font(.system(size: 12, design: .monospaced))
                                             .foregroundColor(DesignSystem.Colors.textSecondary.opacity(0.6))
                                             .padding(.leading, DesignSystem.Spacing.sm)
                                             .padding(.top, DesignSystem.Spacing.sm + 2)
@@ -643,20 +759,13 @@ struct InputTextArea: View {
                     }
                 )
         }
-        .onAppear {
-            // Auto-focus when view appears
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                focusBinding?.wrappedValue = true
-            }
-        }
     }
 }
 
-struct OutputTextArea: View {
+struct CompactOutputArea: View {
     let title: String
     let text: String
-    let isSuccess: Bool
-    let onCopy: () -> Void
+    let action: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
@@ -667,42 +776,27 @@ struct OutputTextArea: View {
                 
                 Spacer()
                 
-                Button(action: onCopy) {
-                    HStack(spacing: DesignSystem.Spacing.xxs) {
-                        Image(systemName: "doc.on.doc")
-                            .font(.system(size: 10, weight: .medium))
-                        Text("Copy")
-                            .font(DesignSystem.Typography.micro)
-                    }
-                    .foregroundColor(DesignSystem.Colors.primary)
-                    .padding(.horizontal, DesignSystem.Spacing.xs)
-                    .padding(.vertical, DesignSystem.Spacing.xxs)
-                    .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
-                            .fill(DesignSystem.Colors.primary.opacity(0.1))
-                    )
+                Button("Copy") {
+                    action()
                 }
-                .buttonStyle(.plain)
+                .font(DesignSystem.Typography.micro)
+                .foregroundColor(DesignSystem.Colors.primary)
             }
             
             ScrollView {
-                HStack {
-                    Text(text)
-                        .font(.system(size: 13, design: .monospaced))
-                        .foregroundColor(isSuccess ? DesignSystem.Colors.textPrimary : DesignSystem.Colors.error)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
-                    Spacer()
-                }
+                Text(text)
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(DesignSystem.Spacing.sm)
             }
-            .frame(height: 80)
-            .padding(DesignSystem.Spacing.sm)
+            .frame(height: 60)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                    .fill(isSuccess ? DesignSystem.Colors.surface.opacity(0.2) : DesignSystem.Colors.error.opacity(0.1))
+                    .fill(DesignSystem.Colors.surface.opacity(0.2))
                     .overlay(
                         RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                            .stroke(isSuccess ? DesignSystem.Colors.border.opacity(0.3) : DesignSystem.Colors.error.opacity(0.3), lineWidth: 1)
+                            .stroke(DesignSystem.Colors.success.opacity(0.3), lineWidth: 1)
                     )
             )
         }
@@ -722,87 +816,143 @@ struct ActionButton: View {
                 Text(title)
                     .font(DesignSystem.Typography.micro)
             }
-            .foregroundColor(DesignSystem.Colors.textPrimary)
-            .padding(.horizontal, DesignSystem.Spacing.xs)
-            .padding(.vertical, DesignSystem.Spacing.xxs)
+            .foregroundColor(DesignSystem.Colors.primary)
+            .padding(.horizontal, DesignSystem.Spacing.sm)
+            .padding(.vertical, DesignSystem.Spacing.xs)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
-                    .fill(DesignSystem.Colors.surface.opacity(0.5))
+                    .fill(DesignSystem.Colors.primary.opacity(0.1))
             )
         }
         .buttonStyle(.plain)
     }
 }
 
-struct HashOutputRow: View {
-    let type: HashType
-    let hash: String
-    let isSelected: Bool
-    let onCopy: () -> Void
+struct DiffResultView: View {
+    let diffLines: [DiffLine]
     
     var body: some View {
-        HStack {
-            Text(type.title)
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            Text("Differences")
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.textSecondary)
-                .frame(width: 50, alignment: .leading)
             
-            Text(hash)
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundColor(DesignSystem.Colors.textPrimary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .textSelection(.enabled)
-            
-            Spacer()
-            
-            Button(action: onCopy) {
-                Image(systemName: "doc.on.doc")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.primary)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 1) {
+                    ForEach(Array(diffLines.enumerated()), id: \.offset) { _, line in
+                        HStack {
+                            Text(line.text)
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundColor(line.type.color)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding(.horizontal, DesignSystem.Spacing.xs)
+                        .padding(.vertical, 1)
+                        .background(line.type.backgroundColor)
+                    }
+                }
             }
-            .buttonStyle(.plain)
+            .frame(height: 100)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                    .fill(DesignSystem.Colors.surface.opacity(0.2))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                            .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
+                    )
+            )
         }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, DesignSystem.Spacing.xs)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
-                .fill(isSelected ? type.color.opacity(0.1) : DesignSystem.Colors.surface.opacity(0.2))
-        )
     }
 }
 
-// MARK: - Data Models
+struct RegexResultView: View {
+    let matches: [NSTextCheckingResult]
+    let text: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            Text("\(matches.count) matches found")
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.success)
+            
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    ForEach(Array(matches.enumerated()), id: \.offset) { index, match in
+                        let range = Range(match.range, in: text)
+                        if let range = range {
+                            HStack {
+                                Text("#\(index + 1):")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                Text(String(text[range]))
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundColor(DesignSystem.Colors.success)
+                                Spacer()
+                            }
+                            .padding(.horizontal, DesignSystem.Spacing.xs)
+                            .padding(.vertical, DesignSystem.Spacing.xxs)
+                            .background(DesignSystem.Colors.success.opacity(0.1))
+                            .cornerRadius(DesignSystem.BorderRadius.sm)
+                        }
+                    }
+                }
+            }
+            .frame(height: 80)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                    .fill(DesignSystem.Colors.surface.opacity(0.2))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                            .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
+                    )
+            )
+        }
+    }
+}
+
+// MARK: - Supporting Types
 
 enum DeveloperTool: CaseIterable {
-    case json, base64, hash
+    case urlEncoder, jwtDecoder, uuidGenerator, timestampConverter, textDiff, regexTester, qrGenerator
     
     var title: String {
         switch self {
-        case .json: return "JSON"
-        case .base64: return "Base64"
-        case .hash: return "Hash"
+        case .urlEncoder: return "URL"
+        case .jwtDecoder: return "JWT"
+        case .uuidGenerator: return "UUID"
+        case .timestampConverter: return "Time"
+        case .textDiff: return "Diff"
+        case .regexTester: return "Regex"
+        case .qrGenerator: return "QR"
         }
     }
     
     var icon: String {
         switch self {
-        case .json: return "curlybraces"
-        case .base64: return "textformat.abc.dottedunderline"
-        case .hash: return "number.square"
+        case .urlEncoder: return "link"
+        case .jwtDecoder: return "key"
+        case .uuidGenerator: return "number.square"
+        case .timestampConverter: return "clock"
+        case .textDiff: return "doc.text.magnifyingglass"
+        case .regexTester: return "textformat.size"
+        case .qrGenerator: return "qrcode"
         }
     }
     
     var color: Color {
         switch self {
-        case .json: return DesignSystem.Colors.primary
-        case .base64: return DesignSystem.Colors.success
-        case .hash: return DesignSystem.Colors.warning
+        case .urlEncoder: return DesignSystem.Colors.primary
+        case .jwtDecoder: return DesignSystem.Colors.success
+        case .uuidGenerator: return DesignSystem.Colors.warning
+        case .timestampConverter: return DesignSystem.Colors.files
+        case .textDiff: return DesignSystem.Colors.error
+        case .regexTester: return DesignSystem.Colors.developer
+        case .qrGenerator: return DesignSystem.Colors.ai
         }
     }
 }
 
-enum Base64Mode: CaseIterable {
+enum URLMode: CaseIterable {
     case encode, decode
     
     var title: String {
@@ -813,64 +963,86 @@ enum Base64Mode: CaseIterable {
     }
 }
 
-enum HashType: CaseIterable {
-    case md5, sha1, sha256, sha512
+enum UUIDFormat: CaseIterable {
+    case uppercase, lowercase, noDashes
     
     var title: String {
         switch self {
-        case .md5: return "MD5"
-        case .sha1: return "SHA1"
-        case .sha256: return "SHA256"
-        case .sha512: return "SHA512"
-        }
-    }
-    
-    var color: Color {
-        switch self {
-        case .md5: return DesignSystem.Colors.error
-        case .sha1: return DesignSystem.Colors.warning
-        case .sha256: return DesignSystem.Colors.success
-        case .sha512: return DesignSystem.Colors.primary
+        case .uppercase: return "UPPER"
+        case .lowercase: return "lower"
+        case .noDashes: return "nodash"
         }
     }
 }
 
-// MARK: - Crypto Extensions
+enum TimestampMode: CaseIterable {
+    case toHuman, toUnix
+    
+    var title: String {
+        switch self {
+        case .toHuman: return "To Human"
+        case .toUnix: return "To Unix"
+        }
+    }
+}
 
-extension Data {
-    var md5: String {
-        let hash = self.withUnsafeBytes { (bytes: UnsafeRawBufferPointer) -> [UInt8] in
-            var hash = [UInt8](repeating: 0, count: Int(CC_MD5_DIGEST_LENGTH))
-            CC_MD5(bytes.baseAddress, CC_LONG(self.count), &hash)
-            return hash
+enum QRSize: CGFloat, CaseIterable {
+    case small = 128
+    case medium = 256
+    case large = 512
+    
+    var title: String {
+        switch self {
+        case .small: return "Small"
+        case .medium: return "Medium"
+        case .large: return "Large"
         }
-        return hash.map { String(format: "%02x", $0) }.joined()
     }
     
-    var sha1: String {
-        let hash = self.withUnsafeBytes { (bytes: UnsafeRawBufferPointer) -> [UInt8] in
-            var hash = [UInt8](repeating: 0, count: Int(CC_SHA1_DIGEST_LENGTH))
-            CC_SHA1(bytes.baseAddress, CC_LONG(self.count), &hash)
-            return hash
+    var displaySize: CGFloat {
+        switch self {
+        case .small: return 80
+        case .medium: return 120
+        case .large: return 160
         }
-        return hash.map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+enum RegexFlag: String, CaseIterable {
+    case caseInsensitive = "i"
+    case multiline = "m"
+    case dotMatchesLineSeparators = "s"
+    
+    var title: String {
+        switch self {
+        case .caseInsensitive: return "Case Insensitive"
+        case .multiline: return "Multiline"
+        case .dotMatchesLineSeparators: return "Dot All"
+        }
+    }
+}
+
+struct DiffLine {
+    let text: String
+    let type: DiffType
+}
+
+enum DiffType {
+    case same, added, removed
+    
+    var color: Color {
+        switch self {
+        case .same: return DesignSystem.Colors.textPrimary
+        case .added: return DesignSystem.Colors.success
+        case .removed: return DesignSystem.Colors.error
+        }
     }
     
-    var sha256: String {
-        let hash = self.withUnsafeBytes { (bytes: UnsafeRawBufferPointer) -> [UInt8] in
-            var hash = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
-            CC_SHA256(bytes.baseAddress, CC_LONG(self.count), &hash)
-            return hash
+    var backgroundColor: Color {
+        switch self {
+        case .same: return Color.clear
+        case .added: return DesignSystem.Colors.success.opacity(0.1)
+        case .removed: return DesignSystem.Colors.error.opacity(0.1)
         }
-        return hash.map { String(format: "%02x", $0) }.joined()
-    }
-    
-    var sha512: String {
-        let hash = self.withUnsafeBytes { (bytes: UnsafeRawBufferPointer) -> [UInt8] in
-            var hash = [UInt8](repeating: 0, count: Int(CC_SHA512_DIGEST_LENGTH))
-            CC_SHA512(bytes.baseAddress, CC_LONG(self.count), &hash)
-            return hash
-        }
-        return hash.map { String(format: "%02x", $0) }.joined()
     }
 } 
