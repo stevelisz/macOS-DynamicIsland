@@ -594,7 +594,7 @@ struct DeveloperToolsView: View {
                 CompactOutputArea(
                     title: "Generated API Response",
                     text: apiResponseResult,
-                    height: 60
+                    height: 240
                 ) {
                     copyToClipboard(apiResponseResult)
                 }
