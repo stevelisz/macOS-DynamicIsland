@@ -227,7 +227,8 @@ struct DeveloperToolsView: View {
             if !curlResult.isEmpty {
                 CompactOutputArea(
                     title: "Generated cURL Command",
-                    text: curlResult
+                    text: curlResult,
+                    height: 60
                 ) {
                     copyToClipboard(curlResult)
                 }
@@ -262,16 +263,16 @@ struct DeveloperToolsView: View {
             
             if !jwtHeader.isEmpty {
                 VStack(spacing: DesignSystem.Spacing.xs) {
-                    CompactOutputArea(title: "Header", text: jwtHeader) {
+                    CompactOutputArea(title: "Header", text: jwtHeader, height: 60) {
                         copyToClipboard(jwtHeader)
                     }
                     
-                    CompactOutputArea(title: "Payload", text: jwtPayload) {
+                    CompactOutputArea(title: "Payload", text: jwtPayload, height: 60) {
                         copyToClipboard(jwtPayload)
                     }
                     
                     if !jwtSignature.isEmpty {
-                        CompactOutputArea(title: "Signature", text: jwtSignature) {
+                        CompactOutputArea(title: "Signature", text: jwtSignature, height: 60) {
                             copyToClipboard(jwtSignature)
                         }
                     }
@@ -481,7 +482,8 @@ struct DeveloperToolsView: View {
             if !graphqlResult.isEmpty {
                 CompactOutputArea(
                     title: "Complete GraphQL Request",
-                    text: graphqlResult
+                    text: graphqlResult,
+                    height: 120
                 ) {
                     copyToClipboard(graphqlResult)
                 }
@@ -591,7 +593,8 @@ struct DeveloperToolsView: View {
             if !apiResponseResult.isEmpty {
                 CompactOutputArea(
                     title: "Generated API Response",
-                    text: apiResponseResult
+                    text: apiResponseResult,
+                    height: 140
                 ) {
                     copyToClipboard(apiResponseResult)
                 }
@@ -683,7 +686,8 @@ spec:
             if !yamlJsonOutput.isEmpty {
                 CompactOutputArea(
                     title: yamlJsonMode.outputTitle,
-                    text: yamlJsonOutput
+                    text: yamlJsonOutput,
+                    height: 120
                 ) {
                     copyToClipboard(yamlJsonOutput)
                 }
@@ -937,7 +941,8 @@ spec:
             if !jsonOutput.isEmpty {
                 CompactOutputArea(
                     title: jsonOperation.outputTitle,
-                    text: jsonOutput
+                    text: jsonOutput,
+                    height: 60
                 ) {
                     copyToClipboard(jsonOutput)
                 }
@@ -1067,7 +1072,8 @@ spec:
             if !hashResult.isEmpty {
                 CompactOutputArea(
                     title: "\(hashType.title) Hash",
-                    text: hashResult
+                    text: hashResult,
+                    height: 60
                 ) {
                     copyToClipboard(hashResult)
                 }
@@ -2248,7 +2254,15 @@ struct CompactInputArea: View {
 struct CompactOutputArea: View {
     let title: String
     let text: String
+    let height: CGFloat
     let action: () -> Void
+    
+    init(title: String, text: String, height: CGFloat = 60, action: @escaping () -> Void) {
+        self.title = title
+        self.text = text
+        self.height = height
+        self.action = action
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
@@ -2273,7 +2287,7 @@ struct CompactOutputArea: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(DesignSystem.Spacing.sm)
             }
-            .frame(height: 60)
+            .frame(height: height)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                     .fill(DesignSystem.Colors.surface.opacity(0.2))
