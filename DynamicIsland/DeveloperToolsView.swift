@@ -212,32 +212,45 @@ struct DeveloperToolsView: View {
                 
                 Spacer()
                 
-                // Compact dropdown controls
+                // Compact controls
                 HStack(spacing: DesignSystem.Spacing.xs) {
-                    // Count dropdown
-                    Menu {
-                        ForEach(1...10, id: \.self) { count in
-                            Button("\(count) UUID\(count > 1 ? "s" : "")") {
-                                uuidCount = count
+                    // Count stepper with -/+ buttons
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        Button("-") {
+                            if uuidCount > 1 {
+                                uuidCount -= 1
                             }
                         }
-                    } label: {
-                        HStack(spacing: DesignSystem.Spacing.xxs) {
-                            Text("\(uuidCount)")
-                                .font(DesignSystem.Typography.micro)
-                                .foregroundColor(DesignSystem.Colors.textPrimary)
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 8, weight: .medium))
-                                .foregroundColor(DesignSystem.Colors.textSecondary)
-                        }
-                        .padding(.horizontal, DesignSystem.Spacing.xs)
-                        .padding(.vertical, DesignSystem.Spacing.xxs)
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(uuidCount > 1 ? DesignSystem.Colors.textPrimary : DesignSystem.Colors.textSecondary.opacity(0.5))
+                        .frame(width: 20, height: 20)
                         .background(
                             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
                                 .fill(DesignSystem.Colors.surface.opacity(0.3))
                         )
+                        .disabled(uuidCount <= 1)
+                        .buttonStyle(.plain)
+                        
+                        Text("\(uuidCount)")
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .frame(width: 20)
+                        
+                        Button("+") {
+                            if uuidCount < 10 {
+                                uuidCount += 1
+                            }
+                        }
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(uuidCount < 10 ? DesignSystem.Colors.textPrimary : DesignSystem.Colors.textSecondary.opacity(0.5))
+                        .frame(width: 20, height: 20)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
+                        .disabled(uuidCount >= 10)
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                     
                     // Format dropdown
                     Menu {
@@ -281,8 +294,39 @@ struct DeveloperToolsView: View {
             }
             
             if !generatedUUID.isEmpty {
-                CompactOutputArea(title: "Generated UUIDs", text: generatedUUID) {
-                    copyToClipboard(generatedUUID)
+                // Larger UUID output area
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    HStack {
+                        Text("Generated UUIDs")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        
+                        Spacer()
+                        
+                        Button("Copy") {
+                            copyToClipboard(generatedUUID)
+                        }
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(DesignSystem.Colors.primary)
+                    }
+                    
+                    ScrollView {
+                        Text(generatedUUID)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(DesignSystem.Spacing.sm)
+                            .textSelection(.enabled)
+                    }
+                    .frame(height: 120) // Bigger height for better visibility
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                            .fill(DesignSystem.Colors.surface.opacity(0.2))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                                    .stroke(DesignSystem.Colors.success.opacity(0.3), lineWidth: 1)
+                            )
+                    )
                 }
             }
         }
