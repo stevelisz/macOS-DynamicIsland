@@ -69,6 +69,8 @@ struct ExpandedDevToolsView: View {
     @State private var diffText1: String = ""
     @State private var diffText2: String = ""
     @State private var diffResult: [DiffLine] = []
+    @State private var enhancedDiffResult: [DiffPair] = []
+    @State private var diffStats: DiffStats = DiffStats()
     
     // Regex Tester
     @State private var regexPattern: String = ""
@@ -1151,77 +1153,219 @@ struct ExpandedDevToolsView: View {
     
     private var textDiffInterface: some View {
         VStack(spacing: DesignSystem.Spacing.lg) {
-            // Input texts
+            // Header with action buttons
+            HStack {
+                Text("Text Comparison")
+                    .font(DesignSystem.Typography.headline2)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Spacer()
+                
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Button("Clear") {
+                        clearDiffInputs()
+                    }
+                    .buttonStyle_custom(.secondary)
+                    
+                    Button("Compare") {
+                        generateTextDiff()
+                    }
+                    .buttonStyle_custom(.primary)
+                    .disabled(diffText1.isEmpty && diffText2.isEmpty)
+                }
+            }
+            
+            // Side-by-side input
             HStack(spacing: DesignSystem.Spacing.xl) {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Original Text")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    HStack {
+                        Image(systemName: "doc.text")
+                            .foregroundColor(DesignSystem.Colors.error)
+                        Text("Original Text")
+                            .font(DesignSystem.Typography.bodySemibold)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                    }
                     
                     TextEditor(text: $diffText1)
                         .font(.system(size: 14, design: .monospaced))
+                        .scrollContentBackground(.hidden)
+                        .background(DesignSystem.Colors.surface)
                         .overlay(
                             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                                .stroke(DesignSystem.Colors.error.opacity(0.3), lineWidth: 1)
                         )
-                        .onChange(of: diffText1) { _, _ in generateTextDiff() }
+                        .onChange(of: diffText1) { _, _ in 
+                            if !diffText1.isEmpty || !diffText2.isEmpty {
+                                generateTextDiff()
+                            }
+                        }
                 }
                 .frame(maxWidth: .infinity)
                 
+                // Separator
+                Rectangle()
+                    .fill(DesignSystem.Colors.border)
+                    .frame(width: 1)
+                
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Modified Text")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    HStack {
+                        Image(systemName: "doc.text")
+                            .foregroundColor(DesignSystem.Colors.success)
+                        Text("Modified Text")
+                            .font(DesignSystem.Typography.bodySemibold)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                    }
                     
                     TextEditor(text: $diffText2)
                         .font(.system(size: 14, design: .monospaced))
+                        .scrollContentBackground(.hidden)
+                        .background(DesignSystem.Colors.surface)
                         .overlay(
                             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                                .stroke(DesignSystem.Colors.success.opacity(0.3), lineWidth: 1)
                         )
-                        .onChange(of: diffText2) { _, _ in generateTextDiff() }
+                        .onChange(of: diffText2) { _, _ in 
+                            if !diffText1.isEmpty || !diffText2.isEmpty {
+                                generateTextDiff()
+                            }
+                        }
                 }
                 .frame(maxWidth: .infinity)
             }
             .frame(height: 200)
             
-            // Diff results
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                Text("Differences")
-                    .font(DesignSystem.Typography.bodySemibold)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 2) {
-                        ForEach(Array(diffResult.enumerated()), id: \.offset) { index, line in
-                            HStack {
-                                Text("\(index + 1)")
-                                    .font(.system(size: 12, design: .monospaced))
+            // Diff results - Side by side comparison
+            if !diffResult.isEmpty {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    HStack {
+                        Text("Comparison Results")
+                            .font(DesignSystem.Typography.bodySemibold)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Spacer()
+                        
+                        // Statistics
+                        HStack(spacing: DesignSystem.Spacing.lg) {
+                            HStack(spacing: DesignSystem.Spacing.xs) {
+                                Circle()
+                                    .fill(DesignSystem.Colors.error)
+                                    .frame(width: 8, height: 8)
+                                Text("\(diffStats.removed) removed")
+                                    .font(DesignSystem.Typography.caption)
                                     .foregroundColor(DesignSystem.Colors.textSecondary)
-                                    .frame(width: 40, alignment: .trailing)
-                                
-                                Text(line.text)
-                                    .font(.system(size: 14, design: .monospaced))
-                                    .foregroundColor(line.type.color)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
                             }
-                            .padding(.horizontal, DesignSystem.Spacing.sm)
-                            .padding(.vertical, 2)
-                            .background(line.type.backgroundColor)
+                            
+                            HStack(spacing: DesignSystem.Spacing.xs) {
+                                Circle()
+                                    .fill(DesignSystem.Colors.success)
+                                    .frame(width: 8, height: 8)
+                                Text("\(diffStats.added) added")
+                                    .font(DesignSystem.Typography.caption)
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                            }
+                            
+                            HStack(spacing: DesignSystem.Spacing.xs) {
+                                Circle()
+                                    .fill(DesignSystem.Colors.textSecondary)
+                                    .frame(width: 8, height: 8)
+                                Text("\(diffStats.unchanged) unchanged")
+                                    .font(DesignSystem.Typography.caption)
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                            }
                         }
                     }
-                    .padding(DesignSystem.Spacing.lg)
+                    
+                    // Side-by-side diff display
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(Array(enhancedDiffResult.enumerated()), id: \.offset) { index, diffPair in
+                                HStack(spacing: 0) {
+                                    // Left side (original)
+                                    HStack {
+                                        Text("\(diffPair.lineNumber)")
+                                            .font(.system(size: 12, design: .monospaced))
+                                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                                            .frame(width: 35, alignment: .trailing)
+                                        
+                                        Text(diffPair.original?.displayText ?? "")
+                                            .font(.system(size: 13, design: .monospaced))
+                                            .foregroundColor(diffPair.original?.type.color ?? DesignSystem.Colors.textPrimary)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                    .padding(.horizontal, DesignSystem.Spacing.sm)
+                                    .padding(.vertical, 4)
+                                    .background(diffPair.original?.type.backgroundColor ?? Color.clear)
+                                    .frame(maxWidth: .infinity)
+                                    
+                                    // Center divider
+                                    Rectangle()
+                                        .fill(DesignSystem.Colors.border.opacity(0.5))
+                                        .frame(width: 1)
+                                    
+                                    // Right side (modified)
+                                    HStack {
+                                        Text("\(diffPair.lineNumber)")
+                                            .font(.system(size: 12, design: .monospaced))
+                                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                                            .frame(width: 35, alignment: .trailing)
+                                        
+                                        Text(diffPair.modified?.displayText ?? "")
+                                            .font(.system(size: 13, design: .monospaced))
+                                            .foregroundColor(diffPair.modified?.type.color ?? DesignSystem.Colors.textPrimary)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                    .padding(.horizontal, DesignSystem.Spacing.sm)
+                                    .padding(.vertical, 4)
+                                    .background(diffPair.modified?.type.backgroundColor ?? Color.clear)
+                                    .frame(maxWidth: .infinity)
+                                }
+                                .overlay(
+                                    // Top border for better separation
+                                    Rectangle()
+                                        .fill(DesignSystem.Colors.border.opacity(0.2))
+                                        .frame(height: 0.5),
+                                    alignment: .top
+                                )
+                            }
+                        }
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                            .fill(DesignSystem.Colors.surface)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
                 }
+                .frame(maxHeight: .infinity)
+            } else if !diffText1.isEmpty || !diffText2.isEmpty {
+                // Empty state when texts are identical
+                VStack(spacing: DesignSystem.Spacing.md) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 48))
+                        .foregroundColor(DesignSystem.Colors.success)
+                    
+                    Text("No differences found")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.success)
+                    
+                    Text("The texts are identical")
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                        .fill(DesignSystem.Colors.surface)
+                        .fill(DesignSystem.Colors.success.opacity(0.05))
                         .overlay(
                             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                                .stroke(DesignSystem.Colors.success.opacity(0.3), lineWidth: 1)
                         )
                 )
             }
-            .frame(maxHeight: .infinity)
         }
     }
     
@@ -1921,7 +2065,9 @@ struct ExpandedDevToolsView: View {
         let lines2 = diffText2.components(separatedBy: .newlines)
         
         diffResult = []
+        enhancedDiffResult = []
         
+        // Generate basic diff result for backward compatibility
         let maxCount = max(lines1.count, lines2.count)
         
         for i in 0..<maxCount {
@@ -1939,6 +2085,82 @@ struct ExpandedDevToolsView: View {
                 }
             }
         }
+        
+        // Generate enhanced side-by-side diff
+        enhancedDiffResult = generateSideBySideDiff(lines1: lines1, lines2: lines2)
+        
+        // Calculate statistics
+        var added = 0, removed = 0, unchanged = 0
+        
+        for pair in enhancedDiffResult {
+            if let original = pair.original, let modified = pair.modified {
+                if original.type == .same && modified.type == .same {
+                    unchanged += 1
+                } else if original.type == .removed && modified.type == .added {
+                    // Line changed
+                    added += 1
+                    removed += 1
+                }
+            } else if pair.original?.type == .removed {
+                removed += 1
+            } else if pair.modified?.type == .added {
+                added += 1
+            } else {
+                unchanged += 1
+            }
+        }
+        
+        diffStats = DiffStats(added: added, removed: removed, unchanged: unchanged)
+    }
+    
+    private func generateSideBySideDiff(lines1: [String], lines2: [String]) -> [DiffPair] {
+        var result: [DiffPair] = []
+        let maxCount = max(lines1.count, lines2.count)
+        
+        for i in 0..<maxCount {
+            let line1 = i < lines1.count ? lines1[i] : nil
+            let line2 = i < lines2.count ? lines2[i] : nil
+            
+            var originalDiffLine: DiffLine?
+            var modifiedDiffLine: DiffLine?
+            
+            // Determine the type and content for each side
+            if let l1 = line1, let l2 = line2 {
+                if l1 == l2 {
+                    // Lines are identical
+                    originalDiffLine = DiffLine(text: l1, type: .same)
+                    modifiedDiffLine = DiffLine(text: l2, type: .same)
+                } else {
+                    // Lines are different
+                    originalDiffLine = DiffLine(text: l1, type: .removed)
+                    modifiedDiffLine = DiffLine(text: l2, type: .added)
+                }
+            } else if let l1 = line1 {
+                // Line exists only in original
+                originalDiffLine = DiffLine(text: l1, type: .removed)
+                modifiedDiffLine = nil
+            } else if let l2 = line2 {
+                // Line exists only in modified
+                originalDiffLine = nil
+                modifiedDiffLine = DiffLine(text: l2, type: .added)
+            }
+            
+            result.append(DiffPair(
+                lineNumber: i + 1,
+                original: originalDiffLine,
+                modified: modifiedDiffLine
+            ))
+        }
+        
+        return result
+    }
+    
+    private func clearDiffInputs() {
+        diffText1 = ""
+        diffText2 = ""
+        diffResult = []
+        enhancedDiffResult = []
+        diffStats = DiffStats()
     }
     
     // MARK: - Regex Functions
@@ -2114,5 +2336,32 @@ extension Data {
             CC_SHA512(bytes.baseAddress, CC_LONG(self.count), &hash)
         }
         return Data(hash)
+    }
+} 
+
+// MARK: - Enhanced Diff Data Structures
+
+struct DiffPair {
+    let lineNumber: Int
+    let original: DiffLine?
+    let modified: DiffLine?
+}
+
+struct DiffStats {
+    let added: Int
+    let removed: Int
+    let unchanged: Int
+    
+    init(added: Int = 0, removed: Int = 0, unchanged: Int = 0) {
+        self.added = added
+        self.removed = removed
+        self.unchanged = unchanged
+    }
+}
+
+// Extension to support enhanced diff functionality
+extension DiffLine {
+    var displayText: String {
+        return text
     }
 } 
