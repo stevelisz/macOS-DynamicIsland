@@ -21,7 +21,8 @@ class ExpandedWindowManager: ObservableObject {
         clipboardWindow = createWindow(
             title: "Clipboard Manager",
             contentView: ExpandedClipboardView(),
-            size: NSSize(width: 800, height: 600)
+            size: NSSize(width: 800, height: 600),
+            minSize: NSSize(width: 600, height: 400)
         )
         
         clipboardWindow?.makeKeyAndOrderFront(nil)
@@ -36,7 +37,8 @@ class ExpandedWindowManager: ObservableObject {
         aiAssistantWindow = createWindow(
             title: "AI Assistant",
             contentView: ExpandedAIAssistantView(),
-            size: NSSize(width: 900, height: 700)
+            size: NSSize(width: 800, height: 700),
+            minSize: NSSize(width: 600, height: 500)
         )
         
         aiAssistantWindow?.makeKeyAndOrderFront(nil)
@@ -51,7 +53,8 @@ class ExpandedWindowManager: ObservableObject {
         devToolsWindow = createWindow(
             title: "Developer Tools",
             contentView: ExpandedDevToolsView(),
-            size: NSSize(width: 1000, height: 800)
+            size: NSSize(width: 900, height: 650),
+            minSize: NSSize(width: 800, height: 500)
         )
         
         devToolsWindow?.makeKeyAndOrderFront(nil)
@@ -62,7 +65,8 @@ class ExpandedWindowManager: ObservableObject {
     private func createWindow<Content: View>(
         title: String,
         contentView: Content,
-        size: NSSize
+        size: NSSize,
+        minSize: NSSize
     ) -> NSWindow {
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),
@@ -72,9 +76,10 @@ class ExpandedWindowManager: ObservableObject {
         )
         
         window.title = title
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = false
+        window.titleVisibility = .visible
         window.isMovableByWindowBackground = true
+        window.minSize = minSize
         window.center()
         
         // Create hosting view with custom background
@@ -85,7 +90,7 @@ class ExpandedWindowManager: ObservableObject {
         )
         
         window.contentView = hostingView
-        window.backgroundColor = .clear
+        window.backgroundColor = NSColor.controlBackgroundColor
         
         // Add window controller for proper memory management
         let windowController = NSWindowController(window: window)
@@ -115,83 +120,8 @@ struct ExpandedWindowContainer<Content: View>: View {
     }
     
     var body: some View {
-        ZStack {
-            // Background with blur effect
-            VisualEffectView(material: .underWindowBackground, blendingMode: .behindWindow)
-                .ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // Custom title bar
-                ExpandedWindowTitleBar()
-                
-                // Content area
-                content
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-}
-
-// MARK: - Custom Title Bar
-
-struct ExpandedWindowTitleBar: View {
-    var body: some View {
-        HStack {
-            // Return to Dynamic Island button
-            Button(action: {
-                returnToDynamicIsland()
-            }) {
-                HStack(spacing: DesignSystem.Spacing.xs) {
-                    Image(systemName: "arrow.left.circle.fill")
-                        .font(.system(size: 16, weight: .medium))
-                    Text("Back to Island")
-                        .font(DesignSystem.Typography.captionMedium)
-                }
-                .foregroundColor(DesignSystem.Colors.primary)
-                .padding(.horizontal, DesignSystem.Spacing.md)
-                .padding(.vertical, DesignSystem.Spacing.xs)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                        .fill(DesignSystem.Colors.primary.opacity(0.1))
-                )
-            }
-            .buttonStyle(.plain)
-            
-            Spacer()
-        }
-        .padding(.horizontal, DesignSystem.Spacing.lg)
-        .padding(.vertical, DesignSystem.Spacing.md)
-        .background(.ultraThinMaterial)
-    }
-    
-    private func returnToDynamicIsland() {
-        // Close current window and show Dynamic Island
-        if let window = NSApp.keyWindow {
-            window.close()
-        }
-        
-        // Show Dynamic Island
-        DynamicIslandManager.shared.showDynamicIsland()
-    }
-}
-
-// MARK: - Visual Effect View
-
-struct VisualEffectView: NSViewRepresentable {
-    let material: NSVisualEffectView.Material
-    let blendingMode: NSVisualEffectView.BlendingMode
-    
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = material
-        view.blendingMode = blendingMode
-        view.state = .active
-        return view
-    }
-    
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.material = material
-        nsView.blendingMode = blendingMode
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(NSColor.controlBackgroundColor))
     }
 } 

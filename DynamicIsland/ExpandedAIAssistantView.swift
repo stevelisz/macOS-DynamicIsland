@@ -543,48 +543,493 @@ struct ExpandedChatMessage: View {
 
 struct ExpandedCodeReviewView: View {
     let ollamaService: OllamaService
+    @State private var codeInput: String = ""
+    @State private var codeOutput: String = ""
+    @State private var selectedTask: CodeTask = .review
+    @State private var isProcessing = false
+    @FocusState private var isInputFocused: Bool
     
     var body: some View {
-        VStack {
-            Text("Code Review - Expanded View")
-                .font(DesignSystem.Typography.headline2)
-            // Add specific code review UI here
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // Task selector
+            HStack {
+                Text("Code Task:")
+                    .font(DesignSystem.Typography.bodySemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Picker("Task", selection: $selectedTask) {
+                    ForEach(CodeTask.allCases, id: \.self) { task in
+                        Text(task.rawValue).tag(task)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 150)
+                
+                Spacer()
+                
+                Button("Process Code") {
+                    processCode()
+                }
+                .buttonStyle_custom(.primary)
+                .disabled(codeInput.isEmpty || isProcessing)
+            }
+            
+            // Input/Output layout
+            HStack(spacing: DesignSystem.Spacing.xl) {
+                // Code input
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("Code Input")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $codeInput)
+                        .font(.system(size: 14, design: .monospaced))
+                        .focused($isInputFocused)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(isInputFocused ? DesignSystem.Colors.borderFocus : DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                }
+                .frame(maxWidth: .infinity)
+                
+                // Arrow
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                // AI output
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    HStack {
+                        Text("AI Analysis")
+                            .font(DesignSystem.Typography.bodySemibold)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        if isProcessing {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+                        
+                        Spacer()
+                        
+                        if !codeOutput.isEmpty {
+                            Button("Copy") {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(codeOutput, forType: .string)
+                            }
+                            .buttonStyle_custom(.ghost)
+                        }
+                    }
+                    
+                    ScrollView {
+                        Text(codeOutput.isEmpty ? "AI analysis will appear here..." : codeOutput)
+                            .font(DesignSystem.Typography.body)
+                            .foregroundColor(codeOutput.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .padding(DesignSystem.Spacing.lg)
+                            .textSelection(.enabled)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                            .fill(DesignSystem.Colors.surface)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .padding(DesignSystem.Spacing.xxl)
+    }
+    
+    private func processCode() {
+        guard !codeInput.isEmpty else { return }
+        
+        isProcessing = true
+        
+        Task {
+            let result = await ollamaService.processCode(code: codeInput, task: selectedTask)
+            await MainActor.run {
+                codeOutput = result
+                isProcessing = false
+            }
         }
     }
 }
 
 struct ExpandedTextProcessorView: View {
     let ollamaService: OllamaService
+    @State private var textInput: String = ""
+    @State private var textOutput: String = ""
+    @State private var selectedTask: TextTask = .summarize
+    @State private var isProcessing = false
+    @FocusState private var isInputFocused: Bool
     
     var body: some View {
-        VStack {
-            Text("Text Processor - Expanded View")
-                .font(DesignSystem.Typography.headline2)
-            // Add specific text processor UI here
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // Task selector
+            HStack {
+                Text("Text Task:")
+                    .font(DesignSystem.Typography.bodySemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Picker("Task", selection: $selectedTask) {
+                    ForEach(TextTask.allCases, id: \.self) { task in
+                        Text(task.rawValue).tag(task)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 150)
+                
+                Spacer()
+                
+                Button("Process Text") {
+                    processText()
+                }
+                .buttonStyle_custom(.primary)
+                .disabled(textInput.isEmpty || isProcessing)
+            }
+            
+            // Input/Output layout
+            HStack(spacing: DesignSystem.Spacing.xl) {
+                // Text input
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("Text Input")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $textInput)
+                        .font(DesignSystem.Typography.body)
+                        .focused($isInputFocused)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(isInputFocused ? DesignSystem.Colors.borderFocus : DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                }
+                .frame(maxWidth: .infinity)
+                
+                // Arrow
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                // AI output
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    HStack {
+                        Text("Processed Text")
+                            .font(DesignSystem.Typography.bodySemibold)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        if isProcessing {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+                        
+                        Spacer()
+                        
+                        if !textOutput.isEmpty {
+                            Button("Copy") {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(textOutput, forType: .string)
+                            }
+                            .buttonStyle_custom(.ghost)
+                        }
+                    }
+                    
+                    ScrollView {
+                        Text(textOutput.isEmpty ? "Processed text will appear here..." : textOutput)
+                            .font(DesignSystem.Typography.body)
+                            .foregroundColor(textOutput.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .padding(DesignSystem.Spacing.lg)
+                            .textSelection(.enabled)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                            .fill(DesignSystem.Colors.surface)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .padding(DesignSystem.Spacing.xxl)
+    }
+    
+    private func processText() {
+        guard !textInput.isEmpty else { return }
+        
+        isProcessing = true
+        
+        Task {
+            let result = await ollamaService.processText(text: textInput, task: selectedTask)
+            await MainActor.run {
+                textOutput = result
+                isProcessing = false
+            }
         }
     }
 }
 
 struct ExpandedQuickPromptsView: View {
     let ollamaService: OllamaService
+    @State private var selectedPrompt: String = ""
+    @State private var customPrompt: String = ""
+    @State private var promptResult: String = ""
+    @State private var isProcessing = false
+    @FocusState private var isInputFocused: Bool
+    
+    private let quickPrompts = [
+        "Explain this in simple terms",
+        "What are the pros and cons?",
+        "Give me 5 key takeaways",
+        "How can I improve this?",
+        "What are the next steps?",
+        "Summarize in 3 sentences",
+        "What's the main problem here?",
+        "Suggest alternatives",
+        "Break this down step by step",
+        "What questions should I ask?"
+    ]
     
     var body: some View {
-        VStack {
-            Text("Quick Prompts - Expanded View")
-                .font(DesignSystem.Typography.headline2)
-            // Add specific quick prompts UI here
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // Quick prompts grid
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                Text("Quick Prompts")
+                    .font(DesignSystem.Typography.bodySemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: DesignSystem.Spacing.sm) {
+                    ForEach(quickPrompts, id: \.self) { prompt in
+                        Button(prompt) {
+                            selectedPrompt = prompt
+                            executePrompt(prompt)
+                        }
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .padding(.horizontal, DesignSystem.Spacing.md)
+                        .padding(.vertical, DesignSystem.Spacing.sm)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .fill(selectedPrompt == prompt ? DesignSystem.Colors.primary.opacity(0.2) : DesignSystem.Colors.surface)
+                        )
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            
+            // Custom prompt input
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                Text("Custom Prompt")
+                    .font(DesignSystem.Typography.bodySemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                HStack {
+                    TextField("Enter your custom prompt...", text: $customPrompt)
+                        .textFieldStyle(.roundedBorder)
+                        .focused($isInputFocused)
+                        .onSubmit {
+                            executeCustomPrompt()
+                        }
+                    
+                    Button("Send") {
+                        executeCustomPrompt()
+                    }
+                    .buttonStyle_custom(.primary)
+                    .disabled(customPrompt.isEmpty || isProcessing)
+                }
+            }
+            
+            // Result area
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack {
+                    Text("AI Response")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    if isProcessing {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    }
+                    
+                    Spacer()
+                    
+                    if !promptResult.isEmpty {
+                        Button("Copy") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(promptResult, forType: .string)
+                        }
+                        .buttonStyle_custom(.ghost)
+                        
+                        Button("Clear") {
+                            promptResult = ""
+                            selectedPrompt = ""
+                        }
+                        .buttonStyle_custom(.ghost)
+                    }
+                }
+                
+                ScrollView {
+                    Text(promptResult.isEmpty ? "AI response will appear here..." : promptResult)
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(promptResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .padding(DesignSystem.Spacing.lg)
+                        .textSelection(.enabled)
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        .fill(DesignSystem.Colors.surface)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                )
+            }
+            .frame(maxHeight: .infinity)
         }
+        .padding(DesignSystem.Spacing.xxl)
+    }
+    
+    private func executePrompt(_ prompt: String) {
+        isProcessing = true
+        
+        Task {
+            let result = await ollamaService.sendMessage(prompt)
+            await MainActor.run {
+                promptResult = result
+                isProcessing = false
+            }
+        }
+    }
+    
+    private func executeCustomPrompt() {
+        guard !customPrompt.isEmpty else { return }
+        
+        selectedPrompt = customPrompt
+        executePrompt(customPrompt)
+        customPrompt = ""
     }
 }
 
 struct ExpandedErrorExplainerView: View {
     let ollamaService: OllamaService
+    @State private var errorInput: String = ""
+    @State private var errorExplanation: String = ""
+    @State private var isProcessing = false
+    @FocusState private var isInputFocused: Bool
     
     var body: some View {
-        VStack {
-            Text("Error Explainer - Expanded View")
-                .font(DesignSystem.Typography.headline2)
-            // Add specific error explainer UI here
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // Instructions
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                Text("Error Explainer")
+                    .font(DesignSystem.Typography.headline2)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Text("Paste your error message, stack trace, or error log below for AI-powered analysis and solutions.")
+                    .font(DesignSystem.Typography.body)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+            }
+            
+            // Input/Output layout
+            HStack(spacing: DesignSystem.Spacing.xl) {
+                // Error input
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    HStack {
+                        Text("Error Details")
+                            .font(DesignSystem.Typography.bodySemibold)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Spacer()
+                        
+                        Button("Analyze Error") {
+                            analyzeError()
+                        }
+                        .buttonStyle_custom(.primary)
+                        .disabled(errorInput.isEmpty || isProcessing)
+                    }
+                    
+                    TextEditor(text: $errorInput)
+                        .font(.system(size: 14, design: .monospaced))
+                        .focused($isInputFocused)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(isInputFocused ? DesignSystem.Colors.borderFocus : DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                }
+                .frame(maxWidth: .infinity)
+                
+                // Arrow
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                // AI explanation
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    HStack {
+                        Text("AI Analysis & Solutions")
+                            .font(DesignSystem.Typography.bodySemibold)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        if isProcessing {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+                        
+                        Spacer()
+                        
+                        if !errorExplanation.isEmpty {
+                            Button("Copy") {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(errorExplanation, forType: .string)
+                            }
+                            .buttonStyle_custom(.ghost)
+                        }
+                    }
+                    
+                    ScrollView {
+                        Text(errorExplanation.isEmpty ? "Error analysis and solutions will appear here..." : errorExplanation)
+                            .font(DesignSystem.Typography.body)
+                            .foregroundColor(errorExplanation.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .padding(DesignSystem.Spacing.lg)
+                            .textSelection(.enabled)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                            .fill(DesignSystem.Colors.surface)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .padding(DesignSystem.Spacing.xxl)
+    }
+    
+    private func analyzeError() {
+        guard !errorInput.isEmpty else { return }
+        
+        isProcessing = true
+        
+        Task {
+            let result = await ollamaService.explainError(error: errorInput)
+            await MainActor.run {
+                errorExplanation = result
+                isProcessing = false
+            }
         }
     }
 }

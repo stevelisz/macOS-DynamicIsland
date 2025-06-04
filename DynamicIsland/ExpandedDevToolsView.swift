@@ -35,6 +35,53 @@ struct ExpandedDevToolsView: View {
     @State private var uuidCount: Int = 1
     @State private var uuidFormat: UUIDFormat = .uppercase
     
+    // cURL Generator
+    @State private var curlURL: String = ""
+    @State private var curlMethod: HTTPMethod = .GET
+    @State private var curlHeaders: String = ""
+    @State private var curlBody: String = ""
+    @State private var curlResult: String = ""
+    
+    // JWT Decoder
+    @State private var jwtToken: String = ""
+    @State private var jwtHeader: String = ""
+    @State private var jwtPayload: String = ""
+    @State private var jwtSignature: String = ""
+    
+    // GraphQL Generator
+    @State private var graphqlOperation: GraphQLOperation = .query
+    @State private var graphqlQuery: String = ""
+    @State private var graphqlVariables: String = ""
+    @State private var graphqlResult: String = ""
+    
+    // API Response Mockup
+    @State private var apiResponseType: APIResponseType = .user
+    @State private var apiResponseCount: Int = 1
+    @State private var apiResponseResult: String = ""
+    @State private var apiCustomSchema: String = ""
+    
+    // YAML ↔ JSON Converter
+    @State private var yamlJsonInput: String = ""
+    @State private var yamlJsonOutput: String = ""
+    @State private var yamlJsonMode: YAMLJSONMode = .yamlToJson
+    
+    // Text Diff
+    @State private var diffText1: String = ""
+    @State private var diffText2: String = ""
+    @State private var diffResult: [DiffLine] = []
+    
+    // Regex Tester
+    @State private var regexPattern: String = ""
+    @State private var regexText: String = ""
+    @State private var regexMatches: [NSTextCheckingResult] = []
+    @State private var regexFlags: Set<RegexFlag> = []
+    
+    // QR Code Generator
+    @State private var qrText: String = ""
+    @State private var qrCode: NSImage?
+    @State private var qrStyle: QRStyle = .standard
+    @State private var qrSize: QRSize = .medium
+    
     @FocusState private var isInputFocused: Bool
     
     var body: some View {
@@ -621,38 +668,770 @@ struct ExpandedDevToolsView: View {
         }
     }
     
-    // MARK: - Placeholder Interfaces (to be implemented)
+    // MARK: - cURL Generator Interface
     
     private var curlGeneratorInterface: some View {
-        ComingSoonView(toolName: "cURL Generator")
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // Method and URL
+            HStack(spacing: DesignSystem.Spacing.md) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("Method")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Picker("Method", selection: $curlMethod) {
+                        ForEach(HTTPMethod.allCases, id: \.self) { method in
+                            Text(method.rawValue).tag(method)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 100)
+                }
+                
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("URL")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextField("https://api.example.com/users", text: $curlURL)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: curlURL) { _, _ in generateCURL() }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            
+            // Headers and Body
+            HStack(spacing: DesignSystem.Spacing.xl) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("Headers (one per line)")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $curlHeaders)
+                        .font(.system(size: 14, design: .monospaced))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                        .onChange(of: curlHeaders) { _, _ in generateCURL() }
+                }
+                .frame(maxWidth: .infinity)
+                
+                if curlMethod.hasBody {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                        Text("Request Body")
+                            .font(DesignSystem.Typography.bodySemibold)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        TextEditor(text: $curlBody)
+                            .font(.system(size: 14, design: .monospaced))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                            .onChange(of: curlBody) { _, _ in generateCURL() }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(height: 200)
+            
+            // Generated cURL
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack {
+                    Text("Generated cURL Command")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Spacer()
+                    
+                    if !curlResult.isEmpty {
+                        Button("Copy") {
+                            copyToClipboard(curlResult)
+                        }
+                        .buttonStyle_custom(.primary)
+                    }
+                }
+                
+                ScrollView {
+                    Text(curlResult.isEmpty ? "cURL command will appear here..." : curlResult)
+                        .font(.system(size: 14, design: .monospaced))
+                        .foregroundColor(curlResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .padding(DesignSystem.Spacing.lg)
+                        .textSelection(.enabled)
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        .fill(DesignSystem.Colors.surface)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                )
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .onChange(of: curlMethod) { _, _ in generateCURL() }
+        .onAppear { generateCURL() }
     }
+    
+    // MARK: - JWT Decoder Interface
     
     private var jwtDecoderInterface: some View {
-        ComingSoonView(toolName: "JWT Decoder")
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // JWT Token Input
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                Text("JWT Token")
+                    .font(DesignSystem.Typography.bodySemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                TextEditor(text: $jwtToken)
+                    .font(.system(size: 14, design: .monospaced))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                    )
+                    .onChange(of: jwtToken) { _, _ in decodeJWT() }
+            }
+            .frame(height: 120)
+            
+            // Decoded sections
+            HStack(spacing: DesignSystem.Spacing.xl) {
+                // Header
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    HStack {
+                        Text("Header")
+                            .font(DesignSystem.Typography.bodySemibold)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Spacer()
+                        
+                        if !jwtHeader.isEmpty {
+                            Button("Copy") {
+                                copyToClipboard(jwtHeader)
+                            }
+                            .buttonStyle_custom(.ghost)
+                        }
+                    }
+                    
+                    ScrollView {
+                        Text(jwtHeader.isEmpty ? "Header will appear here..." : jwtHeader)
+                            .font(.system(size: 14, design: .monospaced))
+                            .foregroundColor(jwtHeader.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .padding(DesignSystem.Spacing.lg)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                            .fill(DesignSystem.Colors.surface)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
+                }
+                .frame(maxWidth: .infinity)
+                
+                // Payload
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    HStack {
+                        Text("Payload")
+                            .font(DesignSystem.Typography.bodySemibold)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Spacer()
+                        
+                        if !jwtPayload.isEmpty {
+                            Button("Copy") {
+                                copyToClipboard(jwtPayload)
+                            }
+                            .buttonStyle_custom(.ghost)
+                        }
+                    }
+                    
+                    ScrollView {
+                        Text(jwtPayload.isEmpty ? "Payload will appear here..." : jwtPayload)
+                            .font(.system(size: 14, design: .monospaced))
+                            .foregroundColor(jwtPayload.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .padding(DesignSystem.Spacing.lg)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                            .fill(DesignSystem.Colors.surface)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(maxHeight: .infinity)
+        }
     }
+    
+    // MARK: - GraphQL Generator Interface
     
     private var graphqlGeneratorInterface: some View {
-        ComingSoonView(toolName: "GraphQL Generator")
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // Operation type selector
+            HStack {
+                Text("Operation Type:")
+                    .font(DesignSystem.Typography.bodySemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Picker("Operation", selection: $graphqlOperation) {
+                    ForEach(GraphQLOperation.allCases, id: \.self) { op in
+                        Text(op.title).tag(op)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 200)
+                
+                Spacer()
+            }
+            
+            // Query and Variables
+            HStack(spacing: DesignSystem.Spacing.xl) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("GraphQL \(graphqlOperation.title)")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $graphqlQuery)
+                        .font(.system(size: 14, design: .monospaced))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                        .onChange(of: graphqlQuery) { _, _ in generateGraphQLResult() }
+                }
+                .frame(maxWidth: .infinity)
+                
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("Variables (JSON)")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $graphqlVariables)
+                        .font(.system(size: 14, design: .monospaced))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                        .onChange(of: graphqlVariables) { _, _ in generateGraphQLResult() }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(height: 250)
+            
+            // Generated Result
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack {
+                    Text("Generated Request")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Spacer()
+                    
+                    if !graphqlResult.isEmpty {
+                        Button("Copy") {
+                            copyToClipboard(graphqlResult)
+                        }
+                        .buttonStyle_custom(.primary)
+                    }
+                }
+                
+                ScrollView {
+                    Text(graphqlResult.isEmpty ? "Generated request will appear here..." : graphqlResult)
+                        .font(.system(size: 14, design: .monospaced))
+                        .foregroundColor(graphqlResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .padding(DesignSystem.Spacing.lg)
+                        .textSelection(.enabled)
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        .fill(DesignSystem.Colors.surface)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                )
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .onChange(of: graphqlOperation) { _, _ in generateGraphQLResult() }
     }
+    
+    // MARK: - API Mockup Interface
     
     private var apiMockupInterface: some View {
-        ComingSoonView(toolName: "API Mockup")
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // Controls
+            HStack {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("Response Type:")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Picker("Type", selection: $apiResponseType) {
+                        ForEach(APIResponseType.allCases, id: \.self) { type in
+                            Text(type.title).tag(type)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 150)
+                }
+                
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("Count:")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    HStack {
+                        TextField("Count", value: $apiResponseCount, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                        
+                        Stepper("", value: $apiResponseCount, in: 1...100)
+                    }
+                }
+                
+                Spacer()
+                
+                Button("Generate") {
+                    generateAPIResponse()
+                }
+                .buttonStyle_custom(.primary)
+            }
+            
+            // Custom schema (for custom type)
+            if apiResponseType == .custom {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("Custom Schema (JSON)")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $apiCustomSchema)
+                        .font(.system(size: 14, design: .monospaced))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                }
+                .frame(height: 150)
+            }
+            
+            // Generated Response
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack {
+                    Text("Generated API Response")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Spacer()
+                    
+                    if !apiResponseResult.isEmpty {
+                        Button("Copy") {
+                            copyToClipboard(apiResponseResult)
+                        }
+                        .buttonStyle_custom(.primary)
+                    }
+                }
+                
+                ScrollView {
+                    Text(apiResponseResult.isEmpty ? "Generated response will appear here..." : apiResponseResult)
+                        .font(.system(size: 14, design: .monospaced))
+                        .foregroundColor(apiResponseResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .padding(DesignSystem.Spacing.lg)
+                        .textSelection(.enabled)
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        .fill(DesignSystem.Colors.surface)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .onChange(of: apiResponseType) { _, _ in generateAPIResponse() }
+        .onChange(of: apiResponseCount) { _, _ in generateAPIResponse() }
+        .onAppear { generateAPIResponse() }
     }
+    
+    // MARK: - YAML-JSON Converter Interface
     
     private var yamlJsonConverterInterface: some View {
-        ComingSoonView(toolName: "YAML ↔ JSON Converter")
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // Mode selector
+            HStack {
+                Text("Conversion:")
+                    .font(DesignSystem.Typography.bodySemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Picker("Mode", selection: $yamlJsonMode) {
+                    ForEach(YAMLJSONMode.allCases, id: \.self) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 300)
+                
+                Spacer()
+            }
+            
+            // Input/Output layout
+            HStack(spacing: DesignSystem.Spacing.xl) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text(yamlJsonMode.inputTitle)
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $yamlJsonInput)
+                        .font(.system(size: 14, design: .monospaced))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                        .onChange(of: yamlJsonInput) { _, _ in convertYamlJson() }
+                }
+                .frame(maxWidth: .infinity)
+                
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    HStack {
+                        Text(yamlJsonMode.outputTitle)
+                            .font(DesignSystem.Typography.bodySemibold)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Spacer()
+                        
+                        if !yamlJsonOutput.isEmpty {
+                            Button("Copy") {
+                                copyToClipboard(yamlJsonOutput)
+                            }
+                            .buttonStyle_custom(.primary)
+                        }
+                    }
+                    
+                    ScrollView {
+                        Text(yamlJsonOutput.isEmpty ? "Converted output will appear here..." : yamlJsonOutput)
+                            .font(.system(size: 14, design: .monospaced))
+                            .foregroundColor(yamlJsonOutput.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .padding(DesignSystem.Spacing.lg)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                            .fill(DesignSystem.Colors.surface)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .onChange(of: yamlJsonMode) { _, _ in convertYamlJson() }
     }
+    
+    // MARK: - Text Diff Interface
     
     private var textDiffInterface: some View {
-        ComingSoonView(toolName: "Text Diff")
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // Input texts
+            HStack(spacing: DesignSystem.Spacing.xl) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("Original Text")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $diffText1)
+                        .font(.system(size: 14, design: .monospaced))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                        .onChange(of: diffText1) { _, _ in generateTextDiff() }
+                }
+                .frame(maxWidth: .infinity)
+                
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("Modified Text")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $diffText2)
+                        .font(.system(size: 14, design: .monospaced))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                        .onChange(of: diffText2) { _, _ in generateTextDiff() }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(height: 200)
+            
+            // Diff results
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                Text("Differences")
+                    .font(DesignSystem.Typography.bodySemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array(diffResult.enumerated()), id: \.offset) { index, line in
+                            HStack {
+                                Text("\(index + 1)")
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                    .frame(width: 40, alignment: .trailing)
+                                
+                                Text(line.text)
+                                    .font(.system(size: 14, design: .monospaced))
+                                    .foregroundColor(line.type.color)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(.horizontal, DesignSystem.Spacing.sm)
+                            .padding(.vertical, 2)
+                            .background(line.type.backgroundColor)
+                        }
+                    }
+                    .padding(DesignSystem.Spacing.lg)
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        .fill(DesignSystem.Colors.surface)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                )
+            }
+            .frame(maxHeight: .infinity)
+        }
     }
+    
+    // MARK: - Regex Tester Interface
     
     private var regexTesterInterface: some View {
-        ComingSoonView(toolName: "Regex Tester")
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // Pattern and flags
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                Text("Regular Expression Pattern")
+                    .font(DesignSystem.Typography.bodySemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                TextField("Enter regex pattern...", text: $regexPattern)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 14, design: .monospaced))
+                    .onChange(of: regexPattern) { _, _ in testRegex() }
+                
+                // Flags
+                HStack {
+                    Text("Flags:")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    ForEach(RegexFlag.allCases, id: \.self) { flag in
+                        Toggle(flag.title, isOn: Binding(
+                            get: { regexFlags.contains(flag) },
+                            set: { isOn in
+                                if isOn {
+                                    regexFlags.insert(flag)
+                                } else {
+                                    regexFlags.remove(flag)
+                                }
+                                testRegex()
+                            }
+                        ))
+                        .toggleStyle(.checkbox)
+                    }
+                    
+                    Spacer()
+                }
+            }
+            
+            // Test text and results
+            HStack(spacing: DesignSystem.Spacing.xl) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("Test Text")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $regexText)
+                        .font(.system(size: 14, design: .monospaced))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                        .onChange(of: regexText) { _, _ in testRegex() }
+                }
+                .frame(maxWidth: .infinity)
+                
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("Matches (\(regexMatches.count))")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            ForEach(Array(regexMatches.enumerated()), id: \.offset) { index, match in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Match \(index + 1)")
+                                        .font(DesignSystem.Typography.captionMedium)
+                                        .foregroundColor(DesignSystem.Colors.success)
+                                    
+                                    let matchText = String(regexText[Range(match.range, in: regexText)!])
+                                    Text(matchText)
+                                        .font(.system(size: 14, design: .monospaced))
+                                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                                        .padding(.horizontal, DesignSystem.Spacing.sm)
+                                        .padding(.vertical, DesignSystem.Spacing.xs)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                                                .fill(DesignSystem.Colors.success.opacity(0.1))
+                                        )
+                                }
+                            }
+                        }
+                        .padding(DesignSystem.Spacing.lg)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                            .fill(DesignSystem.Colors.surface)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(maxHeight: .infinity)
+        }
     }
     
+    // MARK: - QR Generator Interface
+    
     private var qrGeneratorInterface: some View {
-        ComingSoonView(toolName: "QR Generator")
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // Input and settings
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                Text("Text to encode")
+                    .font(DesignSystem.Typography.bodySemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                TextEditor(text: $qrText)
+                    .font(.system(size: 14))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                    )
+                    .onChange(of: qrText) { _, _ in generateQRCode() }
+            }
+            .frame(height: 120)
+            
+            // Style and size controls
+            HStack {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("Style:")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Picker("Style", selection: $qrStyle) {
+                        ForEach(QRStyle.allCases, id: \.self) { style in
+                            Text(style.title).tag(style)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 150)
+                }
+                
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("Size:")
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Picker("Size", selection: $qrSize) {
+                        ForEach(QRSize.allCases, id: \.self) { size in
+                            Text(size.title).tag(size)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 120)
+                }
+                
+                Spacer()
+                
+                if qrCode != nil {
+                    Button("Save Image") {
+                        saveQRCode()
+                    }
+                    .buttonStyle_custom(.secondary)
+                    
+                    Button("Copy Image") {
+                        copyQRCodeToClipboard()
+                    }
+                    .buttonStyle_custom(.primary)
+                }
+            }
+            
+            // Generated QR Code
+            VStack(spacing: DesignSystem.Spacing.lg) {
+                if let qrCode = qrCode {
+                    Image(nsImage: qrCode)
+                        .resizable()
+                        .interpolation(.none)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: qrSize.displaySize, height: qrSize.displaySize)
+                        .background(qrStyle.backgroundColor)
+                        .clipShape(RoundedRectangle(cornerRadius: qrStyle.cornerRadius))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: qrStyle.cornerRadius)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                } else {
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
+                        .fill(DesignSystem.Colors.surface)
+                        .frame(width: qrSize.displaySize, height: qrSize.displaySize)
+                        .overlay(
+                            VStack(spacing: DesignSystem.Spacing.md) {
+                                Image(systemName: "qrcode")
+                                    .font(.system(size: 48, weight: .thin))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                
+                                Text("QR code will appear here")
+                                    .font(DesignSystem.Typography.caption)
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                            }
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                }
+                
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .onChange(of: qrStyle) { _, _ in generateQRCode() }
+        .onChange(of: qrSize) { _, _ in generateQRCode() }
+        .onAppear { generateQRCode() }
     }
     
     // MARK: - Helper Functions
@@ -664,10 +1443,34 @@ struct ExpandedDevToolsView: View {
         hashResult = ""
         base64Input = ""
         base64Output = ""
-        urlText = ""
-        urlResult = ""
         draggedFileName = nil
         fileData = nil
+        
+        // Clear new inputs
+        curlURL = ""
+        curlHeaders = ""
+        curlBody = ""
+        curlResult = ""
+        jwtToken = ""
+        jwtHeader = ""
+        jwtPayload = ""
+        jwtSignature = ""
+        graphqlQuery = ""
+        graphqlVariables = ""
+        graphqlResult = ""
+        apiResponseResult = ""
+        apiCustomSchema = ""
+        yamlJsonInput = ""
+        yamlJsonOutput = ""
+        diffText1 = ""
+        diffText2 = ""
+        diffResult = []
+        regexPattern = ""
+        regexText = ""
+        regexMatches = []
+        regexFlags = []
+        qrText = ""
+        qrCode = nil
     }
     
     private func processJSON() {
@@ -792,6 +1595,432 @@ struct ExpandedDevToolsView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
             showCopiedFeedback = false
         }
+    }
+    
+    // MARK: - cURL Functions
+    
+    private func generateCURL() {
+        guard !curlURL.isEmpty else {
+            curlResult = ""
+            return
+        }
+        
+        var command = "curl -X \(curlMethod.rawValue) \\\n"
+        command += "  '\(curlURL)'"
+        
+        // Add headers
+        if !curlHeaders.isEmpty {
+            let headers = curlHeaders.components(separatedBy: .newlines)
+                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            
+            for header in headers {
+                command += " \\\n  -H '\(header.trimmingCharacters(in: .whitespaces))'"
+            }
+        }
+        
+        // Add body for methods that support it
+        if curlMethod.hasBody && !curlBody.isEmpty {
+            command += " \\\n  -d '\(curlBody)'"
+        }
+        
+        curlResult = command
+    }
+    
+    // MARK: - JWT Functions
+    
+    private func decodeJWT() {
+        guard !jwtToken.isEmpty else {
+            jwtHeader = ""
+            jwtPayload = ""
+            jwtSignature = ""
+            return
+        }
+        
+        let components = jwtToken.components(separatedBy: ".")
+        guard components.count == 3 else {
+            jwtHeader = "❌ Invalid JWT format"
+            jwtPayload = "❌ Invalid JWT format"
+            jwtSignature = "❌ Invalid JWT format"
+            return
+        }
+        
+        // Decode header
+        if let headerData = base64URLDecode(components[0]),
+           let headerString = String(data: headerData, encoding: .utf8) {
+            jwtHeader = formatJSON(headerString)
+        } else {
+            jwtHeader = "❌ Failed to decode header"
+        }
+        
+        // Decode payload
+        if let payloadData = base64URLDecode(components[1]),
+           let payloadString = String(data: payloadData, encoding: .utf8) {
+            jwtPayload = formatJSON(payloadString)
+        } else {
+            jwtPayload = "❌ Failed to decode payload"
+        }
+        
+        jwtSignature = components[2]
+    }
+    
+    private func base64URLDecode(_ string: String) -> Data? {
+        var base64 = string
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        
+        // Add padding if needed
+        let padding = base64.count % 4
+        if padding > 0 {
+            base64 += String(repeating: "=", count: 4 - padding)
+        }
+        
+        return Data(base64Encoded: base64)
+    }
+    
+    private func formatJSON(_ jsonString: String) -> String {
+        guard let data = jsonString.data(using: .utf8),
+              let jsonObject = try? JSONSerialization.jsonObject(with: data),
+              let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys]) else {
+            return jsonString
+        }
+        return String(data: prettyData, encoding: .utf8) ?? jsonString
+    }
+    
+    // MARK: - GraphQL Functions
+    
+    private func generateGraphQLResult() {
+        guard !graphqlQuery.isEmpty else {
+            graphqlResult = ""
+            return
+        }
+        
+        var result = "{\n  \"query\": \"\(escapeForJSON(graphqlQuery))\""
+        
+        if !graphqlVariables.isEmpty {
+            if let data = graphqlVariables.data(using: .utf8),
+               let _ = try? JSONSerialization.jsonObject(with: data) {
+                result += ",\n  \"variables\": \(graphqlVariables)"
+            } else {
+                result += ",\n  \"variables\": ❌ Invalid JSON"
+            }
+        }
+        
+        result += "\n}"
+        
+        graphqlResult = result
+    }
+    
+    private func escapeForJSON(_ string: String) -> String {
+        return string
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\t", with: "\\t")
+    }
+    
+    // MARK: - API Response Generation
+    
+    private func generateAPIResponse() {
+        switch apiResponseType {
+        case .user:
+            apiResponseResult = generateUserResponse()
+        case .post:
+            apiResponseResult = generatePostResponse()
+        case .comment:
+            apiResponseResult = generateCommentResponse()
+        case .product:
+            apiResponseResult = generateProductResponse()
+        case .order:
+            apiResponseResult = generateOrderResponse()
+        case .custom:
+            apiResponseResult = generateCustomResponse()
+        }
+    }
+    
+    private func generateUserResponse() -> String {
+        let users = (1...apiResponseCount).map { i in
+            """
+            {
+              "id": \(i),
+              "name": "User \(i)",
+              "email": "user\(i)@example.com",
+              "username": "user\(i)",
+              "phone": "+1-555-\(String(format: "%04d", i))",
+              "website": "user\(i).example.com",
+              "address": {
+                "street": "\(100 + i) Main St",
+                "suite": "Apt. \(i)",
+                "city": "Sample City",
+                "zipcode": "\(10000 + i)",
+                "geo": {
+                  "lat": "\(40.0 + Double(i) * 0.1)",
+                  "lng": "\(-74.0 + Double(i) * 0.1)"
+                }
+              },
+              "company": {
+                "name": "Company \(i)",
+                "catchPhrase": "Innovative solutions for tomorrow",
+                "bs": "synergistic next-generation applications"
+              }
+            }
+            """
+        }
+        
+        return apiResponseCount == 1 ? users[0] : "[\n" + users.joined(separator: ",\n") + "\n]"
+    }
+    
+    private func generatePostResponse() -> String {
+        let posts = (1...apiResponseCount).map { i in
+            """
+            {
+              "id": \(i),
+              "userId": \((i - 1) % 10 + 1),
+              "title": "Sample Post Title \(i)",
+              "body": "This is the body content of post \(i). It contains some sample text to demonstrate what a typical post might look like."
+            }
+            """
+        }
+        
+        return apiResponseCount == 1 ? posts[0] : "[\n" + posts.joined(separator: ",\n") + "\n]"
+    }
+    
+    private func generateCommentResponse() -> String {
+        let comments = (1...apiResponseCount).map { i in
+            """
+            {
+              "id": \(i),
+              "postId": \((i - 1) % 100 + 1),
+              "name": "Sample Comment \(i)",
+              "email": "commenter\(i)@example.com",
+              "body": "This is a sample comment \(i). It provides feedback or additional information about the post."
+            }
+            """
+        }
+        
+        return apiResponseCount == 1 ? comments[0] : "[\n" + comments.joined(separator: ",\n") + "\n]"
+    }
+    
+    private func generateProductResponse() -> String {
+        let products = (1...apiResponseCount).map { i in
+            """
+            {
+              "id": \(i),
+              "title": "Sample Product \(i)",
+              "price": \(19.99 + Double(i) * 10.0),
+              "description": "This is a high-quality product \(i) with excellent features and great value.",
+              "category": "Electronics",
+              "image": "https://via.placeholder.com/300/\(String(format: "%06x", i * 123456 % 0xFFFFFF))",
+              "rating": {
+                "rate": \(3.5 + Double(i % 3)),
+                "count": \(50 + i * 10)
+              }
+            }
+            """
+        }
+        
+        return apiResponseCount == 1 ? products[0] : "[\n" + products.joined(separator: ",\n") + "\n]"
+    }
+    
+    private func generateOrderResponse() -> String {
+        let orders = (1...apiResponseCount).map { i in
+            """
+            {
+              "id": \(i),
+              "userId": \((i - 1) % 10 + 1),
+              "date": "2024-01-\(String(format: "%02d", (i % 28) + 1))",
+              "status": "\(["pending", "processing", "shipped", "delivered"][i % 4])",
+              "total": \(50.0 + Double(i) * 25.0),
+              "items": [
+                {
+                  "productId": \(i),
+                  "quantity": \((i % 3) + 1),
+                  "price": \(19.99 + Double(i) * 5.0)
+                }
+              ]
+            }
+            """
+        }
+        
+        return apiResponseCount == 1 ? orders[0] : "[\n" + orders.joined(separator: ",\n") + "\n]"
+    }
+    
+    private func generateCustomResponse() -> String {
+        guard !apiCustomSchema.isEmpty else {
+            return "❌ Please provide a custom schema"
+        }
+        
+        guard let data = apiCustomSchema.data(using: .utf8),
+              let schema = try? JSONSerialization.jsonObject(with: data) else {
+            return "❌ Invalid JSON schema"
+        }
+        
+        // For simplicity, just return the schema repeated
+        let responses = (1...apiResponseCount).map { _ in apiCustomSchema }
+        return apiResponseCount == 1 ? responses[0] : "[\n" + responses.joined(separator: ",\n") + "\n]"
+    }
+    
+    // MARK: - YAML-JSON Conversion
+    
+    private func convertYamlJson() {
+        guard !yamlJsonInput.isEmpty else {
+            yamlJsonOutput = ""
+            return
+        }
+        
+        switch yamlJsonMode {
+        case .yamlToJson:
+            yamlJsonOutput = convertYamlToJson(yamlJsonInput)
+        case .jsonToYaml:
+            yamlJsonOutput = convertJsonToYaml(yamlJsonInput)
+        }
+    }
+    
+    private func convertYamlToJson(_ yaml: String) -> String {
+        // Basic YAML to JSON conversion (simplified)
+        // In a real implementation, you'd use a proper YAML parser
+        return "❌ YAML parsing not implemented. Use a proper YAML library for full functionality."
+    }
+    
+    private func convertJsonToYaml(_ json: String) -> String {
+        guard let data = json.data(using: .utf8),
+              let jsonObject = try? JSONSerialization.jsonObject(with: data) else {
+            return "❌ Invalid JSON"
+        }
+        
+        // Basic JSON to YAML conversion (simplified)
+        return convertObjectToYaml(jsonObject, indent: 0)
+    }
+    
+    private func convertObjectToYaml(_ object: Any, indent: Int) -> String {
+        let indentString = String(repeating: "  ", count: indent)
+        
+        if let dict = object as? [String: Any] {
+            return dict.map { key, value in
+                if let dictValue = value as? [String: Any] {
+                    return "\(indentString)\(key):\n\(convertObjectToYaml(dictValue, indent: indent + 1))"
+                } else if let arrayValue = value as? [Any] {
+                    return "\(indentString)\(key):\n\(convertObjectToYaml(arrayValue, indent: indent + 1))"
+                } else {
+                    return "\(indentString)\(key): \(value)"
+                }
+            }.joined(separator: "\n")
+        } else if let array = object as? [Any] {
+            return array.map { item in
+                "\(indentString)- \(convertObjectToYaml(item, indent: indent + 1).trimmingCharacters(in: .whitespaces))"
+            }.joined(separator: "\n")
+        } else {
+            return "\(object)"
+        }
+    }
+    
+    // MARK: - Text Diff Functions
+    
+    private func generateTextDiff() {
+        let lines1 = diffText1.components(separatedBy: .newlines)
+        let lines2 = diffText2.components(separatedBy: .newlines)
+        
+        diffResult = []
+        
+        let maxCount = max(lines1.count, lines2.count)
+        
+        for i in 0..<maxCount {
+            let line1 = i < lines1.count ? lines1[i] : ""
+            let line2 = i < lines2.count ? lines2[i] : ""
+            
+            if line1 == line2 {
+                diffResult.append(DiffLine(text: line1, type: .same))
+            } else {
+                if i < lines1.count {
+                    diffResult.append(DiffLine(text: "- \(line1)", type: .removed))
+                }
+                if i < lines2.count {
+                    diffResult.append(DiffLine(text: "+ \(line2)", type: .added))
+                }
+            }
+        }
+    }
+    
+    // MARK: - Regex Functions
+    
+    private func testRegex() {
+        guard !regexPattern.isEmpty && !regexText.isEmpty else {
+            regexMatches = []
+            return
+        }
+        
+        do {
+            var options: NSRegularExpression.Options = []
+            
+            if regexFlags.contains(.caseInsensitive) {
+                options.insert(.caseInsensitive)
+            }
+            if regexFlags.contains(.multiline) {
+                options.insert(.anchorsMatchLines)
+            }
+            if regexFlags.contains(.dotMatchesLineSeparators) {
+                options.insert(.dotMatchesLineSeparators)
+            }
+            
+            let regex = try NSRegularExpression(pattern: regexPattern, options: options)
+            let range = NSRange(location: 0, length: regexText.utf16.count)
+            regexMatches = regex.matches(in: regexText, options: [], range: range)
+        } catch {
+            regexMatches = []
+        }
+    }
+    
+    // MARK: - QR Code Functions
+    
+    private func generateQRCode() {
+        guard !qrText.isEmpty else {
+            qrCode = nil
+            return
+        }
+        
+        let data = qrText.data(using: .utf8)!
+        
+        if let filter = CIFilter(name: "CIQRCodeGenerator") {
+            filter.setValue(data, forKey: "inputMessage")
+            
+            if let outputImage = filter.outputImage {
+                let transform = CGAffineTransform(scaleX: qrSize.rawValue / outputImage.extent.width,
+                                                y: qrSize.rawValue / outputImage.extent.height)
+                let scaledImage = outputImage.transformed(by: transform)
+                
+                let rep = NSCIImageRep(ciImage: scaledImage)
+                let nsImage = NSImage(size: rep.size)
+                nsImage.addRepresentation(rep)
+                
+                qrCode = nsImage
+            }
+        }
+    }
+    
+    private func saveQRCode() {
+        guard let qrCode = qrCode else { return }
+        
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.png]
+        savePanel.nameFieldStringValue = "qrcode.png"
+        
+        if savePanel.runModal() == .OK, let url = savePanel.url {
+            if let tiffData = qrCode.tiffRepresentation,
+               let bitmap = NSBitmapImageRep(data: tiffData),
+               let pngData = bitmap.representation(using: .png, properties: [:]) {
+                try? pngData.write(to: url)
+            }
+        }
+    }
+    
+    private func copyQRCodeToClipboard() {
+        guard let qrCode = qrCode else { return }
+        
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.writeObjects([qrCode])
+        
+        copyToClipboard("QR Code copied to clipboard")
     }
 }
 
