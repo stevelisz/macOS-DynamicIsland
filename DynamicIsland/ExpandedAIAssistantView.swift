@@ -11,6 +11,8 @@ struct ExpandedAIAssistantView: View {
     @State private var searchText = ""
     @FocusState private var isChatInputFocused: Bool
     @State private var showSavedFeedback = false
+    @State private var isDropTargeted = false
+    @State private var draggedFiles: [URL] = []
     
     var body: some View {
         Group {
@@ -217,6 +219,17 @@ struct ExpandedAIAssistantView: View {
                     .padding(.horizontal, DesignSystem.Spacing.xxl)
                     .padding(.vertical, DesignSystem.Spacing.xl)
                 }
+                .dropDestination(for: URL.self) { urls, location in
+                    handleDroppedFiles(urls)
+                    return true
+                } isTargeted: { isTargeted in
+                    isDropTargeted = isTargeted
+                }
+                .overlay(alignment: .center) {
+                    if isDropTargeted && selectedTool == .chat {
+                        dropTargetOverlay
+                    }
+                }
                 .onChange(of: ollamaService.messages.count) { _, _ in
                     if let lastMessage = ollamaService.messages.last {
                         withAnimation(DesignSystem.Animation.smooth) {
@@ -278,7 +291,7 @@ struct ExpandedAIAssistantView: View {
             HStack(spacing: DesignSystem.Spacing.md) {
                 // Input field
                 HStack(spacing: DesignSystem.Spacing.sm) {
-                    TextField("Type your message...", text: $chatInput, axis: .vertical)
+                    TextField("Type your message or drop files to analyze...", text: $chatInput, axis: .vertical)
                         .font(DesignSystem.Typography.body)
                         .textFieldStyle(.plain)
                         .focused($isChatInputFocused)
@@ -793,6 +806,74 @@ struct ExpandedAIAssistantView: View {
     
     private func loadConversations() {
         conversations = UserDefaults.standard.chatConversations
+    }
+    
+    private func handleDroppedFiles(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        
+        draggedFiles = urls
+        
+        Task {
+            if let response = await ollamaService.processFiles(urls) {
+                // Files processed, response will be added to conversation automatically
+                print("Files processed: \(response)")
+            }
+        }
+    }
+    
+    private var dropTargetOverlay: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
+                .fill(DesignSystem.Colors.primary.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
+                        .strokeBorder(DesignSystem.Colors.primary, style: StrokeStyle(lineWidth: 3, dash: [12, 6]))
+                )
+                .animation(.easeInOut(duration: 0.3), value: isDropTargeted)
+            
+            VStack(spacing: DesignSystem.Spacing.lg) {
+                Image(systemName: "doc.on.doc.fill")
+                    .font(.system(size: 48, weight: .light))
+                    .foregroundColor(DesignSystem.Colors.primary)
+                
+                VStack(spacing: DesignSystem.Spacing.xs) {
+                    if ollamaService.isVisionModel {
+                        Text("Drop files to analyze with AI")
+                            .font(DesignSystem.Typography.headline2)
+                            .foregroundColor(DesignSystem.Colors.primary)
+                        
+                        Text("Images and text files supported")
+                            .font(DesignSystem.Typography.body)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    } else {
+                        Text("Drop text files to analyze")
+                            .font(DesignSystem.Typography.headline2)
+                            .foregroundColor(DesignSystem.Colors.primary)
+                        
+                        Text("Switch to a vision model (llava, etc.) for image support")
+                            .font(DesignSystem.Typography.body)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                
+                VStack(spacing: DesignSystem.Spacing.xs) {
+                    Text("Supported file types:")
+                        .font(DesignSystem.Typography.captionSemibold)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                    
+                    Text("Images: PNG, JPG, GIF, WebP")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    
+                    Text("Text: TXT, MD, Swift, Python, JS, HTML, CSS, JSON, XML")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                }
+            }
+            .padding(DesignSystem.Spacing.xxl)
+        }
+        .padding(DesignSystem.Spacing.xl)
     }
 }
 
