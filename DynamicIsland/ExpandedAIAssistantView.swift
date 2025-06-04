@@ -7,6 +7,8 @@ struct ExpandedAIAssistantView: View {
     @State private var isStartingOllama = false
     @State private var chatInput: String = ""
     @State private var showingHistory = false
+    @State private var conversations: [ChatConversation] = []
+    @State private var searchText = ""
     @FocusState private var isChatInputFocused: Bool
     
     var body: some View {
@@ -25,6 +27,13 @@ struct ExpandedAIAssistantView: View {
             Task {
                 await ollamaService.checkConnection()
             }
+            loadConversations()
+        }
+        .onChange(of: ollamaService.conversationHistory.count) { _, _ in
+            loadConversations()
+        }
+        .onChange(of: ollamaService.currentConversation?.id) { _, _ in
+            loadConversations()
         }
         .sheet(isPresented: $showOllamaInstructions) {
             OllamaInstructionsSheet()
@@ -35,17 +44,7 @@ struct ExpandedAIAssistantView: View {
     // MARK: - Connected View
     
     private var connectedView: some View {
-        HStack(spacing: 0) {
-            // Chat history sidebar (only shown in chat mode)
-            if selectedTool == .chat && showingHistory {
-                chatHistorySidebar
-                    .frame(width: 350)
-                    .transition(.move(edge: .leading))
-                
-                Divider()
-                    .background(DesignSystem.Colors.border)
-            }
-            
+        ZStack(alignment: .leading) {
             // Main content
             VStack(spacing: 0) {
                 // Header with model selector and tools
@@ -57,8 +56,16 @@ struct ExpandedAIAssistantView: View {
                 // Main chat interface
                 chatInterface
             }
+            .background(Color.clear)
+            
+            // Chat history sidebar overlay (only shown in chat mode)
+            if selectedTool == .chat && showingHistory {
+                chatHistorySidebar
+                    .frame(width: 350)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+                    .zIndex(1)
+            }
         }
-        .background(Color.clear)
         .animation(.easeInOut(duration: 0.3), value: showingHistory)
     }
     
@@ -567,71 +574,76 @@ struct ExpandedAIAssistantView: View {
     private var chatHistorySidebar: some View {
         VStack(spacing: 0) {
             // Sidebar header
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Chat History")
-                        .font(DesignSystem.Typography.headline2)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
+            VStack(spacing: DesignSystem.Spacing.md) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Chat History")
+                            .font(DesignSystem.Typography.headline2)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Text("\(conversations.count) conversations")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
                     
-                    Text("\(UserDefaults.standard.chatConversations.count) conversations")
-                        .font(DesignSystem.Typography.caption)
+                    Spacer()
+                    
+                    Button(action: {
+                        ollamaService.createNewConversation()
+                        loadConversations()
+                    }) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                
+                // Search bar
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: "magnifyingglass")
                         .foregroundColor(DesignSystem.Colors.textSecondary)
+                        .font(.system(size: 14, weight: .medium))
+                    
+                    TextField("Search conversations...", text: $searchText)
+                        .textFieldStyle(.plain)
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
                 }
-                
-                Spacer()
-                
-                Button(action: {
-                    ollamaService.createNewConversation()
-                }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(DesignSystem.Colors.primary)
-                }
-                .buttonStyle(.plain)
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .padding(.vertical, DesignSystem.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        .fill(DesignSystem.Colors.surface)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 0.5)
+                        )
+                )
             }
-            .padding(.horizontal, DesignSystem.Spacing.lg)
-            .padding(.vertical, DesignSystem.Spacing.md)
+            .padding(DesignSystem.Spacing.lg)
             
             Divider()
                 .background(DesignSystem.Colors.border)
             
-            // Search bar
-            HStack(spacing: DesignSystem.Spacing.sm) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                    .font(.system(size: 14, weight: .medium))
-                
-                TextField("Search conversations...", text: .constant(""))
-                    .textFieldStyle(.plain)
-                    .font(DesignSystem.Typography.body)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-            }
-            .padding(.horizontal, DesignSystem.Spacing.md)
-            .padding(.vertical, DesignSystem.Spacing.sm)
-            .background(
-                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                    .fill(DesignSystem.Colors.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                            .stroke(DesignSystem.Colors.border, lineWidth: 0.5)
-                    )
-            )
-            .padding(.horizontal, DesignSystem.Spacing.lg)
-            .padding(.vertical, DesignSystem.Spacing.md)
-            
             // Conversations list
             ScrollView {
                 LazyVStack(spacing: DesignSystem.Spacing.sm) {
-                    ForEach(UserDefaults.standard.chatConversations) { conversation in
-                        ExpandedConversationRowView(
-                            conversation: conversation,
-                            isSelected: UserDefaults.standard.currentConversationId == conversation.id,
-                            onSelect: { selectConversation(conversation) },
-                            onDelete: { deleteConversation(conversation) }
-                        )
+                    if filteredConversations.isEmpty {
+                        emptyHistoryView
+                    } else {
+                        ForEach(filteredConversations) { conversation in
+                            ExpandedConversationRowView(
+                                conversation: conversation,
+                                isSelected: UserDefaults.standard.currentConversationId == conversation.id,
+                                onSelect: { selectConversation(conversation) },
+                                onDelete: { deleteConversation(conversation) }
+                            )
+                        }
                     }
                 }
                 .padding(.horizontal, DesignSystem.Spacing.lg)
+                .padding(.vertical, DesignSystem.Spacing.md)
             }
             
             Spacer()
@@ -645,6 +657,7 @@ struct ExpandedAIAssistantView: View {
                     Button("Clear All") {
                         UserDefaults.standard.clearAllConversations()
                         ollamaService.createNewConversation()
+                        loadConversations()
                     }
                     .font(DesignSystem.Typography.captionMedium)
                     .foregroundColor(DesignSystem.Colors.error)
@@ -655,6 +668,7 @@ struct ExpandedAIAssistantView: View {
                             .fill(DesignSystem.Colors.error.opacity(0.1))
                     )
                     .buttonStyle(.plain)
+                    .disabled(conversations.isEmpty)
                     
                     Spacer()
                 }
@@ -662,7 +676,64 @@ struct ExpandedAIAssistantView: View {
                 .padding(.bottom, DesignSystem.Spacing.md)
             }
         }
+        .frame(maxWidth: 350)
         .background(.ultraThinMaterial)
+        .overlay(
+            Rectangle()
+                .fill(DesignSystem.Colors.border)
+                .frame(width: 1)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        )
+        .shadow(color: .black.opacity(0.1), radius: 10, x: 2, y: 0)
+        .clipped()
+    }
+    
+    private var filteredConversations: [ChatConversation] {
+        if searchText.isEmpty {
+            return conversations
+        } else {
+            return conversations.filter { conversation in
+                conversation.title.localizedCaseInsensitiveContains(searchText) ||
+                conversation.preview.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
+    
+    private var emptyHistoryView: some View {
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            Image(systemName: "message.circle")
+                .font(.system(size: 32, weight: .light))
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+            
+            VStack(spacing: DesignSystem.Spacing.xs) {
+                Text(searchText.isEmpty ? "No conversations yet" : "No matching conversations")
+                    .font(DesignSystem.Typography.headline3)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Text(searchText.isEmpty ? "Start a new conversation to begin" : "Try a different search term")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            if searchText.isEmpty {
+                Button("Start New Chat") {
+                    ollamaService.createNewConversation()
+                    loadConversations()
+                }
+                .font(DesignSystem.Typography.bodySemibold)
+                .foregroundColor(.white)
+                .padding(.horizontal, DesignSystem.Spacing.xl)
+                .padding(.vertical, DesignSystem.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        .fill(DesignSystem.Colors.primary)
+                )
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(DesignSystem.Spacing.xl)
     }
     
     // MARK: - Chat History Actions
@@ -670,6 +741,7 @@ struct ExpandedAIAssistantView: View {
     private func selectConversation(_ conversation: ChatConversation) {
         UserDefaults.standard.currentConversationId = conversation.id
         ollamaService.loadConversation(conversation)
+        loadConversations()
     }
     
     private func deleteConversation(_ conversation: ChatConversation) {
@@ -679,6 +751,13 @@ struct ExpandedAIAssistantView: View {
         if UserDefaults.standard.currentConversationId == conversation.id {
             ollamaService.createNewConversation()
         }
+        
+        // Immediately refresh the conversations list
+        loadConversations()
+    }
+    
+    private func loadConversations() {
+        conversations = UserDefaults.standard.chatConversations
     }
 }
 
