@@ -144,6 +144,11 @@ class OllamaService: ObservableObject {
             return "Error: No AI models are available. Please download a model first using 'ollama pull llama3.2:3b' in Terminal."
         }
         
+        // Prevent race condition by capturing the current conversation ID
+        guard let originalConversationId = currentConversation?.id else {
+            return "Error: No active conversation"
+        }
+        
         isGenerating = true
         defer { isGenerating = false }
         
@@ -180,9 +185,8 @@ class OllamaService: ObservableObject {
                 }
                 
                 if let responseText = json["response"] as? String {
-                    let assistantMessage = ChatMessage(role: .assistant, content: responseText)
-                    conversationHistory.append(assistantMessage)
-                    saveCurrentConversation()
+                    // Ensure response goes to the original conversation
+                    await saveResponseToConversation(responseText, conversationId: originalConversationId)
                     return responseText
                 }
             }
@@ -207,6 +211,12 @@ class OllamaService: ObservableObject {
         }
         guard !availableModels.isEmpty else {
             onUpdate("Error: No AI models are available. Please download a model first using 'ollama pull llama3.2:3b' in Terminal.")
+            return
+        }
+        
+        // Prevent race condition by capturing the current conversation ID
+        guard let originalConversationId = currentConversation?.id else {
+            onUpdate("Error: No active conversation")
             return
         }
         
@@ -260,9 +270,8 @@ class OllamaService: ObservableObject {
             }
             
             if !fullResponse.isEmpty {
-                let assistantMessage = ChatMessage(role: .assistant, content: fullResponse)
-                conversationHistory.append(assistantMessage)
-                saveCurrentConversation()
+                // Ensure response goes to the original conversation
+                await saveResponseToConversation(fullResponse, conversationId: originalConversationId)
             }
             
         } catch {
@@ -493,6 +502,11 @@ class OllamaService: ObservableObject {
     private func sendMessageWithImages(_ prompt: String, images: [String]) async -> String {
         guard isConnected else { return "Error: Ollama is not connected" }
         
+        // Prevent race condition by capturing the current conversation ID
+        guard let originalConversationId = currentConversation?.id else {
+            return "Error: No active conversation"
+        }
+        
         isGenerating = true
         defer { isGenerating = false }
         
@@ -527,9 +541,8 @@ class OllamaService: ObservableObject {
                 }
                 
                 if let responseText = json["response"] as? String {
-                    let assistantMessage = ChatMessage(role: .assistant, content: responseText)
-                    conversationHistory.append(assistantMessage)
-                    saveCurrentConversation()
+                    // Ensure response goes to the original conversation
+                    await saveResponseToConversation(responseText, conversationId: originalConversationId)
                     return responseText
                 }
             }
@@ -545,6 +558,31 @@ class OllamaService: ObservableObject {
         }
         
         return "Error: Failed to get response from vision model"
+    }
+    
+    private func saveResponseToConversation(_ response: String, conversationId: UUID) async {
+        // Get the conversation from UserDefaults to ensure we have the most up-to-date version
+        guard var conversation = UserDefaults.standard.chatConversations.first(where: { $0.id == conversationId }) else { 
+            return 
+        }
+        
+        let assistantMessage = ChatMessage(role: .assistant, content: response)
+        conversation.messages.append(assistantMessage)
+        conversation.lastModified = Date()
+        
+        // Auto-generate title from first user message if it's still "New Chat"
+        if conversation.title == "New Chat" && !conversation.messages.isEmpty {
+            conversation.generateTitle()
+        }
+        
+        // Save the conversation
+        UserDefaults.standard.saveConversation(conversation)
+        
+        // If this is still the current conversation, update the local state
+        if currentConversation?.id == conversationId {
+            currentConversation = conversation
+            conversationHistory = conversation.messages
+        }
     }
 }
 

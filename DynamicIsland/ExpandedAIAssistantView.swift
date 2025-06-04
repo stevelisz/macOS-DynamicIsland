@@ -223,6 +223,13 @@ struct ExpandedAIAssistantView: View {
                         }
                     }
                 }
+                .onChange(of: ollamaService.isGenerating) { _, isGenerating in
+                    if isGenerating {
+                        withAnimation(DesignSystem.Animation.smooth) {
+                            proxy.scrollTo("typing-indicator", anchor: .bottom)
+                        }
+                    }
+                }
             }
             
             // Input area - only show for chat
@@ -233,9 +240,17 @@ struct ExpandedAIAssistantView: View {
     }
     
     private var chatMessages: some View {
-        ForEach(ollamaService.messages, id: \.id) { message in
-            ExpandedChatMessage(message: message)
-                .id(message.id)
+        Group {
+            ForEach(ollamaService.messages, id: \.id) { message in
+                ExpandedChatMessage(message: message)
+                    .id(message.id)
+            }
+            
+            // Loading indicator when AI is generating
+            if ollamaService.isGenerating {
+                TypingIndicatorView()
+                    .id("typing-indicator")
+            }
         }
     }
     
@@ -771,63 +786,100 @@ struct ExpandedChatMessage: View {
         HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             if message.isUser {
                 Spacer()
-            }
-            
-            // Avatar
-            Circle()
-                .fill(message.isUser ? DesignSystem.Colors.primary : DesignSystem.Colors.ai)
-                .frame(width: 36, height: 36)
-                .overlay(
-                    Image(systemName: message.isUser ? "person.fill" : "brain.head.profile")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
-                )
-            
-            // Message content
-            VStack(alignment: message.isUser ? .trailing : .leading, spacing: DesignSystem.Spacing.xs) {
-                Text(message.content)
-                    .font(DesignSystem.Typography.body)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                    .padding(DesignSystem.Spacing.lg)
-                    .background(
-                        Group {
-                            if message.isUser {
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
-                                    .fill(DesignSystem.Colors.primary.opacity(0.1))
-                            } else {
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
-                                    .fill(DesignSystem.Colors.surface.opacity(0.8))
-                                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl))
-                            }
-                        }
-                    )
-                    .frame(maxWidth: 400, alignment: message.isUser ? .trailing : .leading)
                 
-                // Copy button (shown on hover)
-                if isHovered {
-                    Button(action: {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(message.content, forType: .string)
-                    }) {
-                        HStack(spacing: DesignSystem.Spacing.xs) {
-                            Image(systemName: "doc.on.doc")
-                                .font(.system(size: 10, weight: .medium))
-                            Text("Copy")
-                                .font(DesignSystem.Typography.micro)
-                        }
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
-                        .padding(.horizontal, DesignSystem.Spacing.sm)
-                        .padding(.vertical, DesignSystem.Spacing.xxs)
+                // Message content (user on right)
+                VStack(alignment: .trailing, spacing: DesignSystem.Spacing.xs) {
+                    Text(message.content)
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .padding(DesignSystem.Spacing.lg)
                         .background(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
-                                .fill(DesignSystem.Colors.surface)
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
+                                .fill(DesignSystem.Colors.primary.opacity(0.1))
                         )
+                        .frame(maxWidth: 400, alignment: .trailing)
+                    
+                    // Copy button (shown on hover)
+                    if isHovered {
+                        Button(action: {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(message.content, forType: .string)
+                        }) {
+                            HStack(spacing: DesignSystem.Spacing.xs) {
+                                Image(systemName: "doc.on.doc")
+                                    .font(.system(size: 10, weight: .medium))
+                                Text("Copy")
+                                    .font(DesignSystem.Typography.micro)
+                            }
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                            .padding(.horizontal, DesignSystem.Spacing.sm)
+                            .padding(.vertical, DesignSystem.Spacing.xxs)
+                            .background(
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                    .fill(DesignSystem.Colors.surface)
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
-            }
-            
-            if !message.isUser {
+                
+                // Avatar (user on right)
+                Circle()
+                    .fill(DesignSystem.Colors.primary)
+                    .frame(width: 36, height: 36)
+                    .overlay(
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.white)
+                    )
+            } else {
+                // Avatar (AI on left)
+                Circle()
+                    .fill(DesignSystem.Colors.ai)
+                    .frame(width: 36, height: 36)
+                    .overlay(
+                        Image(systemName: "brain.head.profile")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.white)
+                    )
+                
+                // Message content (AI on left)
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    Text(message.content)
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .padding(DesignSystem.Spacing.lg)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
+                                .fill(DesignSystem.Colors.surface.opacity(0.8))
+                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl))
+                        )
+                        .frame(maxWidth: 400, alignment: .leading)
+                    
+                    // Copy button (shown on hover)
+                    if isHovered {
+                        Button(action: {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(message.content, forType: .string)
+                        }) {
+                            HStack(spacing: DesignSystem.Spacing.xs) {
+                                Image(systemName: "doc.on.doc")
+                                    .font(.system(size: 10, weight: .medium))
+                                Text("Copy")
+                                    .font(DesignSystem.Typography.micro)
+                            }
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                            .padding(.horizontal, DesignSystem.Spacing.sm)
+                            .padding(.vertical, DesignSystem.Spacing.xxs)
+                            .background(
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                    .fill(DesignSystem.Colors.surface)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                
                 Spacer()
             }
         }
@@ -1445,6 +1497,67 @@ struct ExpandedConversationRowView: View {
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.2)) {
                 isHovered = hovering
+            }
+        }
+    }
+}
+
+// MARK: - Typing Indicator View
+
+struct TypingIndicatorView: View {
+    @State private var animationOffset: CGFloat = 0
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            // Avatar (AI on left)
+            Circle()
+                .fill(DesignSystem.Colors.ai)
+                .frame(width: 36, height: 36)
+                .overlay(
+                    Image(systemName: "brain.head.profile")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                )
+            
+            // Typing indicator content
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    HStack(spacing: 4) {
+                        ForEach(0..<3, id: \.self) { index in
+                            Circle()
+                                .fill(DesignSystem.Colors.textSecondary)
+                                .frame(width: 6, height: 6)
+                                .scaleEffect(1.0 + 0.3 * sin(animationOffset + Double(index) * 0.6))
+                                .animation(
+                                    Animation.easeInOut(duration: 0.6)
+                                        .repeatForever(autoreverses: true)
+                                        .delay(Double(index) * 0.1),
+                                    value: animationOffset
+                                )
+                        }
+                    }
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                    .padding(.vertical, DesignSystem.Spacing.md)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
+                            .fill(DesignSystem.Colors.surface.opacity(0.8))
+                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl))
+                    )
+                    
+                    Spacer()
+                }
+                
+                Text("AI is thinking...")
+                    .font(DesignSystem.Typography.micro)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .padding(.leading, DesignSystem.Spacing.lg)
+            }
+            
+            Spacer()
+        }
+        .onAppear {
+            withAnimation {
+                animationOffset = .pi * 2
             }
         }
     }
