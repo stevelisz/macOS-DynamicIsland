@@ -150,6 +150,15 @@ class OllamaService: ObservableObject {
             return "Error: No active conversation"
         }
         
+        // Add user message first, before setting isGenerating
+        let userMessage = ChatMessage(role: .user, content: message)
+        conversationHistory.append(userMessage)
+        saveCurrentConversation()
+        
+        // Give a small delay to ensure UI updates before showing AI thinking indicator
+        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms delay
+        
+        // Now set generating state after user message is in conversation
         isGenerating = true
         generatingConversationId = originalConversationId
         defer { 
@@ -159,10 +168,6 @@ class OllamaService: ObservableObject {
         
         // Enhance query with web search if enabled
         let enhancedMessage = await enhanceMessageWithWebSearch(message)
-        
-        let userMessage = ChatMessage(role: .user, content: message) // Store original message
-        conversationHistory.append(userMessage)
-        saveCurrentConversation()
         
         do {
             let url = URL(string: "\(baseURL)/api/generate")!
@@ -225,6 +230,15 @@ class OllamaService: ObservableObject {
             return
         }
         
+        // Add user message first, before setting isGenerating
+        let userMessage = ChatMessage(role: .user, content: message)
+        conversationHistory.append(userMessage)
+        saveCurrentConversation()
+        
+        // Give a small delay to ensure UI updates before showing AI thinking indicator
+        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms delay
+        
+        // Now set generating state after user message is in conversation
         isGenerating = true
         generatingConversationId = originalConversationId
         defer { 
@@ -234,10 +248,6 @@ class OllamaService: ObservableObject {
         
         // Enhance query with web search if enabled
         let enhancedMessage = await enhanceMessageWithWebSearch(message)
-        
-        let userMessage = ChatMessage(role: .user, content: message) // Store original message
-        conversationHistory.append(userMessage)
-        saveCurrentConversation()
         
         do {
             let url = URL(string: "\(baseURL)/api/generate")!
