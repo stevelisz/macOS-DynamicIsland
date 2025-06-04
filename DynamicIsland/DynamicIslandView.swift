@@ -82,6 +82,31 @@ struct DynamicIslandView: View {
                         .padding(.leading, DesignSystem.Spacing.xl)
                         .padding(.top, DesignSystem.Spacing.micro)
                         .padding(.bottom, DesignSystem.Spacing.sm)
+                    
+                    // Expand button for supported tabs
+                    if shouldShowExpandButton(for: selectedView) {
+                        Button(action: {
+                            openExpandedWindow(for: selectedView)
+                        }) {
+                            HStack(spacing: DesignSystem.Spacing.xs) {
+                                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                    .font(.system(size: 10, weight: .medium))
+                                Text("Expand")
+                                    .font(DesignSystem.Typography.micro)
+                            }
+                            .foregroundColor(DesignSystem.Colors.primary)
+                            .padding(.horizontal, DesignSystem.Spacing.sm)
+                            .padding(.vertical, DesignSystem.Spacing.xxs)
+                            .background(
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                    .fill(DesignSystem.Colors.primary.opacity(0.1))
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, DesignSystem.Spacing.micro)
+                        .padding(.bottom, DesignSystem.Spacing.sm)
+                    }
+                    
                     Spacer()
                 }
                 
@@ -283,6 +308,30 @@ struct DynamicIslandView: View {
     
     private func quitApplication() {
         NSApplication.shared.terminate(nil)
+    }
+    
+    // MARK: - Expanded Window Functions
+    
+    private func shouldShowExpandButton(for viewType: MainViewType) -> Bool {
+        switch viewType {
+        case .clipboard, .aiAssistant, .developerTools:
+            return true
+        default:
+            return false
+        }
+    }
+    
+    private func openExpandedWindow(for viewType: MainViewType) {
+        switch viewType {
+        case .clipboard:
+            ExpandedWindowManager.shared.showClipboardWindow()
+        case .aiAssistant:
+            ExpandedWindowManager.shared.showAIAssistantWindow()
+        case .developerTools:
+            ExpandedWindowManager.shared.showDevToolsWindow()
+        default:
+            break
+        }
     }
 }
 

@@ -79,6 +79,11 @@ struct DeveloperToolsView: View {
     
     @FocusState private var isInputFocused: Bool
     
+    // Base64 Encoder/Decoder
+    @State private var base64Input: String = ""
+    @State private var base64Output: String = ""
+    @State private var base64Mode: Base64Mode = .encode
+    
     var body: some View {
         VStack(spacing: DesignSystem.Spacing.md) {
             // Tool Selector
@@ -109,6 +114,8 @@ struct DeveloperToolsView: View {
                     jsonFormatterInterface
                 case .hashGenerator:
                     hashGeneratorInterface
+                case .base64:
+                    base64GeneratorInterface
                 }
             }
             .animation(DesignSystem.Animation.smooth, value: selectedTool)
@@ -1160,6 +1167,59 @@ spec:
         }
     }
     
+    // MARK: - Base64 Encoder/Decoder
+    private var base64GeneratorInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Text("Base64 Encoder/Decoder")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                // Mode toggle
+                Menu {
+                    Button("Encode") { base64Mode = .encode; processBase64() }
+                    Button("Decode") { base64Mode = .decode; processBase64() }
+                } label: {
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        Text(base64Mode == .encode ? "Encode" : "Decode")
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
+                    .padding(.horizontal, DesignSystem.Spacing.xs)
+                    .padding(.vertical, DesignSystem.Spacing.xxs)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                            .fill(DesignSystem.Colors.surface.opacity(0.3))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            
+            CompactInputArea(
+                title: base64Mode == .encode ? "Text to Encode" : "Base64 to Decode",
+                text: $base64Input,
+                placeholder: base64Mode == .encode ? "Enter text to encode..." : "Enter Base64 string to decode...",
+                focusBinding: $isInputFocused
+            )
+            .onChange(of: base64Input) { _, _ in processBase64() }
+            
+            if !base64Output.isEmpty {
+                CompactOutputArea(
+                    title: base64Mode == .encode ? "Base64 Encoded" : "Decoded Text",
+                    text: base64Output,
+                    height: 80
+                ) {
+                    copyToClipboard(base64Output)
+                }
+            }
+        }
+    }
+    
     // MARK: - Processing Functions
     
     private func generateCURL() {
@@ -1732,6 +1792,10 @@ spec:
         hashResult = ""
         draggedFileName = nil
         fileData = nil
+        
+        // Clear Base64 inputs
+        base64Input = ""
+        base64Output = ""
     }
     
     private func clearCURLInputs() {
@@ -2156,6 +2220,25 @@ spec:
         
         return Array(Set(keys)).sorted()
     }
+    
+    private func processBase64() {
+        guard !base64Input.isEmpty else {
+            base64Output = ""
+            return
+        }
+        
+        switch base64Mode {
+        case .encode:
+            let data = base64Input.data(using: .utf8) ?? Data()
+            base64Output = data.base64EncodedString()
+        case .decode:
+            guard let data = Data(base64Encoded: base64Input) else {
+                base64Output = "❌ Invalid Base64"
+                return
+            }
+            base64Output = String(data: data, encoding: .utf8) ?? "❌ Unable to decode as UTF-8"
+        }
+    }
 }
 
 // MARK: - Supporting Views
@@ -2450,7 +2533,7 @@ struct HashRow: View {
 // MARK: - Supporting Types
 
 enum DeveloperTool: CaseIterable {
-    case curlGenerator, jwtDecoder, uuidGenerator, graphqlGenerator, apiMockup, yamlJsonConverter, textDiff, regexTester, qrGenerator, jsonFormatter, hashGenerator
+    case curlGenerator, jwtDecoder, uuidGenerator, graphqlGenerator, apiMockup, yamlJsonConverter, textDiff, regexTester, qrGenerator, jsonFormatter, hashGenerator, base64
     
     var title: String {
         switch self {
@@ -2465,6 +2548,45 @@ enum DeveloperTool: CaseIterable {
         case .qrGenerator: return "QR"
         case .jsonFormatter: return "JSON"
         case .hashGenerator: return "Hash"
+        case .base64: return "Base64"
+        }
+    }
+    
+    var displayName: String {
+        return title
+    }
+    
+    var description: String {
+        switch self {
+        case .curlGenerator: return "Generate cURL commands for API testing"
+        case .jwtDecoder: return "Decode and analyze JWT tokens"
+        case .uuidGenerator: return "Generate unique identifiers"
+        case .graphqlGenerator: return "Create GraphQL queries and mutations"
+        case .apiMockup: return "Generate mock API responses"
+        case .yamlJsonConverter: return "Convert between YAML and JSON formats"
+        case .textDiff: return "Compare and highlight text differences"
+        case .regexTester: return "Test and validate regular expressions"
+        case .qrGenerator: return "Generate QR codes"
+        case .jsonFormatter: return "Format, minify, and validate JSON"
+        case .hashGenerator: return "Generate cryptographic hashes"
+        case .base64: return "Encode and decode Base64"
+        }
+    }
+    
+    var subtitle: String {
+        switch self {
+        case .curlGenerator: return "API Testing"
+        case .jwtDecoder: return "Token Analysis"
+        case .uuidGenerator: return "ID Generation"
+        case .graphqlGenerator: return "Query Building"
+        case .apiMockup: return "Mock Data"
+        case .yamlJsonConverter: return "Format Conversion"
+        case .textDiff: return "Text Comparison"
+        case .regexTester: return "Pattern Matching"
+        case .qrGenerator: return "Code Generation"
+        case .jsonFormatter: return "JSON Processing"
+        case .hashGenerator: return "Cryptography"
+        case .base64: return "Encoding/Decoding"
         }
     }
     
@@ -2481,6 +2603,7 @@ enum DeveloperTool: CaseIterable {
         case .qrGenerator: return "qrcode"
         case .jsonFormatter: return "doc.text"
         case .hashGenerator: return "lock"
+        case .base64: return "textformat"
         }
     }
     
@@ -2497,6 +2620,7 @@ enum DeveloperTool: CaseIterable {
         case .qrGenerator: return DesignSystem.Colors.ai
         case .jsonFormatter: return DesignSystem.Colors.files
         case .hashGenerator: return DesignSystem.Colors.files
+        case .base64: return DesignSystem.Colors.clipboard
         }
     }
 }
@@ -2556,6 +2680,10 @@ enum UUIDFormat: CaseIterable {
         case .lowercase: return "lower"
         case .noDashes: return "nodash"
         }
+    }
+    
+    var displayName: String {
+        return title
     }
 }
 
@@ -2667,6 +2795,10 @@ enum JSONOperation: CaseIterable {
         }
     }
     
+    var displayName: String {
+        return title
+    }
+    
     var outputTitle: String {
         switch self {
         case .format: return "Formatted JSON"
@@ -2687,6 +2819,10 @@ enum HashType: CaseIterable {
         case .sha384: return "SHA-384"
         case .sha512: return "SHA-512"
         }
+    }
+    
+    var displayName: String {
+        return title
     }
     
     var color: Color {
@@ -2781,6 +2917,17 @@ enum RegexFlag: String, CaseIterable {
         case .caseInsensitive: return "Case Insensitive"
         case .multiline: return "Multiline"
         case .dotMatchesLineSeparators: return "Dot All"
+        }
+    }
+}
+
+enum Base64Mode: CaseIterable {
+    case encode, decode
+    
+    var title: String {
+        switch self {
+        case .encode: return "Encode"
+        case .decode: return "Decode"
         }
     }
 }

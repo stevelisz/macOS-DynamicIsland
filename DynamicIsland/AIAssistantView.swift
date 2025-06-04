@@ -324,15 +324,15 @@ struct AIAssistantView: View {
             // Model Selector
             if !ollamaService.availableModels.isEmpty {
                 Menu {
-                    ForEach(ollamaService.availableModels, id: \.self) { model in
+                    ForEach(ollamaService.availableModels, id: \.name) { model in
                         Button(action: {
                             if !ollamaService.isGenerating {
-                                ollamaService.selectedModel = model
+                                ollamaService.selectedModel = model.name
                             }
                         }) {
                             HStack {
-                                Text(model)
-                                if model == ollamaService.selectedModel {
+                                Text(model.name)
+                                if model.name == ollamaService.selectedModel {
                                     Image(systemName: "checkmark")
                                         .foregroundColor(DesignSystem.Colors.success)
                                 }

@@ -5,7 +5,7 @@ import SwiftUI
 class OllamaService: ObservableObject {
     @Published var isConnected = false
     @Published var isChecking = false
-    @Published var availableModels: [String] = []
+    @Published var availableModels: [OllamaModel] = []
     @Published var selectedModel = "llama3.2:3b"
     @Published var conversationHistory: [ChatMessage] = []
     @Published var isGenerating = false
@@ -18,6 +18,22 @@ class OllamaService: ObservableObject {
         didSet {
             UserDefaults.standard.webSearchEnabled = webSearchEnabled
         }
+    }
+    
+    // Computed properties for compatibility with ExpandedAIAssistantView
+    var currentModel: OllamaModel? {
+        get {
+            availableModels.first { $0.name == selectedModel }.map { $0 }
+        }
+        set {
+            if let newValue = newValue {
+                selectedModel = newValue.name
+            }
+        }
+    }
+    
+    var messages: [ChatMessage] {
+        return conversationHistory
     }
     
     // Computed property to check if Ollama is connected but no models are available
@@ -92,7 +108,7 @@ class OllamaService: ObservableObject {
             if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let models = json["models"] as? [[String: Any]] {
                 let modelNames = models.compactMap { $0["name"] as? String }
-                availableModels = modelNames.sorted()
+                availableModels = modelNames.sorted().map { OllamaModel(name: $0) }
                 
                 // Set default model if available - prefer smaller models for better performance
                 if !modelNames.isEmpty {
@@ -112,6 +128,15 @@ class OllamaService: ObservableObject {
     }
     
     // MARK: - Chat Methods
+    
+    func clearMessages() {
+        conversationHistory.removeAll()
+        saveCurrentConversation()
+    }
+    
+    func loadModels() async {
+        await loadAvailableModels()
+    }
     
     func sendMessage(_ message: String) async -> String {
         guard isConnected else { return "Error: Ollama is not connected" }
@@ -473,6 +498,19 @@ class OllamaService: ObservableObject {
 
 // MARK: - Models
 
+struct OllamaModel: Identifiable, Equatable, Hashable {
+    let id = UUID()
+    let name: String
+    
+    init(name: String) {
+        self.name = name
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
+    }
+}
+
 struct ChatMessage: Identifiable, Equatable {
     let id: UUID
     let role: MessageRole
@@ -491,6 +529,10 @@ struct ChatMessage: Identifiable, Equatable {
         self.role = role
         self.content = content
         self.timestamp = timestamp
+    }
+    
+    var isUser: Bool {
+        return role == .user
     }
 }
 

@@ -2,8 +2,6 @@ import SwiftUI
 import AppKit
 import Foundation
 
-// ClipboardItem and ClipboardItemType are now defined in DynamicIslandView.swift (or should be in ClipboardItem.swift)
-
 struct ClipboardManagerGallery: View {
     @Binding var clipboardItems: [ClipboardItem]
     @State private var searchText: String = ""
