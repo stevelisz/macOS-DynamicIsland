@@ -330,31 +330,12 @@ class OllamaService: ObservableObject {
         return await executeQuickPrompt(prompt)
     }
     
-    func explainError(error: String) async -> String {
-        let prompt = """
-        Please analyze this error message and provide:
-        1. What the error means in simple terms
-        2. Common causes of this error
-        3. Suggested solutions or debugging steps
-        
-        Error: \(error)
-        """
-        return await executeQuickPrompt(prompt)
-    }
-    
-    func executeQuickPrompt(_ prompt: String) async -> String {
+    // Execute a prompt without adding to conversation history
+    private func executeQuickPrompt(_ prompt: String) async -> String {
         guard isConnected else { return "Error: Ollama is not connected" }
         guard !availableModels.isEmpty else { 
             return "Error: No AI models are available. Please download a model first using 'ollama pull llama3.2:3b' in Terminal."
         }
-        
-        isGenerating = true
-        defer { 
-            isGenerating = false
-        }
-        
-        // Enhance query with web search if enabled
-        let enhancedMessage = await enhanceMessageWithWebSearch(prompt)
         
         do {
             let url = URL(string: "\(baseURL)/api/generate")!
@@ -362,16 +343,19 @@ class OllamaService: ObservableObject {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             
-            // Use enhanced message for AI processing
             let requestBody: [String: Any] = [
                 "model": selectedModel,
-                "prompt": enhancedMessage,
+                "prompt": prompt,
                 "stream": false
             ]
             
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
             
             let (data, response) = try await generateSession.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("Quick Prompt Response Status: \(httpResponse.statusCode)")
+            }
             
             if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let errorMessage = json["error"] as? String {

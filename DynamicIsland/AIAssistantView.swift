@@ -386,10 +386,6 @@ struct AIAssistantView: View {
                 CodeAssistantView(ollamaService: ollamaService)
             case .textProcessor:
                 TextProcessorView(ollamaService: ollamaService)
-            case .errorExplainer:
-                ErrorExplainerView(ollamaService: ollamaService)
-            case .quickPrompts:
-                QuickPromptsView(ollamaService: ollamaService)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -477,16 +473,12 @@ enum AITool: CaseIterable {
     case chat
     case codeAssistant
     case textProcessor
-    case errorExplainer
-    case quickPrompts
     
     var title: String {
         switch self {
         case .chat: return "Chat"
         case .codeAssistant: return "Code"
         case .textProcessor: return "Text"
-        case .errorExplainer: return "Debug"
-        case .quickPrompts: return "Quick"
         }
     }
     
@@ -495,8 +487,6 @@ enum AITool: CaseIterable {
         case .chat: return "message.fill"
         case .codeAssistant: return "chevron.left.forwardslash.chevron.right"
         case .textProcessor: return "doc.text.fill"
-        case .errorExplainer: return "ladybug.fill"
-        case .quickPrompts: return "bolt.fill"
         }
     }
     
@@ -505,8 +495,6 @@ enum AITool: CaseIterable {
         case .chat: return DesignSystem.Colors.primary
         case .codeAssistant: return DesignSystem.Colors.success
         case .textProcessor: return DesignSystem.Colors.clipboard
-        case .errorExplainer: return DesignSystem.Colors.error
-        case .quickPrompts: return DesignSystem.Colors.warning
         }
     }
 }
