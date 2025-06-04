@@ -483,7 +483,7 @@ struct DeveloperToolsView: View {
                 CompactOutputArea(
                     title: "Complete GraphQL Request",
                     text: graphqlResult,
-                    height: 60
+                    height: 240
                 ) {
                     copyToClipboard(graphqlResult)
                 }
@@ -687,7 +687,7 @@ spec:
                 CompactOutputArea(
                     title: yamlJsonMode.outputTitle,
                     text: yamlJsonOutput,
-                    height: 60
+                    height: 240
                 ) {
                     copyToClipboard(yamlJsonOutput)
                 }
