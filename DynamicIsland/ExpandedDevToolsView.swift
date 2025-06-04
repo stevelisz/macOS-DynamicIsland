@@ -88,16 +88,16 @@ struct ExpandedDevToolsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            headerSection
+            // Compact header
+            compactHeaderSection
             
             Divider()
                 .background(DesignSystem.Colors.border)
             
             // Main content area with side-by-side layout
             HStack(spacing: 0) {
-                // Tool selector sidebar
-                toolSidebar
+                // Compact tool selector sidebar
+                compactToolSidebar
                 
                 Divider()
                     .background(DesignSystem.Colors.border)
@@ -116,85 +116,95 @@ struct ExpandedDevToolsView: View {
         }
     }
     
-    // MARK: - Header Section
+    // MARK: - Compact Header Section
     
-    private var headerSection: some View {
+    private var compactHeaderSection: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Developer Tools")
-                    .font(DesignSystem.Typography.headline1)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: selectedTool.icon)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(selectedTool.color)
                 
-                Text(selectedTool.description)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(selectedTool.displayName)
+                        .font(DesignSystem.Typography.headline3)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Text(selectedTool.subtitle)
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
             }
             
             Spacer()
             
-            // Quick copy feedback
+            // Quick copy feedback - more compact
             if showCopiedFeedback {
                 HStack(spacing: DesignSystem.Spacing.xs) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 14, weight: .medium))
-                    Text("Copied to clipboard")
-                        .font(DesignSystem.Typography.captionMedium)
+                        .font(.system(size: 12, weight: .medium))
+                    Text("Copied")
+                        .font(DesignSystem.Typography.micro)
                 }
                 .foregroundColor(DesignSystem.Colors.success)
-                .padding(.horizontal, DesignSystem.Spacing.md)
-                .padding(.vertical, DesignSystem.Spacing.sm)
+                .padding(.horizontal, DesignSystem.Spacing.sm)
+                .padding(.vertical, 4)
                 .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                        .fill(DesignSystem.Colors.success.opacity(0.1))
+                    Capsule()
+                        .fill(DesignSystem.Colors.success.opacity(0.15))
                 )
             }
         }
-        .padding(.horizontal, DesignSystem.Spacing.xxl)
-        .padding(.vertical, DesignSystem.Spacing.xl)
+        .padding(.horizontal, DesignSystem.Spacing.lg)
+        .padding(.vertical, DesignSystem.Spacing.md)
     }
     
-    // MARK: - Tool Sidebar
+    // MARK: - Compact Tool Sidebar
     
-    private var toolSidebar: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            ForEach(DeveloperTool.allCases, id: \.self) { tool in
-                Button(action: {
-                    withAnimation(DesignSystem.Animation.gentle) {
-                        selectedTool = tool
-                    }
-                }) {
-                    HStack(spacing: DesignSystem.Spacing.sm) {
-                        Image(systemName: tool.icon)
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(selectedTool == tool ? .white : tool.color)
-                            .frame(width: 20)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(tool.displayName)
-                                .font(DesignSystem.Typography.bodySemibold)
-                                .foregroundColor(selectedTool == tool ? .white : DesignSystem.Colors.textPrimary)
-                            
-                            Text(tool.subtitle)
-                                .font(DesignSystem.Typography.micro)
-                                .foregroundColor(selectedTool == tool ? .white.opacity(0.8) : DesignSystem.Colors.textSecondary)
+    private var compactToolSidebar: some View {
+        ScrollView {
+            VStack(spacing: 6) {
+                ForEach(DeveloperTool.allCases, id: \.self) { tool in
+                    Button(action: {
+                        withAnimation(DesignSystem.Animation.gentle) {
+                            selectedTool = tool
                         }
-                        
-                        Spacer()
+                    }) {
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            Image(systemName: tool.icon)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(selectedTool == tool ? .white : tool.color)
+                                .frame(width: 18)
+                            
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(tool.displayName)
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(selectedTool == tool ? .white : DesignSystem.Colors.textPrimary)
+                                    .lineLimit(1)
+                                    .fixedSize(horizontal: true, vertical: false)
+                                
+                                Text(tool.subtitle)
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(selectedTool == tool ? .white.opacity(0.8) : DesignSystem.Colors.textSecondary)
+                                    .lineLimit(1)
+                                    .fixedSize(horizontal: true, vertical: false)
+                            }
+                            
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, DesignSystem.Spacing.md)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(selectedTool == tool ? tool.color : Color.clear)
+                        )
                     }
-                    .padding(.horizontal, DesignSystem.Spacing.lg)
-                    .padding(.vertical, DesignSystem.Spacing.md)
-                    .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                            .fill(selectedTool == tool ? tool.color : Color.clear)
-                    )
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
-            
-            Spacer()
+            .padding(DesignSystem.Spacing.md)
         }
-        .padding(DesignSystem.Spacing.lg)
-        .frame(width: 280)
+        .frame(width: 220)
         .background(.ultraThinMaterial)
     }
     
@@ -204,107 +214,104 @@ struct ExpandedDevToolsView: View {
         VStack {
             switch selectedTool {
             case .jsonFormatter:
-                jsonFormatterInterface
+                compactJsonFormatterInterface
             case .hashGenerator:
-                hashGeneratorInterface
+                compactHashGeneratorInterface
             case .base64:
-                base64Interface
+                compactBase64Interface
             case .uuidGenerator:
-                uuidGeneratorInterface
+                compactUuidGeneratorInterface
             case .curlGenerator:
-                curlGeneratorInterface
+                compactCurlGeneratorInterface
             case .jwtDecoder:
-                jwtDecoderInterface
+                compactJwtDecoderInterface
             case .graphqlGenerator:
-                graphqlGeneratorInterface
+                compactGraphqlGeneratorInterface
             case .apiMockup:
-                apiMockupInterface
+                compactApiMockupInterface
             case .yamlJsonConverter:
-                yamlJsonConverterInterface
+                compactYamlJsonConverterInterface
             case .textDiff:
-                textDiffInterface
+                compactTextDiffInterface
             case .regexTester:
-                regexTesterInterface
+                compactRegexTesterInterface
             case .qrGenerator:
-                qrGeneratorInterface
+                compactQrGeneratorInterface
             }
         }
-        .padding(DesignSystem.Spacing.xxl)
+        .padding(DesignSystem.Spacing.lg)
         .animation(DesignSystem.Animation.smooth, value: selectedTool)
     }
     
-    // MARK: - JSON Formatter Interface
+    // MARK: - Compact JSON Formatter Interface
     
-    private var jsonFormatterInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            // Operation selector
-            HStack {
-                Text("Operation:")
-                    .font(DesignSystem.Typography.bodySemibold)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
+    private var compactJsonFormatterInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Compact operation selector
+            HStack(spacing: DesignSystem.Spacing.md) {
                 Picker("Operation", selection: $jsonOperation) {
                     ForEach(JSONOperation.allCases, id: \.self) { op in
                         Text(op.displayName).tag(op)
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 300)
+                .frame(maxWidth: 280)
                 
                 Spacer()
                 
-                Button("Clear") {
-                    jsonInput = ""
-                    jsonOutput = ""
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    if !jsonInput.isEmpty {
+                        Button("Paste") {
+                            if let clipboardString = NSPasteboard.general.string(forType: .string) {
+                                jsonInput = clipboardString
+                                processJSON()
+                            }
+                        }
+                        .buttonStyle_custom(.ghost)
+                    }
+                    
+                    Button("Clear") {
+                        jsonInput = ""
+                        jsonOutput = ""
+                    }
+                    .buttonStyle_custom(.ghost)
                 }
-                .buttonStyle_custom(.ghost)
             }
             
-            // Input/Output layout
-            HStack(spacing: DesignSystem.Spacing.xl) {
-                // Input area
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            // Compact Input/Output layout
+            HStack(spacing: DesignSystem.Spacing.lg) {
+                // Input area - more compact
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Input")
-                            .font(DesignSystem.Typography.bodySemibold)
+                            .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
                         Spacer()
-                        
-                        if !jsonInput.isEmpty {
-                            Button("Paste") {
-                                if let clipboardString = NSPasteboard.general.string(forType: .string) {
-                                    jsonInput = clipboardString
-                                    processJSON()
-                                }
-                            }
-                            .buttonStyle_custom(.ghost)
-                        }
                     }
                     
                     TextEditor(text: $jsonInput)
-                        .font(.system(size: 14, design: .monospaced))
+                        .font(.system(size: 12, design: .monospaced))
                         .focused($isInputFocused)
                         .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                            RoundedRectangle(cornerRadius: 8)
                                 .stroke(isInputFocused ? DesignSystem.Colors.borderFocus : DesignSystem.Colors.border, lineWidth: 1)
                         )
                         .onChange(of: jsonInput) { _, _ in
                             processJSON()
                         }
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 
-                // Arrow indicator
+                // Compact arrow
                 Image(systemName: "arrow.right")
-                    .font(.system(size: 20, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundColor(DesignSystem.Colors.textSecondary)
                 
-                // Output area
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                // Output area - more compact
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Output")
-                            .font(DesignSystem.Typography.bodySemibold)
+                            .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                         
                         Spacer()
@@ -313,22 +320,114 @@ struct ExpandedDevToolsView: View {
                             Button("Copy") {
                                 copyToClipboard(jsonOutput)
                             }
-                            .buttonStyle_custom(.primary)
+                            .font(.system(size: 11, weight: .medium))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(DesignSystem.Colors.primary.opacity(0.1))
+                            .foregroundColor(DesignSystem.Colors.primary)
+                            .cornerRadius(6)
                         }
                     }
                     
                     ScrollView {
                         Text(jsonOutput.isEmpty ? "Formatted JSON will appear here..." : jsonOutput)
-                            .font(.system(size: 14, design: .monospaced))
+                            .font(.system(size: 12, design: .monospaced))
                             .foregroundColor(jsonOutput.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
                             .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .padding(DesignSystem.Spacing.lg)
+                            .padding(DesignSystem.Spacing.sm)
+                            .textSelection(.enabled)
                     }
                     .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        RoundedRectangle(cornerRadius: 6)
                             .fill(DesignSystem.Colors.surface)
                             .overlay(
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(maxHeight: .infinity)
+        }
+    }
+    
+    // MARK: - Compact Base64 Interface
+    
+    private var compactBase64Interface: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Compact mode selector
+            HStack {
+                Picker("Mode", selection: $base64Mode) {
+                    Text("Encode").tag(Base64Mode.encode)
+                    Text("Decode").tag(Base64Mode.decode)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 180)
+                
+                Spacer()
+            }
+            
+            // Compact Input/Output layout
+            HStack(spacing: DesignSystem.Spacing.lg) {
+                // Input area
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Input")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $base64Input)
+                        .font(.system(size: 12, design: .monospaced))
+                        .focused($isInputFocused)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(isInputFocused ? DesignSystem.Colors.borderFocus : DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                        .onChange(of: base64Input) { _, _ in
+                            processBase64()
+                        }
+                }
+                .frame(maxWidth: .infinity)
+                
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                // Output area
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Output")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Spacer()
+                        
+                        if !base64Output.isEmpty {
+                            Button("Copy") {
+                                copyToClipboard(base64Output)
+                            }
+                            .font(.system(size: 11, weight: .medium))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(DesignSystem.Colors.primary.opacity(0.1))
+                            .foregroundColor(DesignSystem.Colors.primary)
+                            .cornerRadius(6)
+                        }
+                    }
+                    
+                    ScrollView {
+                        Text(base64Output.isEmpty ? "Result will appear here..." : base64Output)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(base64Output.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .padding(DesignSystem.Spacing.md)
+                            .textSelection(.enabled)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(DesignSystem.Colors.surface)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
                                     .stroke(DesignSystem.Colors.border, lineWidth: 1)
                             )
                     )
@@ -337,6 +436,185 @@ struct ExpandedDevToolsView: View {
             }
             .frame(maxHeight: .infinity)
         }
+    }
+    
+    // MARK: - Compact Hash Generator Interface
+    
+    private var compactHashGeneratorInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Compact controls
+            HStack(spacing: DesignSystem.Spacing.lg) {
+                Picker("Mode", selection: $isFileMode) {
+                    Text("Text").tag(false)
+                    Text("File").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 140)
+                
+                Picker("Hash", selection: $hashType) {
+                    ForEach(HashType.allCases, id: \.self) { type in
+                        Text(type.displayName).tag(type)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 120)
+                
+                Spacer()
+            }
+            
+            // Compact Input/Output
+            HStack(spacing: DesignSystem.Spacing.lg) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Input")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    if isFileMode {
+                        VStack(spacing: 12) {
+                            Image(systemName: "doc.fill")
+                                .font(.system(size: 28, weight: .light))
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                            
+                            Text(draggedFileName ?? "Drop file or click to select")
+                                .font(.system(size: 12))
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                            
+                            Button("Select File") {
+                                selectFile()
+                            }
+                            .font(.system(size: 11, weight: .medium))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(DesignSystem.Colors.primary.opacity(0.1))
+                            .foregroundColor(DesignSystem.Colors.primary)
+                            .cornerRadius(6)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(DesignSystem.Colors.surface)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(DesignSystem.Colors.border, style: StrokeStyle(lineWidth: 1, dash: [6]))
+                                )
+                        )
+                        .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in
+                            handleFileDrop(providers)
+                        }
+                    } else {
+                        TextEditor(text: $hashInput)
+                            .font(.system(size: 12, design: .monospaced))
+                            .focused($isInputFocused)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(isInputFocused ? DesignSystem.Colors.borderFocus : DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                            .onChange(of: hashInput) { _, _ in
+                                generateHash()
+                            }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Hash (\(hashType.displayName))")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Spacer()
+                        
+                        if !hashResult.isEmpty {
+                            Button("Copy") {
+                                copyToClipboard(hashResult)
+                            }
+                            .font(.system(size: 11, weight: .medium))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(DesignSystem.Colors.primary.opacity(0.1))
+                            .foregroundColor(DesignSystem.Colors.primary)
+                            .cornerRadius(6)
+                        }
+                    }
+                    
+                    ScrollView {
+                        Text(hashResult.isEmpty ? "Hash will appear here..." : hashResult)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(hashResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .padding(DesignSystem.Spacing.md)
+                            .textSelection(.enabled)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(DesignSystem.Colors.surface)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .onChange(of: isFileMode) { _, _ in
+            hashInput = ""
+            hashResult = ""
+            draggedFileName = nil
+            fileData = nil
+        }
+        .onChange(of: hashType) { _, _ in
+            if isFileMode && fileData != nil {
+                generateHashFromFile()
+            } else if !hashInput.isEmpty {
+                generateHash()
+            }
+        }
+    }
+    
+    // MARK: - Placeholder Compact Implementations
+    
+    private var compactUuidGeneratorInterface: some View {
+        uuidGeneratorInterface
+    }
+    
+    private var compactCurlGeneratorInterface: some View {
+        curlGeneratorInterface
+    }
+    
+    private var compactJwtDecoderInterface: some View {
+        jwtDecoderInterface
+    }
+    
+    private var compactGraphqlGeneratorInterface: some View {
+        graphqlGeneratorInterface
+    }
+    
+    private var compactApiMockupInterface: some View {
+        apiMockupInterface
+    }
+    
+    private var compactYamlJsonConverterInterface: some View {
+        yamlJsonConverterInterface
+    }
+    
+    private var compactTextDiffInterface: some View {
+        textDiffInterface
+    }
+    
+    private var compactRegexTesterInterface: some View {
+        regexTesterInterface
+    }
+    
+    private var compactQrGeneratorInterface: some View {
+        qrGeneratorInterface
     }
     
     // MARK: - Hash Generator Interface

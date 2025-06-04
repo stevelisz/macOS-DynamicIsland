@@ -99,8 +99,8 @@ class ExpandedWindowManager: ObservableObject {
         devToolsWindow = createWindow(
             title: "Developer Tools",
             contentView: ExpandedDevToolsView(),
-            size: NSSize(width: 900, height: 650),
-            minSize: NSSize(width: 800, height: 500)
+            size: NSSize(width: 800, height: 600),
+            minSize: NSSize(width: 700, height: 500)
         )
         
         devToolsWindow?.makeKeyAndOrderFront(nil)
