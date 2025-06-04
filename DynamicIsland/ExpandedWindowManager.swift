@@ -82,6 +82,11 @@ class ExpandedWindowManager: ObservableObject {
         window.minSize = minSize
         window.center()
         
+        // Set window level above the Dynamic Island window
+        // Dynamic Island uses: NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.modalPanelWindow)) + 1)
+        // So we use +2 to appear above it
+        window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.modalPanelWindow)) + 2)
+        
         // Create hosting view with custom background
         let hostingView = NSHostingView(rootView: 
             ExpandedWindowContainer {

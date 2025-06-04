@@ -10,6 +10,7 @@ struct ExpandedAIAssistantView: View {
     @State private var conversations: [ChatConversation] = []
     @State private var searchText = ""
     @FocusState private var isChatInputFocused: Bool
+    @State private var showSavedFeedback = false
     
     var body: some View {
         Group {
@@ -324,16 +325,17 @@ struct ExpandedAIAssistantView: View {
                     .buttonStyle(.plain)
                     
                     Button(action: exportChat) {
-                        Image(systemName: "square.and.arrow.up")
+                        Image(systemName: showSavedFeedback ? "checkmark.circle.fill" : "doc.on.clipboard")
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                            .foregroundColor(showSavedFeedback ? DesignSystem.Colors.success : DesignSystem.Colors.textSecondary)
                             .frame(width: 36, height: 36)
                             .background(
                                 Circle()
-                                    .fill(DesignSystem.Colors.surface)
+                                    .fill(showSavedFeedback ? DesignSystem.Colors.success.opacity(0.1) : DesignSystem.Colors.surface)
                             )
                     }
                     .buttonStyle(.plain)
+                    .help(showSavedFeedback ? "Chat copied to clipboard!" : "Copy entire chat to clipboard")
                 }
             }
             .padding(.horizontal, DesignSystem.Spacing.xxl)
@@ -500,13 +502,34 @@ struct ExpandedAIAssistantView: View {
     }
     
     private func exportChat() {
+        let conversationTitle = ollamaService.currentConversation?.title ?? "New Chat"
+        
         let messages = ollamaService.messages.map { message in
-            "\(message.isUser ? "User" : "Assistant"): \(message.content)"
+            let timestamp = DateFormatter.chatTimestamp.string(from: message.timestamp)
+            return "[\(timestamp)] \(message.isUser ? "User" : "AI"): \(message.content)"
         }.joined(separator: "\n\n")
+        
+        let content = """
+        Chat Conversation: \(conversationTitle)
+        Exported: \(DateFormatter.exportTimestamp.string(from: Date()))
+        Model: \(ollamaService.currentModel?.name ?? "Unknown")
+        Messages: \(ollamaService.messages.count)
+        
+        ──────────────────────────────────────
+        
+        \(messages)
+        """
         
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(messages, forType: .string)
+        pasteboard.setString(content, forType: .string)
+        
+        // Show feedback
+        showSavedFeedback = true
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            showSavedFeedback = false
+        }
     }
     
     private func startOllama() {
@@ -781,7 +804,7 @@ struct ExpandedAIAssistantView: View {
 
 struct ExpandedChatMessage: View {
     let message: ChatMessage
-    @State private var isHovered = false
+    @State private var showCopiedFeedback = false
     
     var body: some View {
         HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
@@ -800,28 +823,19 @@ struct ExpandedChatMessage: View {
                         )
                         .frame(maxWidth: 400, alignment: .trailing)
                     
-                    // Copy button (shown on hover)
-                    if isHovered {
-                        Button(action: {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(message.content, forType: .string)
-                        }) {
-                            HStack(spacing: DesignSystem.Spacing.xs) {
-                                Image(systemName: "doc.on.doc")
-                                    .font(.system(size: 10, weight: .medium))
-                                Text("Copy")
-                                    .font(DesignSystem.Typography.micro)
-                            }
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                            .padding(.horizontal, DesignSystem.Spacing.sm)
-                            .padding(.vertical, DesignSystem.Spacing.xxs)
+                    // Copy button (always visible)
+                    Button(action: copyMessage) {
+                        Image(systemName: showCopiedFeedback ? "checkmark" : "doc.on.doc")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(showCopiedFeedback ? DesignSystem.Colors.success : DesignSystem.Colors.textTertiary)
+                            .padding(6)
                             .background(
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
-                                    .fill(DesignSystem.Colors.surface)
+                                Circle()
+                                    .fill(showCopiedFeedback ? DesignSystem.Colors.success.opacity(0.1) : DesignSystem.Colors.surface.opacity(0.8))
                             )
-                        }
-                        .buttonStyle(.plain)
                     }
+                    .buttonStyle(.plain)
+                    .opacity(showCopiedFeedback ? 1.0 : 0.6)
                 }
                 
                 // Avatar (user on right)
@@ -857,35 +871,36 @@ struct ExpandedChatMessage: View {
                         )
                         .frame(maxWidth: 400, alignment: .leading)
                     
-                    // Copy button (shown on hover)
-                    if isHovered {
-                        Button(action: {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(message.content, forType: .string)
-                        }) {
-                            HStack(spacing: DesignSystem.Spacing.xs) {
-                                Image(systemName: "doc.on.doc")
-                                    .font(.system(size: 10, weight: .medium))
-                                Text("Copy")
-                                    .font(DesignSystem.Typography.micro)
-                            }
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                            .padding(.horizontal, DesignSystem.Spacing.sm)
-                            .padding(.vertical, DesignSystem.Spacing.xxs)
+                    // Copy button (always visible)
+                    Button(action: copyMessage) {
+                        Image(systemName: showCopiedFeedback ? "checkmark" : "doc.on.doc")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(showCopiedFeedback ? DesignSystem.Colors.success : DesignSystem.Colors.textTertiary)
+                            .padding(6)
                             .background(
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
-                                    .fill(DesignSystem.Colors.surface)
+                                Circle()
+                                    .fill(showCopiedFeedback ? DesignSystem.Colors.success.opacity(0.1) : DesignSystem.Colors.surface.opacity(0.8))
                             )
-                        }
-                        .buttonStyle(.plain)
                     }
+                    .buttonStyle(.plain)
+                    .opacity(showCopiedFeedback ? 1.0 : 0.6)
                 }
                 
                 Spacer()
             }
         }
-        .onHover { isHovered = $0 }
-        .animation(DesignSystem.Animation.gentle, value: isHovered)
+        .animation(DesignSystem.Animation.gentle, value: showCopiedFeedback)
+    }
+    
+    private func copyMessage() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(message.content, forType: .string)
+        
+        showCopiedFeedback = true
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            showCopiedFeedback = false
+        }
     }
 }
 
@@ -1564,4 +1579,26 @@ struct TypingIndicatorView: View {
         timer?.invalidate()
         timer = nil
     }
+}
+
+// MARK: - DateFormatter Extensions
+
+extension DateFormatter {
+    static let fileTimestamp: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH.mm.ss"
+        return formatter
+    }()
+    
+    static let chatTimestamp: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter
+    }()
+    
+    static let exportTimestamp: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter
+    }()
 } 
