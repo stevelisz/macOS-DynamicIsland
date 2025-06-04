@@ -7,8 +7,39 @@ class ExpandedWindowManager: ObservableObject {
     private var clipboardWindow: NSWindow?
     private var aiAssistantWindow: NSWindow?
     private var devToolsWindow: NSWindow?
+    private var dynamicIslandWindow: NSWindow?
+    private var originalDynamicIslandLevel: NSWindow.Level?
     
     private init() {}
+    
+    // MARK: - Dynamic Island Level Management
+    
+    private func lowerDynamicIslandLevel() {
+        // Find the Dynamic Island window and temporarily lower its level
+        for window in NSApplication.shared.windows {
+            if window is DynamicIslandWindow {
+                dynamicIslandWindow = window
+                originalDynamicIslandLevel = window.level
+                window.level = .normal // Set to normal level so expanded windows appear above
+                break
+            }
+        }
+    }
+    
+    private func restoreDynamicIslandLevel() {
+        // Restore the Dynamic Island window to its original level
+        if let window = dynamicIslandWindow, let originalLevel = originalDynamicIslandLevel {
+            window.level = originalLevel
+        }
+        dynamicIslandWindow = nil
+        originalDynamicIslandLevel = nil
+    }
+    
+    private func hasVisibleExpandedWindow() -> Bool {
+        return (clipboardWindow?.isVisible == true) ||
+               (aiAssistantWindow?.isVisible == true) ||
+               (devToolsWindow?.isVisible == true)
+    }
     
     // MARK: - Window Creation
     
@@ -16,6 +47,11 @@ class ExpandedWindowManager: ObservableObject {
         if clipboardWindow?.isVisible == true {
             clipboardWindow?.orderFront(nil)
             return
+        }
+        
+        // Lower Dynamic Island level before showing expanded window
+        if !hasVisibleExpandedWindow() {
+            lowerDynamicIslandLevel()
         }
         
         clipboardWindow = createWindow(
@@ -34,6 +70,11 @@ class ExpandedWindowManager: ObservableObject {
             return
         }
         
+        // Lower Dynamic Island level before showing expanded window
+        if !hasVisibleExpandedWindow() {
+            lowerDynamicIslandLevel()
+        }
+        
         aiAssistantWindow = createWindow(
             title: "AI Assistant",
             contentView: ExpandedAIAssistantView(),
@@ -48,6 +89,11 @@ class ExpandedWindowManager: ObservableObject {
         if devToolsWindow?.isVisible == true {
             devToolsWindow?.orderFront(nil)
             return
+        }
+        
+        // Lower Dynamic Island level before showing expanded window
+        if !hasVisibleExpandedWindow() {
+            lowerDynamicIslandLevel()
         }
         
         devToolsWindow = createWindow(
@@ -82,10 +128,12 @@ class ExpandedWindowManager: ObservableObject {
         window.minSize = minSize
         window.center()
         
-        // Set window level above the Dynamic Island window
-        // Dynamic Island uses: NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.modalPanelWindow)) + 1)
-        // So we use +2 to appear above it
-        window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.modalPanelWindow)) + 2)
+        // Use normal window level since we're managing Dynamic Island level separately
+        window.level = .normal
+        
+        // Set up window delegate to handle cleanup when window closes
+        let delegate = ExpandedWindowDelegate()
+        window.delegate = delegate
         
         // Create hosting view with custom background
         let hostingView = NSHostingView(rootView: 
@@ -112,6 +160,37 @@ class ExpandedWindowManager: ObservableObject {
         clipboardWindow = nil
         aiAssistantWindow = nil
         devToolsWindow = nil
+        
+        // Restore Dynamic Island level when all windows are closed
+        restoreDynamicIslandLevel()
+    }
+    
+    // Called when any expanded window closes
+    func onWindowClosed() {
+        // Clean up nil references
+        if clipboardWindow?.isVisible != true {
+            clipboardWindow = nil
+        }
+        if aiAssistantWindow?.isVisible != true {
+            aiAssistantWindow = nil
+        }
+        if devToolsWindow?.isVisible != true {
+            devToolsWindow = nil
+        }
+        
+        // If no expanded windows are visible, restore Dynamic Island level
+        if !hasVisibleExpandedWindow() {
+            restoreDynamicIslandLevel()
+        }
+    }
+}
+
+// MARK: - Window Delegate
+
+class ExpandedWindowDelegate: NSObject, NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        // Notify the manager that a window is closing
+        ExpandedWindowManager.shared.onWindowClosed()
     }
 }
 
