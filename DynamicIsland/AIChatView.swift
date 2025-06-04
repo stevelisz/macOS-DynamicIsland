@@ -281,9 +281,11 @@ struct AIChatView: View {
                 TextField("Ask me anything...", text: $inputText, axis: .vertical)
                     .textFieldStyle(.plain)
                     .lineLimit(1...5)
-                    .disabled(ollamaService.isConnectedButNoModels)
+                    .disabled(ollamaService.isConnectedButNoModels || ollamaService.isGenerating)
                     .onSubmit {
-                        sendMessage()
+                        if !ollamaService.isGenerating {
+                            sendMessage()
+                        }
                     }
                 
                 // Send button
@@ -293,7 +295,7 @@ struct AIChatView: View {
                         .foregroundColor(canSendMessage ? .accentColor : .secondary)
                 }
                 .buttonStyle(PlainButtonStyle())
-                .disabled(!canSendMessage)
+                .disabled(!canSendMessage || ollamaService.isGenerating)
             }
             .padding(16)
             .background(Color(NSColor.controlBackgroundColor))

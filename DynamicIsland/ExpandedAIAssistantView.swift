@@ -14,6 +14,13 @@ struct ExpandedAIAssistantView: View {
     @State private var isDropTargeted = false
     @State private var draggedFiles: [URL] = []
     
+    // Computed property for input validation
+    private var canSendMessage: Bool {
+        !chatInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && 
+        !ollamaService.isGenerating && 
+        ollamaService.isReadyToChat
+    }
+    
     var body: some View {
         Group {
             if ollamaService.isConnected {
@@ -295,17 +302,21 @@ struct ExpandedAIAssistantView: View {
                         .font(DesignSystem.Typography.body)
                         .textFieldStyle(.plain)
                         .focused($isChatInputFocused)
+                        .disabled(ollamaService.isGenerating || !ollamaService.isReadyToChat)
                         .onSubmit {
-                            sendMessage()
+                            if !ollamaService.isGenerating {
+                                sendMessage()
+                            }
                         }
                     
                     if !chatInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Button(action: sendMessage) {
                             Image(systemName: "arrow.up.circle.fill")
                                 .font(.system(size: 24, weight: .medium))
-                                .foregroundColor(DesignSystem.Colors.primary)
+                                .foregroundColor(canSendMessage ? DesignSystem.Colors.primary : DesignSystem.Colors.textSecondary)
                         }
                         .buttonStyle(.plain)
+                        .disabled(!canSendMessage)
                     }
                 }
                 .padding(.horizontal, DesignSystem.Spacing.lg)
