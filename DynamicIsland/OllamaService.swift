@@ -304,12 +304,12 @@ class OllamaService: ObservableObject {
     
     func processCode(code: String, task: CodeTask) async -> String {
         let prompt = task.buildPrompt(for: code)
-        return await sendMessage(prompt)
+        return await executeQuickPrompt(prompt)
     }
     
     func processText(text: String, task: TextTask) async -> String {
         let prompt = task.buildPrompt(for: text)
-        return await sendMessage(prompt)
+        return await executeQuickPrompt(prompt)
     }
     
     func explainError(error: String) async -> String {
@@ -321,7 +321,59 @@ class OllamaService: ObservableObject {
         
         Error: \(error)
         """
-        return await sendMessage(prompt)
+        return await executeQuickPrompt(prompt)
+    }
+    
+    func executeQuickPrompt(_ prompt: String) async -> String {
+        guard isConnected else { return "Error: Ollama is not connected" }
+        guard !availableModels.isEmpty else { 
+            return "Error: No AI models are available. Please download a model first using 'ollama pull llama3.2:3b' in Terminal."
+        }
+        
+        isGenerating = true
+        defer { isGenerating = false }
+        
+        // Enhance query with web search if enabled
+        let enhancedMessage = await enhanceMessageWithWebSearch(prompt)
+        
+        do {
+            let url = URL(string: "\(baseURL)/api/generate")!
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            // Use enhanced message for AI processing
+            let requestBody: [String: Any] = [
+                "model": selectedModel,
+                "prompt": enhancedMessage,
+                "stream": false
+            ]
+            
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            
+            let (data, response) = try await generateSession.data(for: request)
+            
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                if let errorMessage = json["error"] as? String {
+                    return "Error: \(errorMessage)"
+                }
+                
+                if let responseText = json["response"] as? String {
+                    return responseText
+                }
+            }
+            
+        } catch {
+            let errorMsg = error.localizedDescription
+            if errorMsg.contains("timed out") {
+                return "Error: Request timed out. The model might be too large or not loaded. Try a smaller model."
+            } else if errorMsg.contains("Connection refused") {
+                return "Error: Connection refused. Make sure Ollama is running with 'ollama serve'."
+            }
+            return "Error: \(errorMsg)"
+        }
+        
+        return "Error: Failed to get response from model"
     }
     
     // MARK: - Helper Methods

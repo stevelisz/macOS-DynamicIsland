@@ -6,6 +6,7 @@ struct ExpandedAIAssistantView: View {
     @State private var showOllamaInstructions = false
     @State private var isStartingOllama = false
     @State private var chatInput: String = ""
+    @State private var showingHistory = false
     @FocusState private var isChatInputFocused: Bool
     
     var body: some View {
@@ -34,17 +35,31 @@ struct ExpandedAIAssistantView: View {
     // MARK: - Connected View
     
     private var connectedView: some View {
-        VStack(spacing: 0) {
-            // Header with model selector and tools
-            headerSection
+        HStack(spacing: 0) {
+            // Chat history sidebar (only shown in chat mode)
+            if selectedTool == .chat && showingHistory {
+                chatHistorySidebar
+                    .frame(width: 350)
+                    .transition(.move(edge: .leading))
+                
+                Divider()
+                    .background(DesignSystem.Colors.border)
+            }
             
-            Divider()
-                .background(DesignSystem.Colors.border)
-            
-            // Main chat interface
-            chatInterface
+            // Main content
+            VStack(spacing: 0) {
+                // Header with model selector and tools
+                headerSection
+                
+                Divider()
+                    .background(DesignSystem.Colors.border)
+                
+                // Main chat interface
+                chatInterface
+            }
         }
         .background(Color.clear)
+        .animation(.easeInOut(duration: 0.3), value: showingHistory)
     }
     
     // MARK: - Header Section
@@ -54,24 +69,45 @@ struct ExpandedAIAssistantView: View {
             // Title and status
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("AI Assistant")
-                        .font(DesignSystem.Typography.headline1)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    if selectedTool == .chat {
+                        Text(ollamaService.currentConversation?.title ?? "New Chat")
+                            .font(DesignSystem.Typography.headline1)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .lineLimit(1)
+                    } else {
+                        Text("AI Assistant")
+                            .font(DesignSystem.Typography.headline1)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                    }
                     
                     HStack(spacing: DesignSystem.Spacing.xs) {
                         Circle()
                             .fill(DesignSystem.Colors.success)
                             .frame(width: 8, height: 8)
-                        Text("Connected • \(ollamaService.currentModel?.name ?? "No model")")
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        
+                        if selectedTool == .chat {
+                            Text("Connected • \(ollamaService.currentModel?.name ?? "No model") • \(ollamaService.conversationHistory.count) messages")
+                                .font(DesignSystem.Typography.caption)
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                        } else {
+                            Text("Connected • \(ollamaService.currentModel?.name ?? "No model")")
+                                .font(DesignSystem.Typography.caption)
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                        }
                     }
                 }
                 
                 Spacer()
                 
-                // Model selector
-                modelSelector
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    // Chat history controls (only for chat mode)
+                    if selectedTool == .chat {
+                        chatControls
+                    }
+                    
+                    // Model selector
+                    modelSelector
+                }
             }
             
             // Tool selector
@@ -129,6 +165,10 @@ struct ExpandedAIAssistantView: View {
                 Button(action: {
                     withAnimation(DesignSystem.Animation.gentle) {
                         selectedTool = tool
+                        // Hide history sidebar when switching away from chat
+                        if tool != .chat {
+                            showingHistory = false
+                        }
                     }
                 }) {
                     HStack(spacing: DesignSystem.Spacing.xs) {
@@ -178,8 +218,10 @@ struct ExpandedAIAssistantView: View {
                 }
             }
             
-            // Input area
-            inputSection
+            // Input area - only show for chat
+            if selectedTool == .chat {
+                inputSection
+            }
         }
     }
     
@@ -205,6 +247,7 @@ struct ExpandedAIAssistantView: View {
                 ExpandedErrorExplainerView(ollamaService: ollamaService)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     private var inputSection: some View {
@@ -462,6 +505,181 @@ struct ExpandedAIAssistantView: View {
             isStartingOllama = false
         }
     }
+    
+    // MARK: - Chat Controls
+    
+    private var chatControls: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            // History toggle
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showingHistory.toggle()
+                }
+            }) {
+                Image(systemName: showingHistory ? "sidebar.left" : "clock")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(showingHistory ? DesignSystem.Colors.primary : DesignSystem.Colors.textSecondary)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        Circle()
+                            .fill(showingHistory ? DesignSystem.Colors.primary.opacity(0.1) : DesignSystem.Colors.surface)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help(showingHistory ? "Hide history" : "Show chat history")
+            
+            // New conversation
+            Button(action: {
+                ollamaService.createNewConversation()
+            }) {
+                Image(systemName: "plus.circle")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        Circle()
+                            .fill(DesignSystem.Colors.surface)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help("New conversation")
+            
+            // Web search toggle
+            Button(action: {
+                ollamaService.toggleWebSearch()
+            }) {
+                Image(systemName: ollamaService.webSearchEnabled ? "globe.americas.fill" : "globe.americas")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(ollamaService.webSearchEnabled ? DesignSystem.Colors.primary : DesignSystem.Colors.textSecondary)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        Circle()
+                            .fill(ollamaService.webSearchEnabled ? DesignSystem.Colors.primary.opacity(0.1) : DesignSystem.Colors.surface)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help(ollamaService.webSearchEnabled ? "Disable web search" : "Enable web search")
+        }
+    }
+    
+    // MARK: - Chat History Sidebar
+    
+    private var chatHistorySidebar: some View {
+        VStack(spacing: 0) {
+            // Sidebar header
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Chat History")
+                        .font(DesignSystem.Typography.headline2)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Text("\(UserDefaults.standard.chatConversations.count) conversations")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+                
+                Spacer()
+                
+                Button(action: {
+                    ollamaService.createNewConversation()
+                }) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.primary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.lg)
+            .padding(.vertical, DesignSystem.Spacing.md)
+            
+            Divider()
+                .background(DesignSystem.Colors.border)
+            
+            // Search bar
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .font(.system(size: 14, weight: .medium))
+                
+                TextField("Search conversations...", text: .constant(""))
+                    .textFieldStyle(.plain)
+                    .font(DesignSystem.Typography.body)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                    .fill(DesignSystem.Colors.surface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                            .stroke(DesignSystem.Colors.border, lineWidth: 0.5)
+                    )
+            )
+            .padding(.horizontal, DesignSystem.Spacing.lg)
+            .padding(.vertical, DesignSystem.Spacing.md)
+            
+            // Conversations list
+            ScrollView {
+                LazyVStack(spacing: DesignSystem.Spacing.sm) {
+                    ForEach(UserDefaults.standard.chatConversations) { conversation in
+                        ExpandedConversationRowView(
+                            conversation: conversation,
+                            isSelected: UserDefaults.standard.currentConversationId == conversation.id,
+                            onSelect: { selectConversation(conversation) },
+                            onDelete: { deleteConversation(conversation) }
+                        )
+                    }
+                }
+                .padding(.horizontal, DesignSystem.Spacing.lg)
+            }
+            
+            Spacer()
+            
+            // Bottom actions
+            VStack(spacing: DesignSystem.Spacing.sm) {
+                Divider()
+                    .background(DesignSystem.Colors.border)
+                
+                HStack {
+                    Button("Clear All") {
+                        UserDefaults.standard.clearAllConversations()
+                        ollamaService.createNewConversation()
+                    }
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.error)
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                            .fill(DesignSystem.Colors.error.opacity(0.1))
+                    )
+                    .buttonStyle(.plain)
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, DesignSystem.Spacing.lg)
+                .padding(.bottom, DesignSystem.Spacing.md)
+            }
+        }
+        .background(.ultraThinMaterial)
+    }
+    
+    // MARK: - Chat History Actions
+    
+    private func selectConversation(_ conversation: ChatConversation) {
+        UserDefaults.standard.currentConversationId = conversation.id
+        ollamaService.loadConversation(conversation)
+    }
+    
+    private func deleteConversation(_ conversation: ChatConversation) {
+        UserDefaults.standard.deleteConversation(id: conversation.id)
+        
+        // If we deleted the current conversation, create a new one
+        if UserDefaults.standard.currentConversationId == conversation.id {
+            ollamaService.createNewConversation()
+        }
+    }
 }
 
 // MARK: - Expanded Chat Message
@@ -641,7 +859,8 @@ struct ExpandedCodeReviewView: View {
             }
             .frame(maxHeight: .infinity)
         }
-        .padding(DesignSystem.Spacing.xxl)
+        .padding(.horizontal, DesignSystem.Spacing.xl)
+        .padding(.vertical, DesignSystem.Spacing.lg)
     }
     
     private func processCode() {
@@ -759,7 +978,8 @@ struct ExpandedTextProcessorView: View {
             }
             .frame(maxHeight: .infinity)
         }
-        .padding(DesignSystem.Spacing.xxl)
+        .padding(.horizontal, DesignSystem.Spacing.xl)
+        .padding(.vertical, DesignSystem.Spacing.lg)
     }
     
     private func processText() {
@@ -895,14 +1115,15 @@ struct ExpandedQuickPromptsView: View {
             }
             .frame(maxHeight: .infinity)
         }
-        .padding(DesignSystem.Spacing.xxl)
+        .padding(.horizontal, DesignSystem.Spacing.xl)
+        .padding(.vertical, DesignSystem.Spacing.lg)
     }
     
     private func executePrompt(_ prompt: String) {
         isProcessing = true
         
         Task {
-            let result = await ollamaService.sendMessage(prompt)
+            let result = await ollamaService.executeQuickPrompt(prompt)
             await MainActor.run {
                 promptResult = result
                 isProcessing = false
@@ -1016,7 +1237,8 @@ struct ExpandedErrorExplainerView: View {
             }
             .frame(maxHeight: .infinity)
         }
-        .padding(DesignSystem.Spacing.xxl)
+        .padding(.horizontal, DesignSystem.Spacing.xl)
+        .padding(.vertical, DesignSystem.Spacing.lg)
     }
     
     private func analyzeError() {
@@ -1044,6 +1266,107 @@ extension AITool {
         case .textProcessor: return "Text Processor"
         case .errorExplainer: return "Error Explainer"
         case .quickPrompts: return "Quick Prompts"
+        }
+    }
+}
+
+// MARK: - Expanded Conversation Row View
+
+struct ExpandedConversationRowView: View {
+    let conversation: ChatConversation
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let onDelete: () -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            // Selection indicator
+            Circle()
+                .fill(isSelected ? DesignSystem.Colors.primary : DesignSystem.Colors.surface)
+                .frame(width: 8, height: 8)
+                .padding(.top, 6)
+                .shadow(color: isSelected ? DesignSystem.Colors.primary.opacity(0.3) : .clear, radius: 4)
+            
+            // Conversation content
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                HStack {
+                    Text(conversation.title)
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    
+                    Spacer()
+                    
+                    Text("\(conversation.messageCount)")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(DesignSystem.Colors.surface)
+                        )
+                }
+                
+                Text(conversation.preview)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                
+                HStack {
+                    Text(conversation.formattedDate)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    
+                    Spacer()
+                    
+                    if isHovered {
+                        Button(action: onDelete) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.error)
+                                .padding(4)
+                                .background(
+                                    Circle()
+                                        .fill(DesignSystem.Colors.error.opacity(0.1))
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .transition(.opacity.combined(with: .scale))
+                    }
+                }
+            }
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                .fill(isSelected ? DesignSystem.Colors.primary.opacity(0.1) : 
+                     (isHovered ? DesignSystem.Colors.surface.opacity(0.5) : DesignSystem.Colors.surface.opacity(0.3)))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                .stroke(isSelected ? DesignSystem.Colors.primary.opacity(0.4) : 
+                       (isHovered ? DesignSystem.Colors.border.opacity(0.8) : DesignSystem.Colors.border.opacity(0.3)), 
+                       lineWidth: isSelected ? 1.5 : 0.5)
+        )
+        .shadow(
+            color: isSelected ? DesignSystem.Colors.primary.opacity(0.1) : .clear,
+            radius: isSelected ? 4 : 0,
+            x: 0,
+            y: isSelected ? 2 : 0
+        )
+        .scaleEffect(isHovered ? 1.02 : 1.0)
+        .onTapGesture {
+            onSelect()
+        }
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovered = hovering
+            }
         }
     }
 } 
