@@ -582,27 +582,603 @@ struct ExpandedDevToolsView: View {
     // MARK: - Placeholder Compact Implementations
     
     private var compactUuidGeneratorInterface: some View {
-        uuidGeneratorInterface
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Controls
+            HStack(spacing: DesignSystem.Spacing.lg) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Count:")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    HStack {
+                        TextField("Count", value: $uuidCount, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                        
+                        Stepper("", value: $uuidCount, in: 1...100)
+                    }
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Format:")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Picker("Format", selection: $uuidFormat) {
+                        ForEach(UUIDFormat.allCases, id: \.self) { format in
+                            Text(format.displayName).tag(format)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 150)
+                }
+                
+                Spacer()
+                
+                VStack(spacing: DesignSystem.Spacing.sm) {
+                    Button("Generate New") {
+                        generateUUIDs()
+                    }
+                    .buttonStyle_custom(.primary)
+                    
+                    Button("Copy All") {
+                        copyToClipboard(generatedUUIDs.joined(separator: "\n"))
+                    }
+                    .buttonStyle_custom(.secondary)
+                }
+            }
+            
+            // Generated UUIDs
+            ScrollView {
+                LazyVStack(spacing: DesignSystem.Spacing.sm) {
+                    ForEach(Array(generatedUUIDs.enumerated()), id: \.offset) { index, uuid in
+                        HStack {
+                            Text("\(index + 1).")
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                                .frame(width: 30, alignment: .trailing)
+                            
+                            Text(uuid)
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
+                                .textSelection(.enabled)
+                            
+                            Spacer()
+                            
+                            Button("Copy") {
+                                copyToClipboard(uuid)
+                            }
+                            .font(.system(size: 11, weight: .medium))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(DesignSystem.Colors.primary.opacity(0.1))
+                            .foregroundColor(DesignSystem.Colors.primary)
+                            .cornerRadius(4)
+                        }
+                        .padding(.horizontal, DesignSystem.Spacing.md)
+                        .padding(.vertical, DesignSystem.Spacing.sm)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(DesignSystem.Colors.surface)
+                        )
+                    }
+                }
+                .padding(DesignSystem.Spacing.md)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                    )
+            )
+        }
+        .onChange(of: uuidCount) { _, _ in
+            generateUUIDs()
+        }
+        .onChange(of: uuidFormat) { _, _ in
+            generateUUIDs()
+        }
     }
     
     private var compactCurlGeneratorInterface: some View {
-        curlGeneratorInterface
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Method and URL
+            HStack(spacing: DesignSystem.Spacing.lg) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Method")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Picker("Method", selection: $curlMethod) {
+                        ForEach(HTTPMethod.allCases, id: \.self) { method in
+                            Text(method.rawValue).tag(method)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 120)
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("URL")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextField("https://api.example.com/users", text: $curlURL)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: curlURL) { _, _ in generateCURL() }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            
+            // Headers and Body
+            HStack(spacing: DesignSystem.Spacing.lg) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Headers (one per line)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $curlHeaders)
+                        .font(.system(size: 12, design: .monospaced))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                        .onChange(of: curlHeaders) { _, _ in generateCURL() }
+                }
+                .frame(maxWidth: .infinity)
+                
+                if curlMethod.hasBody {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Request Body")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        TextEditor(text: $curlBody)
+                            .font(.system(size: 12, design: .monospaced))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                            .onChange(of: curlBody) { _, _ in generateCURL() }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(height: 160)
+            
+            // Generated cURL
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Generated cURL Command")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Spacer()
+                    
+                    if !curlResult.isEmpty {
+                        Button("Copy") {
+                            copyToClipboard(curlResult)
+                        }
+                        .font(.system(size: 11, weight: .medium))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(DesignSystem.Colors.primary.opacity(0.1))
+                        .foregroundColor(DesignSystem.Colors.primary)
+                        .cornerRadius(6)
+                    }
+                }
+                
+                ScrollView {
+                    Text(curlResult.isEmpty ? "cURL command will appear here..." : curlResult)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(curlResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .padding(DesignSystem.Spacing.md)
+                        .textSelection(.enabled)
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(DesignSystem.Colors.surface)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                )
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .onChange(of: curlMethod) { _, _ in generateCURL() }
+        .onAppear { generateCURL() }
     }
     
     private var compactJwtDecoderInterface: some View {
-        jwtDecoderInterface
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // JWT Token Input
+            VStack(alignment: .leading, spacing: 8) {
+                Text("JWT Token")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                TextEditor(text: $jwtToken)
+                    .font(.system(size: 12, design: .monospaced))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                    )
+                    .onChange(of: jwtToken) { _, _ in decodeJWT() }
+            }
+            .frame(height: 100)
+            
+            // Decoded sections
+            HStack(spacing: DesignSystem.Spacing.lg) {
+                // Header
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Header")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Spacer()
+                        
+                        if !jwtHeader.isEmpty {
+                            Button("Copy") {
+                                copyToClipboard(jwtHeader)
+                            }
+                            .font(.system(size: 11, weight: .medium))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(DesignSystem.Colors.primary.opacity(0.1))
+                            .foregroundColor(DesignSystem.Colors.primary)
+                            .cornerRadius(4)
+                        }
+                    }
+                    
+                    ScrollView {
+                        Text(jwtHeader.isEmpty ? "Header will appear here..." : jwtHeader)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(jwtHeader.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .padding(DesignSystem.Spacing.md)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(DesignSystem.Colors.surface)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
+                }
+                .frame(maxWidth: .infinity)
+                
+                // Payload
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Payload")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Spacer()
+                        
+                        if !jwtPayload.isEmpty {
+                            Button("Copy") {
+                                copyToClipboard(jwtPayload)
+                            }
+                            .font(.system(size: 11, weight: .medium))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(DesignSystem.Colors.primary.opacity(0.1))
+                            .foregroundColor(DesignSystem.Colors.primary)
+                            .cornerRadius(4)
+                        }
+                    }
+                    
+                    ScrollView {
+                        Text(jwtPayload.isEmpty ? "Payload will appear here..." : jwtPayload)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(jwtPayload.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .padding(DesignSystem.Spacing.md)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(DesignSystem.Colors.surface)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(maxHeight: .infinity)
+        }
     }
     
     private var compactGraphqlGeneratorInterface: some View {
-        graphqlGeneratorInterface
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Operation type selector
+            HStack {
+                Text("Operation Type:")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Picker("Operation", selection: $graphqlOperation) {
+                    ForEach(GraphQLOperation.allCases, id: \.self) { op in
+                        Text(op.title).tag(op)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 240)
+                
+                Spacer()
+            }
+            
+            // Query and Variables
+            HStack(spacing: DesignSystem.Spacing.lg) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("GraphQL \(graphqlOperation.title)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $graphqlQuery)
+                        .font(.system(size: 12, design: .monospaced))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                        .onChange(of: graphqlQuery) { _, _ in generateGraphQLResult() }
+                }
+                .frame(maxWidth: .infinity)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Variables (JSON)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $graphqlVariables)
+                        .font(.system(size: 12, design: .monospaced))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                        .onChange(of: graphqlVariables) { _, _ in generateGraphQLResult() }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(height: 180)
+            
+            // Generated Result
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Generated Request")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Spacer()
+                    
+                    if !graphqlResult.isEmpty {
+                        Button("Copy") {
+                            copyToClipboard(graphqlResult)
+                        }
+                        .font(.system(size: 11, weight: .medium))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(DesignSystem.Colors.primary.opacity(0.1))
+                        .foregroundColor(DesignSystem.Colors.primary)
+                        .cornerRadius(6)
+                    }
+                }
+                
+                ScrollView {
+                    Text(graphqlResult.isEmpty ? "Generated request will appear here..." : graphqlResult)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(graphqlResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .padding(DesignSystem.Spacing.md)
+                        .textSelection(.enabled)
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(DesignSystem.Colors.surface)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                )
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .onChange(of: graphqlOperation) { _, _ in generateGraphQLResult() }
     }
     
     private var compactApiMockupInterface: some View {
-        apiMockupInterface
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Controls
+            HStack(spacing: DesignSystem.Spacing.lg) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Response Type:")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Picker("Type", selection: $apiResponseType) {
+                        ForEach(APIResponseType.allCases, id: \.self) { type in
+                            Text(type.title).tag(type)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 150)
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Count:")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    HStack {
+                        TextField("Count", value: $apiResponseCount, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                        
+                        Stepper("", value: $apiResponseCount, in: 1...100)
+                    }
+                }
+                
+                Spacer()
+                
+                Button("Generate") {
+                    generateAPIResponse()
+                }
+                .buttonStyle_custom(.primary)
+            }
+            
+            // Custom schema (for custom type)
+            if apiResponseType == .custom {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Custom Schema (JSON)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $apiCustomSchema)
+                        .font(.system(size: 12, design: .monospaced))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                }
+                .frame(height: 120)
+            }
+            
+            // Generated Response
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Generated API Response")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Spacer()
+                    
+                    if !apiResponseResult.isEmpty {
+                        Button("Copy") {
+                            copyToClipboard(apiResponseResult)
+                        }
+                        .font(.system(size: 11, weight: .medium))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(DesignSystem.Colors.primary.opacity(0.1))
+                        .foregroundColor(DesignSystem.Colors.primary)
+                        .cornerRadius(6)
+                    }
+                }
+                
+                ScrollView {
+                    Text(apiResponseResult.isEmpty ? "Generated response will appear here..." : apiResponseResult)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(apiResponseResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .padding(DesignSystem.Spacing.md)
+                        .textSelection(.enabled)
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(DesignSystem.Colors.surface)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                )
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .onChange(of: apiResponseType) { _, _ in generateAPIResponse() }
+        .onChange(of: apiResponseCount) { _, _ in generateAPIResponse() }
+        .onAppear { generateAPIResponse() }
     }
     
     private var compactYamlJsonConverterInterface: some View {
-        yamlJsonConverterInterface
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Mode selector
+            HStack {
+                Text("Conversion:")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Picker("Mode", selection: $yamlJsonMode) {
+                    ForEach(YAMLJSONMode.allCases, id: \.self) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 280)
+                
+                Spacer()
+            }
+            
+            // Input/Output layout
+            HStack(spacing: DesignSystem.Spacing.lg) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(yamlJsonMode.inputTitle)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $yamlJsonInput)
+                        .font(.system(size: 12, design: .monospaced))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                        .onChange(of: yamlJsonInput) { _, _ in convertYamlJson() }
+                }
+                .frame(maxWidth: .infinity)
+                
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(yamlJsonMode.outputTitle)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Spacer()
+                        
+                        if !yamlJsonOutput.isEmpty {
+                            Button("Copy") {
+                                copyToClipboard(yamlJsonOutput)
+                            }
+                            .font(.system(size: 11, weight: .medium))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(DesignSystem.Colors.primary.opacity(0.1))
+                            .foregroundColor(DesignSystem.Colors.primary)
+                            .cornerRadius(6)
+                        }
+                    }
+                    
+                    ScrollView {
+                        Text(yamlJsonOutput.isEmpty ? "Converted output will appear here..." : yamlJsonOutput)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(yamlJsonOutput.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .padding(DesignSystem.Spacing.md)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(DesignSystem.Colors.surface)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .onChange(of: yamlJsonMode) { _, _ in convertYamlJson() }
     }
     
     private var compactTextDiffInterface: some View {
@@ -610,11 +1186,210 @@ struct ExpandedDevToolsView: View {
     }
     
     private var compactRegexTesterInterface: some View {
-        regexTesterInterface
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Pattern and flags
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Regular Expression Pattern")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                TextField("Enter regex pattern...", text: $regexPattern)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 12, design: .monospaced))
+                    .onChange(of: regexPattern) { _, _ in testRegex() }
+                
+                // Flags
+                HStack {
+                    Text("Flags:")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    ForEach(RegexFlag.allCases, id: \.self) { flag in
+                        Toggle(flag.title, isOn: Binding(
+                            get: { regexFlags.contains(flag) },
+                            set: { isOn in
+                                if isOn {
+                                    regexFlags.insert(flag)
+                                } else {
+                                    regexFlags.remove(flag)
+                                }
+                                testRegex()
+                            }
+                        ))
+                        .toggleStyle(.checkbox)
+                    }
+                    
+                    Spacer()
+                }
+            }
+            
+            // Test text and results
+            HStack(spacing: DesignSystem.Spacing.lg) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Test Text")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    TextEditor(text: $regexText)
+                        .font(.system(size: 12, design: .monospaced))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                        .onChange(of: regexText) { _, _ in testRegex() }
+                }
+                .frame(maxWidth: .infinity)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Matches (\(regexMatches.count))")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            ForEach(Array(regexMatches.enumerated()), id: \.offset) { index, match in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Match \(index + 1)")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(DesignSystem.Colors.success)
+                                    
+                                    let matchText = String(regexText[Range(match.range, in: regexText)!])
+                                    Text(matchText)
+                                        .font(.system(size: 12, design: .monospaced))
+                                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                                        .padding(.horizontal, DesignSystem.Spacing.sm)
+                                        .padding(.vertical, 4)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .fill(DesignSystem.Colors.success.opacity(0.1))
+                                        )
+                                }
+                            }
+                        }
+                        .padding(DesignSystem.Spacing.md)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(DesignSystem.Colors.surface)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(maxHeight: .infinity)
+        }
     }
     
     private var compactQrGeneratorInterface: some View {
-        qrGeneratorInterface
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Input and settings
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Text to encode")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                TextEditor(text: $qrText)
+                    .font(.system(size: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                    )
+                    .onChange(of: qrText) { _, _ in generateQRCode() }
+            }
+            .frame(height: 100)
+            
+            // Style and size controls
+            HStack(spacing: DesignSystem.Spacing.lg) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Style:")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Picker("Style", selection: $qrStyle) {
+                        ForEach(QRStyle.allCases, id: \.self) { style in
+                            Text(style.title).tag(style)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 120)
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Size:")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Picker("Size", selection: $qrSize) {
+                        ForEach(QRSize.allCases, id: \.self) { size in
+                            Text(size.title).tag(size)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 100)
+                }
+                
+                Spacer()
+                
+                if qrCode != nil {
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        Button("Save Image") {
+                            saveQRCode()
+                        }
+                        .buttonStyle_custom(.secondary)
+                        
+                        Button("Copy Image") {
+                            copyQRCodeToClipboard()
+                        }
+                        .buttonStyle_custom(.primary)
+                    }
+                }
+            }
+            
+            // Generated QR Code
+            VStack(spacing: DesignSystem.Spacing.md) {
+                if let qrCode = qrCode {
+                    Image(nsImage: qrCode)
+                        .resizable()
+                        .interpolation(.none)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: min(qrSize.displaySize, 200), height: min(qrSize.displaySize, 200))
+                        .background(qrStyle.backgroundColor)
+                        .clipShape(RoundedRectangle(cornerRadius: qrStyle.cornerRadius))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: qrStyle.cornerRadius)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                } else {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(DesignSystem.Colors.surface)
+                        .frame(width: 200, height: 200)
+                        .overlay(
+                            VStack(spacing: DesignSystem.Spacing.md) {
+                                Image(systemName: "qrcode")
+                                    .font(.system(size: 40, weight: .thin))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                
+                                Text("QR code will appear here")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                            }
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                }
+                
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .onChange(of: qrStyle) { _, _ in generateQRCode() }
+        .onChange(of: qrSize) { _, _ in generateQRCode() }
+        .onAppear { generateQRCode() }
     }
     
     // MARK: - Hash Generator Interface
