@@ -9,6 +9,7 @@ class OllamaService: ObservableObject {
     @Published var selectedModel = "llama3.2:3b"
     @Published var conversationHistory: [ChatMessage] = []
     @Published var isGenerating = false
+    @Published var generatingConversationId: UUID?
     @Published var currentConversation: ChatConversation?
     @Published var supportedFileTypes: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "txt", "md", "swift", "py", "js", "html", "css", "json", "xml"]
     
@@ -150,7 +151,11 @@ class OllamaService: ObservableObject {
         }
         
         isGenerating = true
-        defer { isGenerating = false }
+        generatingConversationId = originalConversationId
+        defer { 
+            isGenerating = false
+            generatingConversationId = nil
+        }
         
         // Enhance query with web search if enabled
         let enhancedMessage = await enhanceMessageWithWebSearch(message)
@@ -221,7 +226,11 @@ class OllamaService: ObservableObject {
         }
         
         isGenerating = true
-        defer { isGenerating = false }
+        generatingConversationId = originalConversationId
+        defer { 
+            isGenerating = false
+            generatingConversationId = nil
+        }
         
         // Enhance query with web search if enabled
         let enhancedMessage = await enhanceMessageWithWebSearch(message)
@@ -340,7 +349,9 @@ class OllamaService: ObservableObject {
         }
         
         isGenerating = true
-        defer { isGenerating = false }
+        defer { 
+            isGenerating = false
+        }
         
         // Enhance query with web search if enabled
         let enhancedMessage = await enhanceMessageWithWebSearch(prompt)
@@ -508,7 +519,11 @@ class OllamaService: ObservableObject {
         }
         
         isGenerating = true
-        defer { isGenerating = false }
+        generatingConversationId = originalConversationId
+        defer { 
+            isGenerating = false
+            generatingConversationId = nil
+        }
         
         let userMessage = ChatMessage(role: .user, content: prompt)
         conversationHistory.append(userMessage)

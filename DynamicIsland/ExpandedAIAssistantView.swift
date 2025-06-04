@@ -224,7 +224,7 @@ struct ExpandedAIAssistantView: View {
                     }
                 }
                 .onChange(of: ollamaService.isGenerating) { _, isGenerating in
-                    if isGenerating {
+                    if isGenerating && ollamaService.generatingConversationId == ollamaService.currentConversation?.id {
                         withAnimation(DesignSystem.Animation.smooth) {
                             proxy.scrollTo("typing-indicator", anchor: .bottom)
                         }
@@ -246,8 +246,9 @@ struct ExpandedAIAssistantView: View {
                     .id(message.id)
             }
             
-            // Loading indicator when AI is generating
-            if ollamaService.isGenerating {
+            // Loading indicator when AI is generating for this specific conversation
+            if ollamaService.isGenerating && 
+               ollamaService.generatingConversationId == ollamaService.currentConversation?.id {
                 TypingIndicatorView()
                     .id("typing-indicator")
             }
@@ -1505,7 +1506,9 @@ struct ExpandedConversationRowView: View {
 // MARK: - Typing Indicator View
 
 struct TypingIndicatorView: View {
-    @State private var animationOffset: CGFloat = 0
+    @State private var animatedText = "AI is thinking"
+    @State private var dotCount = 0
+    @State private var timer: Timer?
     
     var body: some View {
         HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
@@ -1522,43 +1525,43 @@ struct TypingIndicatorView: View {
             // Typing indicator content
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                 HStack(spacing: DesignSystem.Spacing.sm) {
-                    HStack(spacing: 4) {
-                        ForEach(0..<3, id: \.self) { index in
-                            Circle()
-                                .fill(DesignSystem.Colors.textSecondary)
-                                .frame(width: 6, height: 6)
-                                .scaleEffect(1.0 + 0.3 * sin(animationOffset + Double(index) * 0.6))
-                                .animation(
-                                    Animation.easeInOut(duration: 0.6)
-                                        .repeatForever(autoreverses: true)
-                                        .delay(Double(index) * 0.1),
-                                    value: animationOffset
-                                )
-                        }
-                    }
-                    .padding(.horizontal, DesignSystem.Spacing.lg)
-                    .padding(.vertical, DesignSystem.Spacing.md)
-                    .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
-                            .fill(DesignSystem.Colors.surface.opacity(0.8))
-                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl))
-                    )
+                    Text(animatedText)
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                        .padding(.horizontal, DesignSystem.Spacing.lg)
+                        .padding(.vertical, DesignSystem.Spacing.md)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
+                                .fill(DesignSystem.Colors.surface.opacity(0.8))
+                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl))
+                        )
                     
                     Spacer()
                 }
-                
-                Text("AI is thinking...")
-                    .font(DesignSystem.Typography.micro)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                    .padding(.leading, DesignSystem.Spacing.lg)
             }
             
             Spacer()
         }
         .onAppear {
-            withAnimation {
-                animationOffset = .pi * 2
+            startAnimation()
+        }
+        .onDisappear {
+            stopAnimation()
+        }
+    }
+    
+    private func startAnimation() {
+        timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            withAnimation(.easeInOut(duration: 0.3)) {
+                dotCount = (dotCount + 1) % 4
+                let dots = String(repeating: ".", count: dotCount)
+                animatedText = "AI is thinking\(dots)"
             }
         }
+    }
+    
+    private func stopAnimation() {
+        timer?.invalidate()
+        timer = nil
     }
 } 
