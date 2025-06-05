@@ -84,6 +84,16 @@ struct DeveloperToolsView: View {
     @State private var base64Output: String = ""
     @State private var base64Mode: Base64Mode = .encode
     
+    // API Client
+    @State private var apiClientMethod: HTTPMethod = .GET
+    @State private var apiClientURL: String = ""
+    @State private var apiClientHeaders: String = ""
+    @State private var apiClientBody: String = ""
+    @State private var apiClientResponse: String = ""
+    @State private var apiClientStatusCode: Int = 0
+    @State private var apiClientResponseTime: Double = 0
+    @State private var apiClientIsLoading: Bool = false
+    
     var body: some View {
         VStack(spacing: DesignSystem.Spacing.md) {
             // Tool Selector
@@ -92,6 +102,8 @@ struct DeveloperToolsView: View {
             // Tool Interface
             Group {
                 switch selectedTool {
+                case .apiClient:
+                    apiClientInterface
                 case .curlGenerator:
                     curlGeneratorInterface
                 case .jwtDecoder:
@@ -1796,6 +1808,16 @@ spec:
         // Clear Base64 inputs
         base64Input = ""
         base64Output = ""
+        
+        // Clear API Client inputs
+        apiClientMethod = .GET
+        apiClientURL = ""
+        apiClientHeaders = ""
+        apiClientBody = ""
+        apiClientResponse = ""
+        apiClientStatusCode = 0
+        apiClientResponseTime = 0
+        apiClientIsLoading = false
     }
     
     private func clearCURLInputs() {
@@ -2239,6 +2261,131 @@ spec:
             base64Output = String(data: data, encoding: .utf8) ?? "❌ Unable to decode as UTF-8"
         }
     }
+    
+    // MARK: - API Client
+    private var apiClientInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Text("API Client")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                // HTTP Method dropdown
+                Menu {
+                    ForEach(HTTPMethod.allCases, id: \.self) { method in
+                        Button(method.rawValue) {
+                            apiClientMethod = method
+                        }
+                    }
+                } label: {
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        Text(apiClientMethod.rawValue)
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
+                    .padding(.horizontal, DesignSystem.Spacing.xs)
+                    .padding(.vertical, DesignSystem.Spacing.xxs)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                            .fill(DesignSystem.Colors.surface.opacity(0.3))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            
+            // URL Input
+            CompactInputArea(
+                title: "URL",
+                text: $apiClientURL,
+                placeholder: "https://api.example.com/users",
+                focusBinding: $isInputFocused
+            )
+            
+            // Headers Input (optional)
+            CompactInputArea(
+                title: "Headers (Optional)",
+                text: $apiClientHeaders,
+                placeholder: "Content-Type: application/json\nAuthorization: Bearer token",
+                focusBinding: nil
+            )
+            
+            // Body Input (for POST/PUT/PATCH)
+            if apiClientMethod.hasBody {
+                CompactInputArea(
+                    title: "Request Body",
+                    text: $apiClientBody,
+                    placeholder: apiClientMethod.bodyPlaceholder,
+                    focusBinding: nil
+                )
+            }
+            
+            // Send button and status
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                Button(action: sendAPIRequest) {
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        if apiClientIsLoading {
+                            ProgressView()
+                                .scaleEffect(0.6)
+                        } else {
+                            Image(systemName: "paperplane")
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        Text(apiClientIsLoading ? "Sending..." : "Send Request")
+                            .font(DesignSystem.Typography.micro)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, DesignSystem.Spacing.sm)
+                    .padding(.vertical, DesignSystem.Spacing.xs)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                            .fill(apiClientIsLoading ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.accent)
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(apiClientURL.isEmpty || apiClientIsLoading)
+                
+                if apiClientStatusCode > 0 {
+                    Text("\(apiClientStatusCode)")
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(statusCodeColor(apiClientStatusCode))
+                        .padding(.horizontal, DesignSystem.Spacing.xs)
+                        .padding(.vertical, DesignSystem.Spacing.xxs)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(statusCodeColor(apiClientStatusCode).opacity(0.1))
+                        )
+                }
+                
+                if apiClientResponseTime > 0 {
+                    Text("\(Int(apiClientResponseTime * 1000))ms")
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+                
+                Spacer()
+                
+                ActionButton(title: "Clear", icon: "trash") {
+                    clearAPIClientInputs()
+                }
+            }
+            
+            // Response Output
+            if !apiClientResponse.isEmpty {
+                CompactOutputArea(
+                    title: "Response",
+                    text: apiClientResponse,
+                    height: 120
+                ) {
+                    copyToClipboard(apiClientResponse)
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Supporting Views
@@ -2533,10 +2680,11 @@ struct HashRow: View {
 // MARK: - Supporting Types
 
 enum DeveloperTool: CaseIterable {
-    case curlGenerator, jwtDecoder, uuidGenerator, graphqlGenerator, apiMockup, yamlJsonConverter, textDiff, regexTester, qrGenerator, jsonFormatter, hashGenerator, base64
+    case apiClient, curlGenerator, jwtDecoder, uuidGenerator, graphqlGenerator, apiMockup, yamlJsonConverter, textDiff, regexTester, qrGenerator, jsonFormatter, hashGenerator, base64
     
     var title: String {
         switch self {
+        case .apiClient: return "API Client"
         case .curlGenerator: return "cURL"
         case .jwtDecoder: return "JWT"
         case .uuidGenerator: return "UUID"
@@ -2558,6 +2706,7 @@ enum DeveloperTool: CaseIterable {
     
     var description: String {
         switch self {
+        case .apiClient: return "Test HTTP APIs with full request/response handling"
         case .curlGenerator: return "Generate cURL commands for API testing"
         case .jwtDecoder: return "Decode and analyze JWT tokens"
         case .uuidGenerator: return "Generate unique identifiers"
@@ -2575,6 +2724,7 @@ enum DeveloperTool: CaseIterable {
     
     var subtitle: String {
         switch self {
+        case .apiClient: return "HTTP Testing"
         case .curlGenerator: return "API Testing"
         case .jwtDecoder: return "Token Analysis"
         case .uuidGenerator: return "ID Generation"
@@ -2592,6 +2742,7 @@ enum DeveloperTool: CaseIterable {
     
     var icon: String {
         switch self {
+        case .apiClient: return "network"
         case .curlGenerator: return "terminal"
         case .jwtDecoder: return "key"
         case .uuidGenerator: return "number.square"
@@ -2609,7 +2760,8 @@ enum DeveloperTool: CaseIterable {
     
     var color: Color {
         switch self {
-        case .curlGenerator: return DesignSystem.Colors.primary
+        case .apiClient: return DesignSystem.Colors.primary
+        case .curlGenerator: return DesignSystem.Colors.developer
         case .jwtDecoder: return DesignSystem.Colors.success
         case .uuidGenerator: return DesignSystem.Colors.warning
         case .graphqlGenerator: return DesignSystem.Colors.files
@@ -2979,4 +3131,121 @@ extension Data {
         }
         return hash.map { String(format: "%02x", $0) }.joined()
     }
-} 
+}
+
+// MARK: - API Client Functions
+extension DeveloperToolsView {
+    private func sendAPIRequest() {
+        guard !apiClientURL.isEmpty else { return }
+        
+        apiClientIsLoading = true
+        apiClientResponse = ""
+        apiClientStatusCode = 0
+        apiClientResponseTime = 0
+        
+        let startTime = Date()
+        
+        // Create URL
+        guard let url = URL(string: apiClientURL) else {
+            apiClientResponse = "❌ Invalid URL"
+            apiClientIsLoading = false
+            return
+        }
+        
+        // Create request
+        var request = URLRequest(url: url)
+        request.httpMethod = apiClientMethod.rawValue
+        request.timeoutInterval = 30
+        
+        // Add headers
+        let headerLines = apiClientHeaders.components(separatedBy: .newlines)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        
+        for header in headerLines {
+            let components = header.components(separatedBy: ":")
+            if components.count >= 2 {
+                let key = components[0].trimmingCharacters(in: .whitespaces)
+                let value = components.dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespaces)
+                request.setValue(value, forHTTPHeaderField: key)
+            }
+        }
+        
+        // Add body for applicable methods
+        if apiClientMethod.hasBody && !apiClientBody.isEmpty {
+            request.httpBody = apiClientBody.data(using: .utf8)
+        }
+        
+        // Perform request
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                let responseTime = Date().timeIntervalSince(startTime)
+                self.apiClientResponseTime = responseTime
+                self.apiClientIsLoading = false
+                
+                if let error = error {
+                    self.apiClientResponse = "❌ Error: \(error.localizedDescription)"
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    self.apiClientResponse = "❌ Invalid response"
+                    return
+                }
+                
+                self.apiClientStatusCode = httpResponse.statusCode
+                
+                // Format response body
+                var responseText = ""
+                if let data = data {
+                    if let string = String(data: data, encoding: .utf8) {
+                        // Try to format as JSON if possible
+                        if let jsonData = string.data(using: .utf8),
+                           let jsonObject = try? JSONSerialization.jsonObject(with: jsonData),
+                           let prettyJsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted]),
+                           let prettyJsonString = String(data: prettyJsonData, encoding: .utf8) {
+                            responseText = prettyJsonString
+                        } else {
+                            responseText = string
+                        }
+                    } else {
+                        responseText = "Binary data (\(data.count) bytes)"
+                    }
+                } else {
+                    responseText = "No response body"
+                }
+                
+                // Format headers
+                let headers = httpResponse.allHeaderFields.map { key, value in
+                    "\(key): \(value)"
+                }.sorted().joined(separator: "\n")
+                
+                // Combine status info and body
+                let statusText = "Status: \(httpResponse.statusCode)\nTime: \(Int(responseTime * 1000))ms\n\nHeaders:\n\(headers)\n\nBody:\n\(responseText)"
+                self.apiClientResponse = statusText
+            }
+        }.resume()
+    }
+    
+    private func clearAPIClientInputs() {
+        apiClientMethod = .GET
+        apiClientURL = ""
+        apiClientHeaders = ""
+        apiClientBody = ""
+        apiClientResponse = ""
+        apiClientStatusCode = 0
+        apiClientResponseTime = 0
+        apiClientIsLoading = false
+    }
+    
+    private func statusCodeColor(_ statusCode: Int) -> Color {
+        switch statusCode {
+        case 200..<300: return DesignSystem.Colors.success
+        case 300..<400: return DesignSystem.Colors.warning
+        case 400..<500: return DesignSystem.Colors.error
+        case 500..<600: return DesignSystem.Colors.error
+        default: return DesignSystem.Colors.textSecondary
+        }
+    }
+}
+
+// MARK: - Enums

@@ -84,6 +84,18 @@ struct ExpandedDevToolsView: View {
     @State private var qrStyle: QRStyle = .standard
     @State private var qrSize: QRSize = .medium
     
+    // API Client
+    @State private var apiClientURL: String = ""
+    @State private var apiClientMethod: HTTPMethod = .GET
+    @State private var apiClientHeaders: String = ""
+    @State private var apiClientBody: String = ""
+    @State private var apiClientResponse: String = ""
+    @State private var apiClientStatusCode: Int = 0
+    @State private var apiClientResponseTime: TimeInterval = 0
+    @State private var apiClientResponseHeaders: String = ""
+    @State private var apiClientIsLoading: Bool = false
+    @State private var apiClientContentType: APIContentType = .json
+    
     @FocusState private var isInputFocused: Bool
     
     var body: some View {
@@ -213,6 +225,8 @@ struct ExpandedDevToolsView: View {
     private var toolInterface: some View {
         VStack {
             switch selectedTool {
+            case .apiClient:
+                compactApiClientInterface
             case .jsonFormatter:
                 compactJsonFormatterInterface
             case .hashGenerator:
@@ -575,6 +589,188 @@ struct ExpandedDevToolsView: View {
                 generateHashFromFile()
             } else if !hashInput.isEmpty {
                 generateHash()
+            }
+        }
+    }
+    
+    // MARK: - Compact API Client Interface
+    
+    private var compactApiClientInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Request configuration
+            VStack(spacing: DesignSystem.Spacing.md) {
+                // Method and URL
+                HStack(spacing: DesignSystem.Spacing.lg) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Method")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Picker("Method", selection: $apiClientMethod) {
+                            ForEach(HTTPMethod.allCases, id: \.self) { method in
+                                Text(method.rawValue).tag(method)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 120)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("URL")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        TextField("https://api.example.com/users", text: $apiClientURL)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    .frame(maxWidth: .infinity)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Content Type")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Picker("Content Type", selection: $apiClientContentType) {
+                            ForEach(APIContentType.allCases, id: \.self) { type in
+                                Text(type.displayName).tag(type)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 140)
+                    }
+                    
+                    Button(apiClientIsLoading ? "Cancel" : "Send") {
+                        if apiClientIsLoading {
+                            // Cancel request
+                            apiClientIsLoading = false
+                        } else {
+                            sendAPIRequest()
+                        }
+                    }
+                    .buttonStyle_custom(.primary)
+                    .disabled(apiClientURL.isEmpty)
+                }
+                
+                // Headers and Body
+                HStack(spacing: DesignSystem.Spacing.lg) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Headers (one per line)")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        TextEditor(text: $apiClientHeaders)
+                            .font(.system(size: 12, design: .monospaced))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    }
+                    .frame(maxWidth: .infinity)
+                    
+                    if apiClientMethod.hasBody {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Request Body")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
+                            
+                            TextEditor(text: $apiClientBody)
+                                .font(.system(size: 12, design: .monospaced))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                                )
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .frame(height: 140)
+            }
+            .padding(DesignSystem.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(DesignSystem.Colors.surface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                    )
+            )
+            
+            // Response section
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                HStack {
+                    Text("Response")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    if apiClientStatusCode > 0 {
+                        Spacer()
+                        
+                        HStack(spacing: DesignSystem.Spacing.md) {
+                            // Status code with color coding
+                            HStack(spacing: 4) {
+                                Circle()
+                                    .fill(statusCodeColor(apiClientStatusCode))
+                                    .frame(width: 8, height: 8)
+                                Text("\(apiClientStatusCode)")
+                                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                    .foregroundColor(statusCodeColor(apiClientStatusCode))
+                            }
+                            
+                            // Response time
+                            Text("\(Int(apiClientResponseTime * 1000))ms")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                            
+                            // Copy response button
+                            Button("Copy") {
+                                copyToClipboard(apiClientResponse)
+                            }
+                            .font(.system(size: 11, weight: .medium))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(DesignSystem.Colors.primary.opacity(0.1))
+                            .foregroundColor(DesignSystem.Colors.primary)
+                            .cornerRadius(6)
+                            .disabled(apiClientResponse.isEmpty)
+                        }
+                    }
+                }
+                
+                // Response content
+                ScrollView {
+                    if apiClientIsLoading {
+                        VStack(spacing: DesignSystem.Spacing.md) {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                            Text("Sending request...")
+                                .font(.system(size: 12))
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(DesignSystem.Spacing.xl)
+                    } else {
+                        Text(apiClientResponse.isEmpty ? "Response will appear here..." : apiClientResponse)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(apiClientResponse.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .padding(DesignSystem.Spacing.md)
+                            .textSelection(.enabled)
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(DesignSystem.Colors.surface)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        )
+                )
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .onChange(of: apiClientMethod) { _, _ in
+            if apiClientMethod.hasBody && apiClientBody.isEmpty {
+                apiClientBody = apiClientMethod.bodyPlaceholder
             }
         }
     }
@@ -2668,6 +2864,16 @@ struct ExpandedDevToolsView: View {
         regexFlags = []
         qrText = ""
         qrCode = nil
+        
+        // Clear API client inputs
+        apiClientURL = ""
+        apiClientHeaders = ""
+        apiClientBody = ""
+        apiClientResponse = ""
+        apiClientStatusCode = 0
+        apiClientResponseTime = 0
+        apiClientResponseHeaders = ""
+        apiClientIsLoading = false
     }
     
     private func processJSON() {
@@ -3418,3 +3624,140 @@ extension DiffLine {
         return text
     }
 } 
+
+// MARK: - API Client Support
+
+enum APIContentType: CaseIterable {
+    case json, xml, formData, text, none
+    
+    var displayName: String {
+        switch self {
+        case .json: return "JSON"
+        case .xml: return "XML"
+        case .formData: return "Form Data"
+        case .text: return "Text"
+        case .none: return "None"
+        }
+    }
+    
+    var headerValue: String {
+        switch self {
+        case .json: return "application/json"
+        case .xml: return "application/xml"
+        case .formData: return "application/x-www-form-urlencoded"
+        case .text: return "text/plain"
+        case .none: return ""
+        }
+    }
+}
+
+extension ExpandedDevToolsView {
+    // MARK: - API Client Functions
+    
+    private func sendAPIRequest() {
+        guard !apiClientURL.isEmpty else { return }
+        
+        apiClientIsLoading = true
+        apiClientResponse = ""
+        apiClientStatusCode = 0
+        apiClientResponseTime = 0
+        apiClientResponseHeaders = ""
+        
+        let startTime = Date()
+        
+        // Create URL
+        guard let url = URL(string: apiClientURL) else {
+            apiClientResponse = "❌ Invalid URL"
+            apiClientIsLoading = false
+            return
+        }
+        
+        // Create request
+        var request = URLRequest(url: url)
+        request.httpMethod = apiClientMethod.rawValue
+        request.timeoutInterval = 30
+        
+        // Add headers
+        let headerLines = apiClientHeaders.components(separatedBy: .newlines)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        
+        for header in headerLines {
+            let components = header.components(separatedBy: ":")
+            if components.count >= 2 {
+                let key = components[0].trimmingCharacters(in: .whitespaces)
+                let value = components.dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespaces)
+                request.setValue(value, forHTTPHeaderField: key)
+            }
+        }
+        
+        // Add content type if specified
+        if apiClientContentType != .none && !apiClientContentType.headerValue.isEmpty {
+            request.setValue(apiClientContentType.headerValue, forHTTPHeaderField: "Content-Type")
+        }
+        
+        // Add body for applicable methods
+        if apiClientMethod.hasBody && !apiClientBody.isEmpty {
+            request.httpBody = apiClientBody.data(using: .utf8)
+        }
+        
+        // Perform request
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                let responseTime = Date().timeIntervalSince(startTime)
+                self.apiClientResponseTime = responseTime
+                self.apiClientIsLoading = false
+                
+                if let error = error {
+                    self.apiClientResponse = "❌ Error: \(error.localizedDescription)"
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    self.apiClientResponse = "❌ Invalid response"
+                    return
+                }
+                
+                self.apiClientStatusCode = httpResponse.statusCode
+                
+                // Format response body
+                var responseText = ""
+                if let data = data {
+                    if let string = String(data: data, encoding: .utf8) {
+                        // Try to format as JSON if possible
+                        if let jsonData = string.data(using: .utf8),
+                           let jsonObject = try? JSONSerialization.jsonObject(with: jsonData),
+                           let prettyJsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted]),
+                           let prettyJsonString = String(data: prettyJsonData, encoding: .utf8) {
+                            responseText = prettyJsonString
+                        } else {
+                            responseText = string
+                        }
+                    } else {
+                        responseText = "Binary data (\(data.count) bytes)"
+                    }
+                } else {
+                    responseText = "No response body"
+                }
+                
+                // Format headers
+                let headers = httpResponse.allHeaderFields.map { key, value in
+                    "\(key): \(value)"
+                }.sorted().joined(separator: "\n")
+                
+                // Combine status info and body
+                let statusText = "Status: \(httpResponse.statusCode)\nTime: \(Int(responseTime * 1000))ms\n\nHeaders:\n\(headers)\n\nBody:\n\(responseText)"
+                self.apiClientResponse = statusText
+            }
+        }.resume()
+    }
+    
+    private func statusCodeColor(_ statusCode: Int) -> Color {
+        switch statusCode {
+        case 200..<300: return DesignSystem.Colors.success
+        case 300..<400: return DesignSystem.Colors.warning
+        case 400..<500: return DesignSystem.Colors.error
+        case 500..<600: return DesignSystem.Colors.error
+        default: return DesignSystem.Colors.textSecondary
+        }
+    }
+}
