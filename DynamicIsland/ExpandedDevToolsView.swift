@@ -1,9 +1,8 @@
 import SwiftUI
 import CommonCrypto
-import Foundation
 
 struct ExpandedDevToolsView: View {
-    @State private var selectedTool: DeveloperTool = .jsonFormatter
+    @State private var selectedTool: DeveloperTool = .apiClient
     @State private var showCopiedFeedback = false
     @State private var lastCopiedText = ""
     
@@ -25,16 +24,6 @@ struct ExpandedDevToolsView: View {
     @State private var base64Output: String = ""
     @State private var base64Mode: Base64Mode = .encode
     
-    // URL Encoder/Decoder
-    @State private var urlText: String = ""
-    @State private var urlMode: URLMode = .encode
-    @State private var urlResult: String = ""
-    
-    // UUID Generator
-    @State private var generatedUUIDs: [String] = []
-    @State private var uuidCount: Int = 1
-    @State private var uuidFormat: UUIDFormat = .uppercase
-    
     // cURL Generator
     @State private var curlURL: String = ""
     @State private var curlMethod: HTTPMethod = .GET
@@ -48,7 +37,12 @@ struct ExpandedDevToolsView: View {
     @State private var jwtPayload: String = ""
     @State private var jwtSignature: String = ""
     
-    // GraphQL Generator
+    // UUID Generator
+    @State private var generatedUUID: String = ""
+    @State private var uuidCount: Int = 1
+    @State private var uuidFormat: UUIDFormat = .uppercase
+    
+    // GraphQL Query Generator
     @State private var graphqlOperation: GraphQLOperation = .query
     @State private var graphqlQuery: String = ""
     @State private var graphqlVariables: String = ""
@@ -69,8 +63,6 @@ struct ExpandedDevToolsView: View {
     @State private var diffText1: String = ""
     @State private var diffText2: String = ""
     @State private var diffResult: [DiffLine] = []
-    @State private var enhancedDiffResult: [DiffPair] = []
-    @State private var diffStats: DiffStats = DiffStats()
     
     // Regex Tester
     @State private var regexPattern: String = ""
@@ -84,91 +76,88 @@ struct ExpandedDevToolsView: View {
     @State private var qrStyle: QRStyle = .standard
     @State private var qrSize: QRSize = .medium
     
-    // API Client
-    @State private var apiClientURL: String = ""
-    @State private var apiClientMethod: HTTPMethod = .GET
-    @State private var apiClientHeaders: String = ""
-    @State private var apiClientBody: String = ""
-    @State private var apiClientResponse: String = ""
-    @State private var apiClientStatusCode: Int = 0
-    @State private var apiClientResponseTime: TimeInterval = 0
-    @State private var apiClientResponseHeaders: String = ""
-    @State private var apiClientIsLoading: Bool = false
-    @State private var apiClientContentType: APIContentType = .json
+    // API Client Tabs
+    @State private var apiClientTabs: [APIRequestTab] = [APIRequestTab(name: "Request 1")]
+    @State private var currentAPITabIndex: Int = 0
     
+    var currentAPITab: APIRequestTab {
+        guard currentAPITabIndex < apiClientTabs.count else {
+            return APIRequestTab()
+        }
+        return apiClientTabs[currentAPITabIndex]
+    }
+
     @FocusState private var isInputFocused: Bool
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Compact header
-            compactHeaderSection
+        HStack(spacing: 0) {
+            // Compact Tool Sidebar
+            compactToolSidebar
             
-            Divider()
-                .background(DesignSystem.Colors.border)
-            
-            // Main content area with side-by-side layout
-            HStack(spacing: 0) {
-                // Compact tool selector sidebar
-                compactToolSidebar
-                
-                Divider()
-                    .background(DesignSystem.Colors.border)
-                
-                // Main tool interface
-                toolInterface
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
-        .background(Color.clear)
-        .onChange(of: selectedTool) { _, _ in
-            clearInputs()
-        }
-        .onAppear {
-            generateUUIDs()
-        }
-    }
-    
-    // MARK: - Compact Header Section
-    
-    private var compactHeaderSection: some View {
-        HStack {
-            HStack(spacing: DesignSystem.Spacing.sm) {
-                Image(systemName: selectedTool.icon)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(selectedTool.color)
-                
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(selectedTool.displayName)
-                        .font(DesignSystem.Typography.headline3)
+            // Main Interface
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Text(selectedTool.title)
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(DesignSystem.Colors.textPrimary)
                     
-                    Text(selectedTool.subtitle)
-                        .font(DesignSystem.Typography.micro)
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                    Spacer()
+                    
+                    Button("Clear All") {
+                        clearInputs()
+                    }
+                    .font(.system(size: 12))
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                            .fill(DesignSystem.Colors.surface.opacity(0.3))
+                    )
+                    .buttonStyle(.plain)
                 }
-            }
-            
-            Spacer()
-            
-            // Quick copy feedback - more compact
-            if showCopiedFeedback {
-                HStack(spacing: DesignSystem.Spacing.xs) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 12, weight: .medium))
-                    Text("Copied")
-                        .font(DesignSystem.Typography.micro)
+                .padding(.all, DesignSystem.Spacing.lg)
+                
+                Divider()
+                
+                // Tool Interface
+                ScrollView {
+                    VStack(spacing: DesignSystem.Spacing.lg) {
+                        switch selectedTool {
+                        case .apiClient:
+                            compactApiClientInterface
+                        case .jsonFormatter:
+                            compactJsonFormatterInterface
+                        case .hashGenerator:
+                            compactHashGeneratorInterface
+                        case .base64:
+                            compactBase64Interface
+                        case .uuidGenerator:
+                            compactUuidGeneratorInterface
+                        case .curlGenerator:
+                            compactCurlGeneratorInterface
+                        case .jwtDecoder:
+                            compactJwtDecoderInterface
+                        case .graphqlGenerator:
+                            compactGraphqlGeneratorInterface
+                        case .apiMockup:
+                            compactApiMockupInterface
+                        case .yamlJsonConverter:
+                            compactYamlJsonConverterInterface
+                        case .textDiff:
+                            compactTextDiffInterface
+                        case .regexTester:
+                            compactRegexTesterInterface
+                        case .qrGenerator:
+                            compactQrGeneratorInterface
+                        }
+                    }
+                    .padding(.all, DesignSystem.Spacing.lg)
                 }
-                .foregroundColor(DesignSystem.Colors.success)
-                .padding(.horizontal, DesignSystem.Spacing.sm)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(DesignSystem.Colors.success.opacity(0.15))
-                )
+                .frame(maxHeight: .infinity)
             }
         }
-        .padding(.horizontal, DesignSystem.Spacing.lg)
-        .padding(.vertical, DesignSystem.Spacing.md)
     }
     
     // MARK: - Compact Tool Sidebar
@@ -188,415 +177,73 @@ struct ExpandedDevToolsView: View {
                                 .foregroundColor(selectedTool == tool ? .white : tool.color)
                                 .frame(width: 18)
                             
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(tool.displayName)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(tool.title)
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(selectedTool == tool ? .white : DesignSystem.Colors.textPrimary)
-                                    .lineLimit(1)
                                     .fixedSize(horizontal: true, vertical: false)
                                 
                                 Text(tool.subtitle)
-                                    .font(.system(size: 10, weight: .medium))
+                                    .font(.system(size: 10))
                                     .foregroundColor(selectedTool == tool ? .white.opacity(0.8) : DesignSystem.Colors.textSecondary)
-                                    .lineLimit(1)
                                     .fixedSize(horizontal: true, vertical: false)
                             }
                             
-                            Spacer(minLength: 0)
+                            Spacer()
                         }
-                        .padding(.horizontal, DesignSystem.Spacing.md)
+                        .padding(.horizontal, DesignSystem.Spacing.sm)
                         .padding(.vertical, 8)
                         .background(
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
                                 .fill(selectedTool == tool ? tool.color : Color.clear)
                         )
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .padding(DesignSystem.Spacing.md)
+            .padding(.all, DesignSystem.Spacing.sm)
         }
         .frame(width: 220)
-        .background(.ultraThinMaterial)
-    }
-    
-    // MARK: - Tool Interface
-    
-    private var toolInterface: some View {
-        VStack {
-            switch selectedTool {
-            case .apiClient:
-                compactApiClientInterface
-            case .jsonFormatter:
-                compactJsonFormatterInterface
-            case .hashGenerator:
-                compactHashGeneratorInterface
-            case .base64:
-                compactBase64Interface
-            case .uuidGenerator:
-                compactUuidGeneratorInterface
-            case .curlGenerator:
-                compactCurlGeneratorInterface
-            case .jwtDecoder:
-                compactJwtDecoderInterface
-            case .graphqlGenerator:
-                compactGraphqlGeneratorInterface
-            case .apiMockup:
-                compactApiMockupInterface
-            case .yamlJsonConverter:
-                compactYamlJsonConverterInterface
-            case .textDiff:
-                compactTextDiffInterface
-            case .regexTester:
-                compactRegexTesterInterface
-            case .qrGenerator:
-                compactQrGeneratorInterface
-            }
-        }
-        .padding(DesignSystem.Spacing.lg)
-        .animation(DesignSystem.Animation.smooth, value: selectedTool)
-    }
-    
-    // MARK: - Compact JSON Formatter Interface
-    
-    private var compactJsonFormatterInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            // Compact operation selector
-            HStack(spacing: DesignSystem.Spacing.md) {
-                Picker("Operation", selection: $jsonOperation) {
-                    ForEach(JSONOperation.allCases, id: \.self) { op in
-                        Text(op.displayName).tag(op)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 280)
-                
-                Spacer()
-                
-                HStack(spacing: DesignSystem.Spacing.sm) {
-                    if !jsonInput.isEmpty {
-                        Button("Paste") {
-                            if let clipboardString = NSPasteboard.general.string(forType: .string) {
-                                jsonInput = clipboardString
-                                processJSON()
-                            }
-                        }
-                        .buttonStyle_custom(.ghost)
-                    }
-                    
-                    Button("Clear") {
-                        jsonInput = ""
-                        jsonOutput = ""
-                    }
-                    .buttonStyle_custom(.ghost)
-                }
-            }
-            
-            // Compact Input/Output layout
-            HStack(spacing: DesignSystem.Spacing.lg) {
-                // Input area - more compact
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Input")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        Spacer()
-                    }
-                    
-                    TextEditor(text: $jsonInput)
-                        .font(.system(size: 12, design: .monospaced))
-                        .focused($isInputFocused)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(isInputFocused ? DesignSystem.Colors.borderFocus : DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                        .onChange(of: jsonInput) { _, _ in
-                            processJSON()
-                        }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                
-                // Compact arrow
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                
-                // Output area - more compact
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Output")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        Spacer()
-                        
-                        if !jsonOutput.isEmpty {
-                            Button("Copy") {
-                                copyToClipboard(jsonOutput)
-                            }
-                            .font(.system(size: 11, weight: .medium))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(DesignSystem.Colors.primary.opacity(0.1))
-                            .foregroundColor(DesignSystem.Colors.primary)
-                            .cornerRadius(6)
-                        }
-                    }
-                    
-                    ScrollView {
-                        Text(jsonOutput.isEmpty ? "Formatted JSON will appear here..." : jsonOutput)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(jsonOutput.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .padding(DesignSystem.Spacing.sm)
-                            .textSelection(.enabled)
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(DesignSystem.Colors.surface)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-            .frame(maxHeight: .infinity)
-        }
-    }
-    
-    // MARK: - Compact Base64 Interface
-    
-    private var compactBase64Interface: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            // Compact mode selector
-            HStack {
-                Picker("Mode", selection: $base64Mode) {
-                    Text("Encode").tag(Base64Mode.encode)
-                    Text("Decode").tag(Base64Mode.decode)
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 180)
-                
-                Spacer()
-            }
-            
-            // Compact Input/Output layout
-            HStack(spacing: DesignSystem.Spacing.lg) {
-                // Input area
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Input")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    TextEditor(text: $base64Input)
-                        .font(.system(size: 12, design: .monospaced))
-                        .focused($isInputFocused)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(isInputFocused ? DesignSystem.Colors.borderFocus : DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                        .onChange(of: base64Input) { _, _ in
-                            processBase64()
-                        }
-                }
-                .frame(maxWidth: .infinity)
-                
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                
-                // Output area
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Output")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        Spacer()
-                        
-                        if !base64Output.isEmpty {
-                            Button("Copy") {
-                                copyToClipboard(base64Output)
-                            }
-                            .font(.system(size: 11, weight: .medium))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(DesignSystem.Colors.primary.opacity(0.1))
-                            .foregroundColor(DesignSystem.Colors.primary)
-                            .cornerRadius(6)
-                        }
-                    }
-                    
-                    ScrollView {
-                        Text(base64Output.isEmpty ? "Result will appear here..." : base64Output)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(base64Output.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .padding(DesignSystem.Spacing.md)
-                            .textSelection(.enabled)
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(DesignSystem.Colors.surface)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .frame(maxHeight: .infinity)
-        }
-    }
-    
-    // MARK: - Compact Hash Generator Interface
-    
-    private var compactHashGeneratorInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            // Compact controls
-            HStack(spacing: DesignSystem.Spacing.lg) {
-                Picker("Mode", selection: $isFileMode) {
-                    Text("Text").tag(false)
-                    Text("File").tag(true)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 140)
-                
-                Picker("Hash", selection: $hashType) {
-                    ForEach(HashType.allCases, id: \.self) { type in
-                        Text(type.displayName).tag(type)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(width: 120)
-                
-                Spacer()
-            }
-            
-            // Compact Input/Output
-            HStack(spacing: DesignSystem.Spacing.lg) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Input")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    if isFileMode {
-                        VStack(spacing: 12) {
-                            Image(systemName: "doc.fill")
-                                .font(.system(size: 28, weight: .light))
-                                .foregroundColor(DesignSystem.Colors.textSecondary)
-                            
-                            Text(draggedFileName ?? "Drop file or click to select")
-                                .font(.system(size: 12))
-                                .foregroundColor(DesignSystem.Colors.textPrimary)
-                                .multilineTextAlignment(.center)
-                                .lineLimit(2)
-                            
-                            Button("Select File") {
-                                selectFile()
-                            }
-                            .font(.system(size: 11, weight: .medium))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(DesignSystem.Colors.primary.opacity(0.1))
-                            .foregroundColor(DesignSystem.Colors.primary)
-                            .cornerRadius(6)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(DesignSystem.Colors.surface)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(DesignSystem.Colors.border, style: StrokeStyle(lineWidth: 1, dash: [6]))
-                                )
-                        )
-                        .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in
-                            handleFileDrop(providers)
-                        }
-                    } else {
-                        TextEditor(text: $hashInput)
-                            .font(.system(size: 12, design: .monospaced))
-                            .focused($isInputFocused)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(isInputFocused ? DesignSystem.Colors.borderFocus : DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                            .onChange(of: hashInput) { _, _ in
-                                generateHash()
-                            }
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Hash (\(hashType.displayName))")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        Spacer()
-                        
-                        if !hashResult.isEmpty {
-                            Button("Copy") {
-                                copyToClipboard(hashResult)
-                            }
-                            .font(.system(size: 11, weight: .medium))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(DesignSystem.Colors.primary.opacity(0.1))
-                            .foregroundColor(DesignSystem.Colors.primary)
-                            .cornerRadius(6)
-                        }
-                    }
-                    
-                    ScrollView {
-                        Text(hashResult.isEmpty ? "Hash will appear here..." : hashResult)
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(hashResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .padding(DesignSystem.Spacing.md)
-                            .textSelection(.enabled)
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(DesignSystem.Colors.surface)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .onChange(of: isFileMode) { _, _ in
-            hashInput = ""
-            hashResult = ""
-            draggedFileName = nil
-            fileData = nil
-        }
-        .onChange(of: hashType) { _, _ in
-            if isFileMode && fileData != nil {
-                generateHashFromFile()
-            } else if !hashInput.isEmpty {
-                generateHash()
-            }
-        }
+        .background(DesignSystem.Colors.surface.opacity(0.3))
     }
     
     // MARK: - Compact API Client Interface
     
     private var compactApiClientInterface: some View {
         VStack(spacing: DesignSystem.Spacing.md) {
+            // Tab bar
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(apiClientTabs.indices, id: \.self) { index in
+                        APITabButton(
+                            tab: apiClientTabs[index],
+                            isSelected: index == currentAPITabIndex,
+                            onSelect: {
+                                currentAPITabIndex = index
+                            },
+                            onClose: {
+                                closeAPITab(at: index)
+                            },
+                            canClose: apiClientTabs.count > 1
+                        )
+                    }
+                    
+                    // Add new tab button
+                    Button(action: addNewAPITab) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                            .frame(width: 24, height: 24)
+                            .background(
+                                Circle()
+                                    .fill(DesignSystem.Colors.surface.opacity(0.5))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, DesignSystem.Spacing.sm)
+            }
+            
             // Request configuration
             VStack(spacing: DesignSystem.Spacing.md) {
                 // Method and URL
@@ -606,7 +253,14 @@ struct ExpandedDevToolsView: View {
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                         
-                        Picker("Method", selection: $apiClientMethod) {
+                        Picker("Method", selection: Binding(
+                            get: { currentAPITab.method },
+                            set: { newValue in
+                                updateCurrentTab { tab in
+                                    tab.method = newValue
+                                }
+                            }
+                        )) {
                             ForEach(HTTPMethod.allCases, id: \.self) { method in
                                 Text(method.rawValue).tag(method)
                             }
@@ -620,2211 +274,2030 @@ struct ExpandedDevToolsView: View {
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                         
-                        TextField("https://api.example.com/users", text: $apiClientURL)
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    .frame(maxWidth: .infinity)
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Content Type")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        Picker("Content Type", selection: $apiClientContentType) {
-                            ForEach(APIContentType.allCases, id: \.self) { type in
-                                Text(type.displayName).tag(type)
+                        TextField("https://api.example.com/endpoint", text: Binding(
+                            get: { currentAPITab.url },
+                            set: { newValue in
+                                updateCurrentTab { tab in
+                                    tab.url = newValue
+                                }
                             }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(width: 140)
-                    }
-                    
-                    Button(apiClientIsLoading ? "Cancel" : "Send") {
-                        if apiClientIsLoading {
-                            // Cancel request
-                            apiClientIsLoading = false
-                        } else {
-                            sendAPIRequest()
-                        }
-                    }
-                    .buttonStyle_custom(.primary)
-                    .disabled(apiClientURL.isEmpty)
-                }
-                
-                // Headers and Body
-                HStack(spacing: DesignSystem.Spacing.lg) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Headers (one per line)")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        TextEditor(text: $apiClientHeaders)
-                            .font(.system(size: 12, design: .monospaced))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    }
-                    .frame(maxWidth: .infinity)
-                    
-                    if apiClientMethod.hasBody {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Request Body")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(DesignSystem.Colors.textPrimary)
-                            
-                            TextEditor(text: $apiClientBody)
-                                .font(.system(size: 12, design: .monospaced))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                                )
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                }
-                .frame(height: 140)
-            }
-            .padding(DesignSystem.Spacing.md)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(DesignSystem.Colors.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                    )
-            )
-            
-            // Response section
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                HStack {
-                    Text("Response")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    if apiClientStatusCode > 0 {
-                        Spacer()
-                        
-                        HStack(spacing: DesignSystem.Spacing.md) {
-                            // Status code with color coding
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(statusCodeColor(apiClientStatusCode))
-                                    .frame(width: 8, height: 8)
-                                Text("\(apiClientStatusCode)")
-                                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                                    .foregroundColor(statusCodeColor(apiClientStatusCode))
-                            }
-                            
-                            // Response time
-                            Text("\(Int(apiClientResponseTime * 1000))ms")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(DesignSystem.Colors.textSecondary)
-                            
-                            // Copy response button
-                            Button("Copy") {
-                                copyToClipboard(apiClientResponse)
-                            }
-                            .font(.system(size: 11, weight: .medium))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(DesignSystem.Colors.primary.opacity(0.1))
-                            .foregroundColor(DesignSystem.Colors.primary)
-                            .cornerRadius(6)
-                            .disabled(apiClientResponse.isEmpty)
-                        }
-                    }
-                }
-                
-                // Response content
-                ScrollView {
-                    if apiClientIsLoading {
-                        VStack(spacing: DesignSystem.Spacing.md) {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle())
-                            Text("Sending request...")
-                                .font(.system(size: 12))
-                                .foregroundColor(DesignSystem.Colors.textSecondary)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding(DesignSystem.Spacing.xl)
-                    } else {
-                        Text(apiClientResponse.isEmpty ? "Response will appear here..." : apiClientResponse)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(apiClientResponse.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .padding(DesignSystem.Spacing.md)
-                            .textSelection(.enabled)
-                    }
-                }
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(DesignSystem.Colors.surface)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                )
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .onChange(of: apiClientMethod) { _, _ in
-            if apiClientMethod.hasBody && apiClientBody.isEmpty {
-                apiClientBody = apiClientMethod.bodyPlaceholder
-            }
-        }
-    }
-    
-    // MARK: - Placeholder Compact Implementations
-    
-    private var compactUuidGeneratorInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            // Controls
-            HStack(spacing: DesignSystem.Spacing.lg) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Count:")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    HStack {
-                        TextField("Count", value: $uuidCount, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
-                        
-                        Stepper("", value: $uuidCount, in: 1...100)
-                    }
-                }
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Format:")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Picker("Format", selection: $uuidFormat) {
-                        ForEach(UUIDFormat.allCases, id: \.self) { format in
-                            Text(format.displayName).tag(format)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 150)
-                }
-                
-                Spacer()
-                
-                VStack(spacing: DesignSystem.Spacing.sm) {
-                    Button("Generate New") {
-                        generateUUIDs()
-                    }
-                    .buttonStyle_custom(.primary)
-                    
-                    Button("Copy All") {
-                        copyToClipboard(generatedUUIDs.joined(separator: "\n"))
-                    }
-                    .buttonStyle_custom(.secondary)
-                }
-            }
-            
-            // Generated UUIDs
-            ScrollView {
-                LazyVStack(spacing: DesignSystem.Spacing.sm) {
-                    ForEach(Array(generatedUUIDs.enumerated()), id: \.offset) { index, uuid in
-                        HStack {
-                            Text("\(index + 1).")
-                                .font(.system(size: 12, design: .monospaced))
-                                .foregroundColor(DesignSystem.Colors.textSecondary)
-                                .frame(width: 30, alignment: .trailing)
-                            
-                            Text(uuid)
-                                .font(.system(size: 12, design: .monospaced))
-                                .foregroundColor(DesignSystem.Colors.textPrimary)
-                                .textSelection(.enabled)
-                            
-                            Spacer()
-                            
-                            Button("Copy") {
-                                copyToClipboard(uuid)
-                            }
-                            .font(.system(size: 11, weight: .medium))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(DesignSystem.Colors.primary.opacity(0.1))
-                            .foregroundColor(DesignSystem.Colors.primary)
-                            .cornerRadius(4)
-                        }
-                        .padding(.horizontal, DesignSystem.Spacing.md)
-                        .padding(.vertical, DesignSystem.Spacing.sm)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(DesignSystem.Colors.surface)
-                        )
-                    }
-                }
-                .padding(DesignSystem.Spacing.md)
-            }
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                    )
-            )
-        }
-        .onChange(of: uuidCount) { _, _ in
-            generateUUIDs()
-        }
-        .onChange(of: uuidFormat) { _, _ in
-            generateUUIDs()
-        }
-    }
-    
-    private var compactCurlGeneratorInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            // Method and URL
-            HStack(spacing: DesignSystem.Spacing.lg) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Method")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Picker("Method", selection: $curlMethod) {
-                        ForEach(HTTPMethod.allCases, id: \.self) { method in
-                            Text(method.rawValue).tag(method)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 120)
-                }
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("URL")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    TextField("https://api.example.com/users", text: $curlURL)
+                        ))
                         .textFieldStyle(.roundedBorder)
-                        .onChange(of: curlURL) { _, _ in generateCURL() }
+                        .font(.system(size: 12, design: .monospaced))
+                    }
                 }
-                .frame(maxWidth: .infinity)
-            }
-            
-            // Headers and Body
-            HStack(spacing: DesignSystem.Spacing.lg) {
+                
+                // Headers
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Headers (one per line)")
+                    Text("Headers")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(DesignSystem.Colors.textPrimary)
                     
-                    TextEditor(text: $curlHeaders)
-                        .font(.system(size: 12, design: .monospaced))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                        .onChange(of: curlHeaders) { _, _ in generateCURL() }
+                    TextEditor(text: Binding(
+                        get: { currentAPITab.headers },
+                        set: { newValue in
+                            updateCurrentTab { tab in
+                                tab.headers = newValue
+                            }
+                        }
+                    ))
+                    .font(.system(size: 12, design: .monospaced))
+                    .frame(height: 80)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                    )
                 }
-                .frame(maxWidth: .infinity)
                 
-                if curlMethod.hasBody {
+                // Body (for POST/PUT/PATCH)
+                if currentAPITab.method.hasBody {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Request Body")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                         
-                        TextEditor(text: $curlBody)
-                            .font(.system(size: 12, design: .monospaced))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                            .onChange(of: curlBody) { _, _ in generateCURL() }
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .frame(height: 160)
-            
-            // Generated cURL
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Generated cURL Command")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Spacer()
-                    
-                    if !curlResult.isEmpty {
-                        Button("Copy") {
-                            copyToClipboard(curlResult)
-                        }
-                        .font(.system(size: 11, weight: .medium))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(DesignSystem.Colors.primary.opacity(0.1))
-                        .foregroundColor(DesignSystem.Colors.primary)
-                        .cornerRadius(6)
-                    }
-                }
-                
-                ScrollView {
-                    Text(curlResult.isEmpty ? "cURL command will appear here..." : curlResult)
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundColor(curlResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                        .padding(DesignSystem.Spacing.md)
-                        .textSelection(.enabled)
-                }
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(DesignSystem.Colors.surface)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                )
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .onChange(of: curlMethod) { _, _ in generateCURL() }
-        .onAppear { generateCURL() }
-    }
-    
-    private var compactJwtDecoderInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            // JWT Token Input
-            VStack(alignment: .leading, spacing: 8) {
-                Text("JWT Token")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                TextEditor(text: $jwtToken)
-                    .font(.system(size: 12, design: .monospaced))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                    )
-                    .onChange(of: jwtToken) { _, _ in decodeJWT() }
-            }
-            .frame(height: 100)
-            
-            // Decoded sections
-            HStack(spacing: DesignSystem.Spacing.lg) {
-                // Header
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Header")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        Spacer()
-                        
-                        if !jwtHeader.isEmpty {
-                            Button("Copy") {
-                                copyToClipboard(jwtHeader)
-                            }
-                            .font(.system(size: 11, weight: .medium))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(DesignSystem.Colors.primary.opacity(0.1))
-                            .foregroundColor(DesignSystem.Colors.primary)
-                            .cornerRadius(4)
-                        }
-                    }
-                    
-                    ScrollView {
-                        Text(jwtHeader.isEmpty ? "Header will appear here..." : jwtHeader)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(jwtHeader.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .padding(DesignSystem.Spacing.md)
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(DesignSystem.Colors.surface)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-                }
-                .frame(maxWidth: .infinity)
-                
-                // Payload
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Payload")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        Spacer()
-                        
-                        if !jwtPayload.isEmpty {
-                            Button("Copy") {
-                                copyToClipboard(jwtPayload)
-                            }
-                            .font(.system(size: 11, weight: .medium))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(DesignSystem.Colors.primary.opacity(0.1))
-                            .foregroundColor(DesignSystem.Colors.primary)
-                            .cornerRadius(4)
-                        }
-                    }
-                    
-                    ScrollView {
-                        Text(jwtPayload.isEmpty ? "Payload will appear here..." : jwtPayload)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(jwtPayload.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .padding(DesignSystem.Spacing.md)
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(DesignSystem.Colors.surface)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .frame(maxHeight: .infinity)
-        }
-    }
-    
-    private var compactGraphqlGeneratorInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            // Operation type selector
-            HStack {
-                Text("Operation Type:")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                Picker("Operation", selection: $graphqlOperation) {
-                    ForEach(GraphQLOperation.allCases, id: \.self) { op in
-                        Text(op.title).tag(op)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 240)
-                
-                Spacer()
-            }
-            
-            // Query and Variables
-            HStack(spacing: DesignSystem.Spacing.lg) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("GraphQL \(graphqlOperation.title)")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    TextEditor(text: $graphqlQuery)
-                        .font(.system(size: 12, design: .monospaced))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                        .onChange(of: graphqlQuery) { _, _ in generateGraphQLResult() }
-                }
-                .frame(maxWidth: .infinity)
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Variables (JSON)")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    TextEditor(text: $graphqlVariables)
-                        .font(.system(size: 12, design: .monospaced))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                        .onChange(of: graphqlVariables) { _, _ in generateGraphQLResult() }
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .frame(height: 180)
-            
-            // Generated Result
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Generated Request")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Spacer()
-                    
-                    if !graphqlResult.isEmpty {
-                        Button("Copy") {
-                            copyToClipboard(graphqlResult)
-                        }
-                        .font(.system(size: 11, weight: .medium))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(DesignSystem.Colors.primary.opacity(0.1))
-                        .foregroundColor(DesignSystem.Colors.primary)
-                        .cornerRadius(6)
-                    }
-                }
-                
-                ScrollView {
-                    Text(graphqlResult.isEmpty ? "Generated request will appear here..." : graphqlResult)
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundColor(graphqlResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                        .padding(DesignSystem.Spacing.md)
-                        .textSelection(.enabled)
-                }
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(DesignSystem.Colors.surface)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                )
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .onChange(of: graphqlOperation) { _, _ in generateGraphQLResult() }
-    }
-    
-    private var compactApiMockupInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            // Controls
-            HStack(spacing: DesignSystem.Spacing.lg) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Response Type:")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Picker("Type", selection: $apiResponseType) {
-                        ForEach(APIResponseType.allCases, id: \.self) { type in
-                            Text(type.title).tag(type)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 150)
-                }
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Count:")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    HStack {
-                        TextField("Count", value: $apiResponseCount, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
-                        
-                        Stepper("", value: $apiResponseCount, in: 1...100)
-                    }
-                }
-                
-                Spacer()
-                
-                Button("Generate") {
-                    generateAPIResponse()
-                }
-                .buttonStyle_custom(.primary)
-            }
-            
-            // Custom schema (for custom type)
-            if apiResponseType == .custom {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Custom Schema (JSON)")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    TextEditor(text: $apiCustomSchema)
-                        .font(.system(size: 12, design: .monospaced))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                }
-                .frame(height: 120)
-            }
-            
-            // Generated Response
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Generated API Response")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Spacer()
-                    
-                    if !apiResponseResult.isEmpty {
-                        Button("Copy") {
-                            copyToClipboard(apiResponseResult)
-                        }
-                        .font(.system(size: 11, weight: .medium))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(DesignSystem.Colors.primary.opacity(0.1))
-                        .foregroundColor(DesignSystem.Colors.primary)
-                        .cornerRadius(6)
-                    }
-                }
-                
-                ScrollView {
-                    Text(apiResponseResult.isEmpty ? "Generated response will appear here..." : apiResponseResult)
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundColor(apiResponseResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                        .padding(DesignSystem.Spacing.md)
-                        .textSelection(.enabled)
-                }
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(DesignSystem.Colors.surface)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                )
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .onChange(of: apiResponseType) { _, _ in generateAPIResponse() }
-        .onChange(of: apiResponseCount) { _, _ in generateAPIResponse() }
-        .onAppear { generateAPIResponse() }
-    }
-    
-    private var compactYamlJsonConverterInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            // Mode selector
-            HStack {
-                Text("Conversion:")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                Picker("Mode", selection: $yamlJsonMode) {
-                    ForEach(YAMLJSONMode.allCases, id: \.self) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 280)
-                
-                Spacer()
-            }
-            
-            // Input/Output layout
-            HStack(spacing: DesignSystem.Spacing.lg) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(yamlJsonMode.inputTitle)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    TextEditor(text: $yamlJsonInput)
-                        .font(.system(size: 12, design: .monospaced))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                        .onChange(of: yamlJsonInput) { _, _ in convertYamlJson() }
-                }
-                .frame(maxWidth: .infinity)
-                
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(yamlJsonMode.outputTitle)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        Spacer()
-                        
-                        if !yamlJsonOutput.isEmpty {
-                            Button("Copy") {
-                                copyToClipboard(yamlJsonOutput)
-                            }
-                            .font(.system(size: 11, weight: .medium))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(DesignSystem.Colors.primary.opacity(0.1))
-                            .foregroundColor(DesignSystem.Colors.primary)
-                            .cornerRadius(6)
-                        }
-                    }
-                    
-                    ScrollView {
-                        Text(yamlJsonOutput.isEmpty ? "Converted output will appear here..." : yamlJsonOutput)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(yamlJsonOutput.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .padding(DesignSystem.Spacing.md)
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(DesignSystem.Colors.surface)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .onChange(of: yamlJsonMode) { _, _ in convertYamlJson() }
-    }
-    
-    private var compactTextDiffInterface: some View {
-        textDiffInterface
-    }
-    
-    private var compactRegexTesterInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            // Pattern and flags
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Regular Expression Pattern")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                TextField("Enter regex pattern...", text: $regexPattern)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 12, design: .monospaced))
-                    .onChange(of: regexPattern) { _, _ in testRegex() }
-                
-                // Flags
-                HStack {
-                    Text("Flags:")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    ForEach(RegexFlag.allCases, id: \.self) { flag in
-                        Toggle(flag.title, isOn: Binding(
-                            get: { regexFlags.contains(flag) },
-                            set: { isOn in
-                                if isOn {
-                                    regexFlags.insert(flag)
-                                } else {
-                                    regexFlags.remove(flag)
+                        TextEditor(text: Binding(
+                            get: { currentAPITab.body },
+                            set: { newValue in
+                                updateCurrentTab { tab in
+                                    tab.body = newValue
                                 }
-                                testRegex()
                             }
                         ))
-                        .toggleStyle(.checkbox)
-                    }
-                    
-                    Spacer()
-                }
-            }
-            
-            // Test text and results
-            HStack(spacing: DesignSystem.Spacing.lg) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Test Text")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    TextEditor(text: $regexText)
                         .font(.system(size: 12, design: .monospaced))
+                        .frame(height: 120)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                                 .stroke(DesignSystem.Colors.border, lineWidth: 1)
                         )
-                        .onChange(of: regexText) { _, _ in testRegex() }
+                    }
                 }
-                .frame(maxWidth: .infinity)
                 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Matches (\(regexMatches.count))")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                            ForEach(Array(regexMatches.enumerated()), id: \.offset) { index, match in
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Match \(index + 1)")
-                                        .font(.system(size: 11, weight: .medium))
-                                        .foregroundColor(DesignSystem.Colors.success)
-                                    
-                                    let matchText = String(regexText[Range(match.range, in: regexText)!])
-                                    Text(matchText)
-                                        .font(.system(size: 12, design: .monospaced))
-                                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                                        .padding(.horizontal, DesignSystem.Spacing.sm)
-                                        .padding(.vertical, 4)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 4)
-                                                .fill(DesignSystem.Colors.success.opacity(0.1))
-                                        )
-                                }
+                // Send button and status
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    Button(action: sendAPIRequest) {
+                        HStack(spacing: 8) {
+                            if currentAPITab.isLoading {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "paperplane.fill")
+                                    .font(.system(size: 12, weight: .medium))
                             }
+                            Text(currentAPITab.isLoading ? "Sending..." : "Send Request")
+                                .font(.system(size: 13, weight: .semibold))
                         }
-                        .padding(DesignSystem.Spacing.md)
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(DesignSystem.Colors.surface)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .frame(maxHeight: .infinity)
-        }
-    }
-    
-    private var compactQrGeneratorInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            // Input and settings
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Text to encode")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                TextEditor(text: $qrText)
-                    .font(.system(size: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                    )
-                    .onChange(of: qrText) { _, _ in generateQRCode() }
-            }
-            .frame(height: 100)
-            
-            // Style and size controls
-            HStack(spacing: DesignSystem.Spacing.lg) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Style:")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Picker("Style", selection: $qrStyle) {
-                        ForEach(QRStyle.allCases, id: \.self) { style in
-                            Text(style.title).tag(style)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 120)
-                }
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Size:")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Picker("Size", selection: $qrSize) {
-                        ForEach(QRSize.allCases, id: \.self) { size in
-                            Text(size.title).tag(size)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 100)
-                }
-                
-                Spacer()
-                
-                if qrCode != nil {
-                    HStack(spacing: DesignSystem.Spacing.sm) {
-                        Button("Save Image") {
-                            saveQRCode()
-                        }
-                        .buttonStyle_custom(.secondary)
-                        
-                        Button("Copy Image") {
-                            copyQRCodeToClipboard()
-                        }
-                        .buttonStyle_custom(.primary)
-                    }
-                }
-            }
-            
-            // Generated QR Code
-            VStack(spacing: DesignSystem.Spacing.md) {
-                if let qrCode = qrCode {
-                    Image(nsImage: qrCode)
-                        .resizable()
-                        .interpolation(.none)
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: min(qrSize.displaySize, 200), height: min(qrSize.displaySize, 200))
-                        .background(qrStyle.backgroundColor)
-                        .clipShape(RoundedRectangle(cornerRadius: qrStyle.cornerRadius))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: qrStyle.cornerRadius)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                } else {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(DesignSystem.Colors.surface)
-                        .frame(width: 200, height: 200)
-                        .overlay(
-                            VStack(spacing: DesignSystem.Spacing.md) {
-                                Image(systemName: "qrcode")
-                                    .font(.system(size: 40, weight: .thin))
-                                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                                
-                                Text("QR code will appear here")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                            }
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                }
-                
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .onChange(of: qrStyle) { _, _ in generateQRCode() }
-        .onChange(of: qrSize) { _, _ in generateQRCode() }
-        .onAppear { generateQRCode() }
-    }
-    
-    // MARK: - Hash Generator Interface
-    
-    private var hashGeneratorInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            // Mode and hash type selectors
-            HStack {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Mode:")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Picker("Mode", selection: $isFileMode) {
-                        Text("Text").tag(false)
-                        Text("File").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 200)
-                }
-                
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: DesignSystem.Spacing.sm) {
-                    Text("Hash Type:")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Picker("Hash Type", selection: $hashType) {
-                        ForEach(HashType.allCases, id: \.self) { type in
-                            Text(type.displayName).tag(type)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 150)
-                }
-            }
-            
-            // Input/Output layout
-            HStack(spacing: DesignSystem.Spacing.xl) {
-                // Input area
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Input")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    if isFileMode {
-                        // File drop area
-                        VStack(spacing: DesignSystem.Spacing.lg) {
-                            Image(systemName: "doc.fill")
-                                .font(.system(size: 48, weight: .thin))
-                                .foregroundColor(DesignSystem.Colors.textSecondary)
-                            
-                            Text(draggedFileName ?? "Drop a file here")
-                                .font(DesignSystem.Typography.body)
-                                .foregroundColor(DesignSystem.Colors.textPrimary)
-                            
-                            Button("Select File") {
-                                selectFile()
-                            }
-                            .buttonStyle_custom(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
-                                .fill(DesignSystem.Colors.surface)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
-                                        .stroke(DesignSystem.Colors.border, style: StrokeStyle(lineWidth: 2, dash: [10]))
-                                )
-                        )
-                        .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in
-                            handleFileDrop(providers)
-                        }
-                    } else {
-                        // Text input
-                        TextEditor(text: $hashInput)
-                            .font(.system(size: 14, design: .monospaced))
-                            .focused($isInputFocused)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                    .stroke(isInputFocused ? DesignSystem.Colors.borderFocus : DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                            .onChange(of: hashInput) { _, _ in
-                                generateHash()
-                            }
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                
-                // Arrow indicator
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                
-                // Output area
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    HStack {
-                        Text("Hash (\(hashType.displayName))")
-                            .font(DesignSystem.Typography.bodySemibold)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        Spacer()
-                        
-                        if !hashResult.isEmpty {
-                            Button("Copy") {
-                                copyToClipboard(hashResult)
-                            }
-                            .buttonStyle_custom(.primary)
-                        }
-                    }
-                    
-                    ScrollView {
-                        Text(hashResult.isEmpty ? "Hash will appear here..." : hashResult)
-                            .font(.system(size: 14, design: .monospaced))
-                            .foregroundColor(hashResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .padding(DesignSystem.Spacing.lg)
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                            .fill(DesignSystem.Colors.surface)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .onChange(of: isFileMode) { _, _ in
-            hashInput = ""
-            hashResult = ""
-            draggedFileName = nil
-            fileData = nil
-        }
-        .onChange(of: hashType) { _, _ in
-            if isFileMode && fileData != nil {
-                generateHashFromFile()
-            } else if !hashInput.isEmpty {
-                generateHash()
-            }
-        }
-    }
-    
-    // MARK: - Base64 Interface
-    
-    private var base64Interface: some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            // Mode selector
-            HStack {
-                Text("Operation:")
-                    .font(DesignSystem.Typography.bodySemibold)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                Picker("Mode", selection: $base64Mode) {
-                    Text("Encode").tag(Base64Mode.encode)
-                    Text("Decode").tag(Base64Mode.decode)
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 200)
-                
-                Spacer()
-            }
-            
-            // Input/Output layout
-            HStack(spacing: DesignSystem.Spacing.xl) {
-                // Input area
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Input")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    TextEditor(text: $base64Input)
-                        .font(.system(size: 14, design: .monospaced))
-                        .focused($isInputFocused)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(isInputFocused ? DesignSystem.Colors.borderFocus : DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                        .onChange(of: base64Input) { _, _ in
-                            processBase64()
-                        }
-                }
-                .frame(maxWidth: .infinity)
-                
-                // Arrow indicator
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                
-                // Output area
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    HStack {
-                        Text("Output")
-                            .font(DesignSystem.Typography.bodySemibold)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        Spacer()
-                        
-                        if !base64Output.isEmpty {
-                            Button("Copy") {
-                                copyToClipboard(base64Output)
-                            }
-                            .buttonStyle_custom(.primary)
-                        }
-                    }
-                    
-                    ScrollView {
-                        Text(base64Output.isEmpty ? "Result will appear here..." : base64Output)
-                            .font(.system(size: 14, design: .monospaced))
-                            .foregroundColor(base64Output.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .padding(DesignSystem.Spacing.lg)
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                            .fill(DesignSystem.Colors.surface)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .onChange(of: base64Mode) { _, _ in
-            processBase64()
-        }
-    }
-    
-    // MARK: - UUID Generator Interface
-    
-    private var uuidGeneratorInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.xl) {
-            // Controls
-            HStack {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Count:")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    HStack {
-                        TextField("Count", value: $uuidCount, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
-                        
-                        Stepper("", value: $uuidCount, in: 1...100)
-                    }
-                }
-                
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Format:")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Picker("Format", selection: $uuidFormat) {
-                        ForEach(UUIDFormat.allCases, id: \.self) { format in
-                            Text(format.displayName).tag(format)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 150)
-                }
-                
-                Spacer()
-                
-                VStack(spacing: DesignSystem.Spacing.sm) {
-                    Button("Generate New") {
-                        generateUUIDs()
-                    }
-                    .buttonStyle_custom(.primary)
-                    
-                    Button("Copy All") {
-                        copyToClipboard(generatedUUIDs.joined(separator: "\n"))
-                    }
-                    .buttonStyle_custom(.secondary)
-                }
-            }
-            
-            // Generated UUIDs
-            ScrollView {
-                LazyVStack(spacing: DesignSystem.Spacing.sm) {
-                    ForEach(Array(generatedUUIDs.enumerated()), id: \.offset) { index, uuid in
-                        HStack {
-                            Text("\(index + 1).")
-                                .font(.system(size: 14, design: .monospaced))
-                                .foregroundColor(DesignSystem.Colors.textSecondary)
-                                .frame(width: 30, alignment: .trailing)
-                            
-                            Text(uuid)
-                                .font(.system(size: 14, design: .monospaced))
-                                .foregroundColor(DesignSystem.Colors.textPrimary)
-                                .textSelection(.enabled)
-                            
-                            Spacer()
-                            
-                            Button("Copy") {
-                                copyToClipboard(uuid)
-                            }
-                            .buttonStyle_custom(.ghost)
-                        }
+                        .foregroundColor(.white)
                         .padding(.horizontal, DesignSystem.Spacing.lg)
                         .padding(.vertical, DesignSystem.Spacing.sm)
                         .background(
                             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                                .fill(DesignSystem.Colors.surface)
+                                .fill(currentAPITab.isLoading ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.primary)
                         )
                     }
+                    .buttonStyle(.plain)
+                    .disabled(currentAPITab.url.isEmpty || currentAPITab.isLoading)
+                    
+                    if currentAPITab.statusCode > 0 {
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            Text("Status: \(currentAPITab.statusCode)")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(statusCodeColor(currentAPITab.statusCode))
+                            
+                            if currentAPITab.responseTime > 0 {
+                                Text("• \(Int(currentAPITab.responseTime * 1000))ms")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                            }
+                        }
+                    }
+                    
+                    Spacer()
                 }
-                .padding(DesignSystem.Spacing.lg)
             }
+            
+            // Response
+            if !currentAPITab.response.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Response")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Spacer()
+                        
+                        Button("Copy") {
+                            copyToClipboard(currentAPITab.response)
+                        }
+                        .font(.system(size: 12))
+                        .foregroundColor(DesignSystem.Colors.primary)
+                    }
+                    
+                    ScrollView {
+                        Text(currentAPITab.response)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(DesignSystem.Spacing.md)
+                            .textSelection(.enabled)
+                    }
+                    .frame(height: 200)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                            .fill(DesignSystem.Colors.surface.opacity(0.3))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            )
+                    )
+                }
+            }
+        }
+        .onChange(of: currentAPITab.method) { _, newMethod in
+            if newMethod.hasBody && currentAPITab.body.isEmpty {
+                updateCurrentTab { tab in
+                    tab.body = newMethod.bodyPlaceholder
+                }
+            }
+        }
+    }
+
+    // MARK: - API Tab Button Component
+    
+    private struct APITabButton: View {
+        let tab: APIRequestTab
+        let isSelected: Bool
+        let onSelect: () -> Void
+        let onClose: () -> Void
+        let canClose: Bool
+        
+        var body: some View {
+            HStack(spacing: 6) {
+                // Status indicator
+                Circle()
+                    .fill(tab.isLoading ? DesignSystem.Colors.warning : 
+                          (tab.statusCode > 0 ? statusCodeColor(tab.statusCode) : DesignSystem.Colors.textSecondary.opacity(0.3)))
+                    .frame(width: 6, height: 6)
+                
+                // Tab name
+                Text(tab.name)
+                    .font(.system(size: 11, weight: isSelected ? .semibold : .medium))
+                    .foregroundColor(isSelected ? DesignSystem.Colors.textPrimary : DesignSystem.Colors.textSecondary)
+                    .lineLimit(1)
+                
+                // Close button
+                if canClose {
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 12, height: 12)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
             .background(
-                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
-                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                    .fill(isSelected ? DesignSystem.Colors.surface : DesignSystem.Colors.surface.opacity(0.3))
                     .overlay(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
-                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                            .stroke(isSelected ? DesignSystem.Colors.border : Color.clear, lineWidth: 1)
                     )
             )
+            .onTapGesture {
+                onSelect()
+            }
         }
-        .onChange(of: uuidCount) { _, _ in
-            generateUUIDs()
-        }
-        .onChange(of: uuidFormat) { _, _ in
-            generateUUIDs()
-        }
-    }
-    
-    // MARK: - cURL Generator Interface
-    
-    private var curlGeneratorInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            // Method and URL
-            HStack(spacing: DesignSystem.Spacing.md) {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Method")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Picker("Method", selection: $curlMethod) {
-                        ForEach(HTTPMethod.allCases, id: \.self) { method in
-                            Text(method.rawValue).tag(method)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 100)
-                }
-                
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("URL")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    TextField("https://api.example.com/users", text: $curlURL)
-                        .textFieldStyle(.roundedBorder)
-                        .onChange(of: curlURL) { _, _ in generateCURL() }
-                }
-                .frame(maxWidth: .infinity)
+        
+        private func statusCodeColor(_ statusCode: Int) -> Color {
+            switch statusCode {
+            case 200..<300: return DesignSystem.Colors.success
+            case 300..<400: return DesignSystem.Colors.warning
+            case 400..<500: return DesignSystem.Colors.error
+            case 500..<600: return DesignSystem.Colors.error
+            default: return DesignSystem.Colors.textSecondary
             }
-            
-            // Headers and Body
-            HStack(spacing: DesignSystem.Spacing.xl) {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Headers (one per line)")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    TextEditor(text: $curlHeaders)
-                        .font(.system(size: 14, design: .monospaced))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                        .onChange(of: curlHeaders) { _, _ in generateCURL() }
-                }
-                .frame(maxWidth: .infinity)
-                
-                if curlMethod.hasBody {
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                        Text("Request Body")
-                            .font(DesignSystem.Typography.bodySemibold)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        TextEditor(text: $curlBody)
-                            .font(.system(size: 14, design: .monospaced))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                            .onChange(of: curlBody) { _, _ in generateCURL() }
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .frame(height: 200)
-            
-            // Generated cURL
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                HStack {
-                    Text("Generated cURL Command")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Spacer()
-                    
-                    if !curlResult.isEmpty {
-                        Button("Copy") {
-                            copyToClipboard(curlResult)
-                        }
-                        .buttonStyle_custom(.primary)
-                    }
-                }
-                
-                ScrollView {
-                    Text(curlResult.isEmpty ? "cURL command will appear here..." : curlResult)
-                        .font(.system(size: 14, design: .monospaced))
-                        .foregroundColor(curlResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                        .padding(DesignSystem.Spacing.lg)
-                        .textSelection(.enabled)
-                }
-                .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                        .fill(DesignSystem.Colors.surface)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                )
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .onChange(of: curlMethod) { _, _ in generateCURL() }
-        .onAppear { generateCURL() }
-    }
-    
-    // MARK: - JWT Decoder Interface
-    
-    private var jwtDecoderInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            // JWT Token Input
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                Text("JWT Token")
-                    .font(DesignSystem.Typography.bodySemibold)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                TextEditor(text: $jwtToken)
-                    .font(.system(size: 14, design: .monospaced))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                    )
-                    .onChange(of: jwtToken) { _, _ in decodeJWT() }
-            }
-            .frame(height: 120)
-            
-            // Decoded sections
-            HStack(spacing: DesignSystem.Spacing.xl) {
-                // Header
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    HStack {
-                        Text("Header")
-                            .font(DesignSystem.Typography.bodySemibold)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        Spacer()
-                        
-                        if !jwtHeader.isEmpty {
-                            Button("Copy") {
-                                copyToClipboard(jwtHeader)
-                            }
-                            .buttonStyle_custom(.ghost)
-                        }
-                    }
-                    
-                    ScrollView {
-                        Text(jwtHeader.isEmpty ? "Header will appear here..." : jwtHeader)
-                            .font(.system(size: 14, design: .monospaced))
-                            .foregroundColor(jwtHeader.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .padding(DesignSystem.Spacing.lg)
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                            .fill(DesignSystem.Colors.surface)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-                }
-                .frame(maxWidth: .infinity)
-                
-                // Payload
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    HStack {
-                        Text("Payload")
-                            .font(DesignSystem.Typography.bodySemibold)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        Spacer()
-                        
-                        if !jwtPayload.isEmpty {
-                            Button("Copy") {
-                                copyToClipboard(jwtPayload)
-                            }
-                            .buttonStyle_custom(.ghost)
-                        }
-                    }
-                    
-                    ScrollView {
-                        Text(jwtPayload.isEmpty ? "Payload will appear here..." : jwtPayload)
-                            .font(.system(size: 14, design: .monospaced))
-                            .foregroundColor(jwtPayload.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .padding(DesignSystem.Spacing.lg)
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                            .fill(DesignSystem.Colors.surface)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .frame(maxHeight: .infinity)
         }
     }
     
-    // MARK: - GraphQL Generator Interface
+    // MARK: - Compact JSON Formatter Interface
     
-    private var graphqlGeneratorInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            // Operation type selector
+    private var compactJsonFormatterInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
             HStack {
-                Text("Operation Type:")
-                    .font(DesignSystem.Typography.bodySemibold)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                Picker("Operation", selection: $graphqlOperation) {
-                    ForEach(GraphQLOperation.allCases, id: \.self) { op in
-                        Text(op.title).tag(op)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 200)
-                
-                Spacer()
-            }
-            
-            // Query and Variables
-            HStack(spacing: DesignSystem.Spacing.xl) {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("GraphQL \(graphqlOperation.title)")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    TextEditor(text: $graphqlQuery)
-                        .font(.system(size: 14, design: .monospaced))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                        .onChange(of: graphqlQuery) { _, _ in generateGraphQLResult() }
-                }
-                .frame(maxWidth: .infinity)
-                
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Variables (JSON)")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    TextEditor(text: $graphqlVariables)
-                        .font(.system(size: 14, design: .monospaced))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                        .onChange(of: graphqlVariables) { _, _ in generateGraphQLResult() }
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .frame(height: 250)
-            
-            // Generated Result
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                HStack {
-                    Text("Generated Request")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Spacer()
-                    
-                    if !graphqlResult.isEmpty {
-                        Button("Copy") {
-                            copyToClipboard(graphqlResult)
-                        }
-                        .buttonStyle_custom(.primary)
-                    }
-                }
-                
-                ScrollView {
-                    Text(graphqlResult.isEmpty ? "Generated request will appear here..." : graphqlResult)
-                        .font(.system(size: 14, design: .monospaced))
-                        .foregroundColor(graphqlResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                        .padding(DesignSystem.Spacing.lg)
-                        .textSelection(.enabled)
-                }
-                .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                        .fill(DesignSystem.Colors.surface)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                )
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .onChange(of: graphqlOperation) { _, _ in generateGraphQLResult() }
-    }
-    
-    // MARK: - API Mockup Interface
-    
-    private var apiMockupInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            // Controls
-            HStack {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Response Type:")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Picker("Type", selection: $apiResponseType) {
-                        ForEach(APIResponseType.allCases, id: \.self) { type in
-                            Text(type.title).tag(type)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 150)
-                }
-                
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Count:")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    HStack {
-                        TextField("Count", value: $apiResponseCount, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
-                        
-                        Stepper("", value: $apiResponseCount, in: 1...100)
-                    }
-                }
-                
-                Spacer()
-                
-                Button("Generate") {
-                    generateAPIResponse()
-                }
-                .buttonStyle_custom(.primary)
-            }
-            
-            // Custom schema (for custom type)
-            if apiResponseType == .custom {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Custom Schema (JSON)")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    TextEditor(text: $apiCustomSchema)
-                        .font(.system(size: 14, design: .monospaced))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                }
-                .frame(height: 150)
-            }
-            
-            // Generated Response
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                HStack {
-                    Text("Generated API Response")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Spacer()
-                    
-                    if !apiResponseResult.isEmpty {
-                        Button("Copy") {
-                            copyToClipboard(apiResponseResult)
-                        }
-                        .buttonStyle_custom(.primary)
-                    }
-                }
-                
-                ScrollView {
-                    Text(apiResponseResult.isEmpty ? "Generated response will appear here..." : apiResponseResult)
-                        .font(.system(size: 14, design: .monospaced))
-                        .foregroundColor(apiResponseResult.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                        .padding(DesignSystem.Spacing.lg)
-                        .textSelection(.enabled)
-                }
-                .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                        .fill(DesignSystem.Colors.surface)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .onChange(of: apiResponseType) { _, _ in generateAPIResponse() }
-        .onChange(of: apiResponseCount) { _, _ in generateAPIResponse() }
-        .onAppear { generateAPIResponse() }
-    }
-    
-    // MARK: - YAML-JSON Converter Interface
-    
-    private var yamlJsonConverterInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            // Mode selector
-            HStack {
-                Text("Conversion:")
-                    .font(DesignSystem.Typography.bodySemibold)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                Picker("Mode", selection: $yamlJsonMode) {
-                    ForEach(YAMLJSONMode.allCases, id: \.self) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 300)
-                
-                Spacer()
-            }
-            
-            // Input/Output layout
-            HStack(spacing: DesignSystem.Spacing.xl) {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text(yamlJsonMode.inputTitle)
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    TextEditor(text: $yamlJsonInput)
-                        .font(.system(size: 14, design: .monospaced))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                        .onChange(of: yamlJsonInput) { _, _ in convertYamlJson() }
-                }
-                .frame(maxWidth: .infinity)
-                
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 20, weight: .medium))
+                Text("JSON Formatter")
+                    .font(DesignSystem.Typography.captionMedium)
                     .foregroundColor(DesignSystem.Colors.textSecondary)
                 
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    HStack {
-                        Text(yamlJsonMode.outputTitle)
-                            .font(DesignSystem.Typography.bodySemibold)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        Spacer()
-                        
-                        if !yamlJsonOutput.isEmpty {
-                            Button("Copy") {
-                                copyToClipboard(yamlJsonOutput)
-                            }
-                            .buttonStyle_custom(.primary)
+                Spacer()
+                
+                // Compact operation dropdown
+                Menu {
+                    ForEach(JSONOperation.allCases, id: \.self) { operation in
+                        Button(operation.title) {
+                            jsonOperation = operation
+                            processJSON()
                         }
                     }
-                    
-                    ScrollView {
-                        Text(yamlJsonOutput.isEmpty ? "Converted output will appear here..." : yamlJsonOutput)
-                            .font(.system(size: 14, design: .monospaced))
-                            .foregroundColor(yamlJsonOutput.isEmpty ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .padding(DesignSystem.Spacing.lg)
+                } label: {
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        Text(jsonOperation.title)
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
                     }
+                    .padding(.horizontal, DesignSystem.Spacing.xs)
+                    .padding(.vertical, DesignSystem.Spacing.xxs)
                     .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                            .fill(DesignSystem.Colors.surface)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                            .fill(DesignSystem.Colors.surface.opacity(0.3))
                     )
                 }
-                .frame(maxWidth: .infinity)
+                .buttonStyle(.plain)
             }
-            .frame(maxHeight: .infinity)
+            
+            CompactInputArea(
+                title: "JSON Input",
+                text: $jsonInput,
+                placeholder: "Paste your JSON here...",
+                focusBinding: $isInputFocused
+            )
+            .onChange(of: jsonInput) { _, _ in processJSON() }
+            
+            if !jsonOutput.isEmpty {
+                CompactOutputArea(
+                    title: jsonOperation.outputTitle,
+                    text: jsonOutput,
+                    height: 60
+                ) {
+                    copyToClipboard(jsonOutput)
+                }
+            }
+            
+            // Quick actions
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ActionButton(title: "Sample JSON", icon: "doc.text") {
+                    jsonInput = """
+{
+  "name": "John Doe",
+  "age": 30,
+  "email": "john@example.com",
+  "hobbies": ["coding", "reading"],
+  "address": {
+    "street": "123 Main St",
+    "city": "New York"
+  }
+}
+"""
+                    processJSON()
+                }
+                
+                ActionButton(title: "Clear", icon: "trash") {
+                    jsonInput = ""
+                    jsonOutput = ""
+                }
+                
+                Spacer()
+            }
         }
-        .onChange(of: yamlJsonMode) { _, _ in convertYamlJson() }
     }
     
-    // MARK: - Text Diff Interface
+    // MARK: - Compact Hash Generator Interface
     
-    private var textDiffInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            // Header with action buttons
+    private var compactHashGeneratorInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
             HStack {
-                Text("Text Comparison")
-                    .font(DesignSystem.Typography.headline2)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                Text("Hash Generator")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
                 
                 Spacer()
                 
-                HStack(spacing: DesignSystem.Spacing.sm) {
-                    Button("Clear") {
-                        clearDiffInputs()
+                // Compact dropdown controls
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    // Mode dropdown
+                    Menu {
+                        Button("Text Mode") {
+                            withAnimation(DesignSystem.Animation.gentle) {
+                                isFileMode = false
+                                hashInput = ""
+                                hashResult = ""
+                                draggedFileName = nil
+                                fileData = nil
+                            }
+                        }
+                        Button("File Mode") {
+                            withAnimation(DesignSystem.Animation.gentle) {
+                                isFileMode = true
+                                hashInput = ""
+                                hashResult = ""
+                                draggedFileName = nil
+                                fileData = nil
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: DesignSystem.Spacing.xxs) {
+                            Image(systemName: isFileMode ? "doc.fill" : "textformat")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
+                            Text(isFileMode ? "File" : "Text")
+                                .font(DesignSystem.Typography.micro)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                        }
+                        .padding(.horizontal, DesignSystem.Spacing.xs)
+                        .padding(.vertical, DesignSystem.Spacing.xxs)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
                     }
-                    .buttonStyle_custom(.secondary)
+                    .buttonStyle(.plain)
                     
-                    Button("Compare") {
-                        generateTextDiff()
+                    // Hash type dropdown
+                    Menu {
+                        ForEach(HashType.allCases, id: \.self) { type in
+                            Button(type.title) {
+                                hashType = type
+                                processHash()
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: DesignSystem.Spacing.xxs) {
+                            Text(hashType.title)
+                                .font(DesignSystem.Typography.micro)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                        }
+                        .padding(.horizontal, DesignSystem.Spacing.xs)
+                        .padding(.vertical, DesignSystem.Spacing.xxs)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
                     }
-                    .buttonStyle_custom(.primary)
-                    .disabled(diffText1.isEmpty && diffText2.isEmpty)
+                    .buttonStyle(.plain)
                 }
             }
             
-            // Side-by-side input
-            HStack(spacing: DesignSystem.Spacing.xl) {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    HStack {
-                        Image(systemName: "doc.text")
-                            .foregroundColor(DesignSystem.Colors.error)
-                        Text("Original Text")
-                            .font(DesignSystem.Typography.bodySemibold)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                    }
-                    
-                    TextEditor(text: $diffText1)
-                        .font(.system(size: 14, design: .monospaced))
-                        .scrollContentBackground(.hidden)
-                        .background(DesignSystem.Colors.surface)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(DesignSystem.Colors.error.opacity(0.3), lineWidth: 1)
-                        )
-                        .onChange(of: diffText1) { _, _ in 
-                            if !diffText1.isEmpty || !diffText2.isEmpty {
-                                generateTextDiff()
-                            }
-                        }
-                }
-                .frame(maxWidth: .infinity)
-                
-                // Separator
-                Rectangle()
-                    .fill(DesignSystem.Colors.border)
-                    .frame(width: 1)
-                
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    HStack {
-                        Image(systemName: "doc.text")
-                            .foregroundColor(DesignSystem.Colors.success)
-                        Text("Modified Text")
-                            .font(DesignSystem.Typography.bodySemibold)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                    }
-                    
-                    TextEditor(text: $diffText2)
-                        .font(.system(size: 14, design: .monospaced))
-                        .scrollContentBackground(.hidden)
-                        .background(DesignSystem.Colors.surface)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(DesignSystem.Colors.success.opacity(0.3), lineWidth: 1)
-                        )
-                        .onChange(of: diffText2) { _, _ in 
-                            if !diffText1.isEmpty || !diffText2.isEmpty {
-                                generateTextDiff()
-                            }
-                        }
-                }
-                .frame(maxWidth: .infinity)
+            if isFileMode {
+                fileDropArea
+            } else {
+                CompactInputArea(
+                    title: "Text Input",
+                    text: $hashInput,
+                    placeholder: "Enter text to hash...",
+                    focusBinding: $isInputFocused
+                )
+                .onChange(of: hashInput) { _, _ in processHash() }
             }
-            .frame(height: 200)
             
-            // Diff results - Side by side comparison
-            if !diffResult.isEmpty {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    HStack {
-                        Text("Comparison Results")
-                            .font(DesignSystem.Typography.bodySemibold)
+            if !hashResult.isEmpty {
+                CompactOutputArea(
+                    title: "\(hashType.title) Hash",
+                    text: hashResult,
+                    height: 60
+                ) {
+                    copyToClipboard(hashResult)
+                }
+            }
+            
+            // All hash types output (for text mode)
+            if !isFileMode && !hashInput.isEmpty {
+                allHashesView
+            }
+        }
+    }
+    
+    // MARK: - Compact Base64 Interface
+    
+    private var compactBase64Interface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Text("Base64 Encoder/Decoder")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                // Mode toggle
+                Menu {
+                    Button("Encode") { base64Mode = .encode; processBase64() }
+                    Button("Decode") { base64Mode = .decode; processBase64() }
+                } label: {
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        Text(base64Mode == .encode ? "Encode" : "Decode")
+                            .font(DesignSystem.Typography.micro)
                             .foregroundColor(DesignSystem.Colors.textPrimary)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
+                    .padding(.horizontal, DesignSystem.Spacing.xs)
+                    .padding(.vertical, DesignSystem.Spacing.xxs)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                            .fill(DesignSystem.Colors.surface.opacity(0.3))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            
+            CompactInputArea(
+                title: base64Mode == .encode ? "Text to Encode" : "Base64 to Decode",
+                text: $base64Input,
+                placeholder: base64Mode == .encode ? "Enter text to encode..." : "Enter Base64 string to decode...",
+                focusBinding: $isInputFocused
+            )
+            .onChange(of: base64Input) { _, _ in processBase64() }
+            
+            if !base64Output.isEmpty {
+                CompactOutputArea(
+                    title: base64Mode == .encode ? "Base64 Encoded" : "Decoded Text",
+                    text: base64Output,
+                    height: 80
+                ) {
+                    copyToClipboard(base64Output)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Compact UUID Generator Interface
+    
+    private var compactUuidGeneratorInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Text("UUID Generator")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                // Compact controls
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    // Count stepper with -/+ buttons
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        Button("-") {
+                            if uuidCount > 1 {
+                                uuidCount -= 1
+                            }
+                        }
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(uuidCount > 1 ? DesignSystem.Colors.textPrimary : DesignSystem.Colors.textSecondary.opacity(0.5))
+                        .frame(width: 20, height: 20)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
+                        .disabled(uuidCount <= 1)
+                        .buttonStyle(.plain)
+                        
+                        Text("\(uuidCount)")
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .frame(width: 20)
+                        
+                        Button("+") {
+                            if uuidCount < 10 {
+                                uuidCount += 1
+                            }
+                        }
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(uuidCount < 10 ? DesignSystem.Colors.textPrimary : DesignSystem.Colors.textSecondary.opacity(0.5))
+                        .frame(width: 20, height: 20)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
+                        .disabled(uuidCount >= 10)
+                        .buttonStyle(.plain)
+                    }
+                    
+                    // Format dropdown
+                    Menu {
+                        ForEach(UUIDFormat.allCases, id: \.self) { format in
+                            Button(format.title) {
+                                uuidFormat = format
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: DesignSystem.Spacing.xxs) {
+                            Text(uuidFormat.title)
+                                .font(DesignSystem.Typography.micro)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                        }
+                        .padding(.horizontal, DesignSystem.Spacing.xs)
+                        .padding(.vertical, DesignSystem.Spacing.xxs)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            
+            HStack {
+                ActionButton(title: "Generate", icon: "arrow.clockwise") {
+                    generateUUIDs()
+                }
+                
+                if !generatedUUID.isEmpty {
+                    ActionButton(title: "Copy All", icon: "doc.on.doc") {
+                        copyToClipboard(generatedUUID)
+                    }
+                }
+                
+                Spacer()
+            }
+            
+            if !generatedUUID.isEmpty {
+                // Larger UUID output area
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    HStack {
+                        Text("Generated UUIDs")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
                         
                         Spacer()
                         
-                        // Statistics
-                        HStack(spacing: DesignSystem.Spacing.lg) {
-                            HStack(spacing: DesignSystem.Spacing.xs) {
-                                Circle()
-                                    .fill(DesignSystem.Colors.error)
-                                    .frame(width: 8, height: 8)
-                                Text("\(diffStats.removed) removed")
-                                    .font(DesignSystem.Typography.caption)
-                                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                            }
-                            
-                            HStack(spacing: DesignSystem.Spacing.xs) {
-                                Circle()
-                                    .fill(DesignSystem.Colors.success)
-                                    .frame(width: 8, height: 8)
-                                Text("\(diffStats.added) added")
-                                    .font(DesignSystem.Typography.caption)
-                                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                            }
-                            
-                            HStack(spacing: DesignSystem.Spacing.xs) {
-                                Circle()
-                                    .fill(DesignSystem.Colors.textSecondary)
-                                    .frame(width: 8, height: 8)
-                                Text("\(diffStats.unchanged) unchanged")
-                                    .font(DesignSystem.Typography.caption)
-                                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                            }
+                        Button("Copy") {
+                            copyToClipboard(generatedUUID)
                         }
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(DesignSystem.Colors.primary)
                     }
                     
-                    // Side-by-side diff display
                     ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(Array(enhancedDiffResult.enumerated()), id: \.offset) { index, diffPair in
-                                HStack(spacing: 0) {
-                                    // Left side (original)
-                                    HStack {
-                                        Text("\(diffPair.lineNumber)")
-                                            .font(.system(size: 12, design: .monospaced))
-                                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                                            .frame(width: 35, alignment: .trailing)
-                                        
-                                        Text(diffPair.original?.displayText ?? "")
-                                            .font(.system(size: 13, design: .monospaced))
-                                            .foregroundColor(diffPair.original?.type.color ?? DesignSystem.Colors.textPrimary)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .multilineTextAlignment(.leading)
-                                    }
-                                    .padding(.horizontal, DesignSystem.Spacing.sm)
-                                    .padding(.vertical, 4)
-                                    .background(diffPair.original?.type.backgroundColor ?? Color.clear)
-                                    .frame(maxWidth: .infinity)
-                                    
-                                    // Center divider
-                                    Rectangle()
-                                        .fill(DesignSystem.Colors.border.opacity(0.5))
-                                        .frame(width: 1)
-                                    
-                                    // Right side (modified)
-                                    HStack {
-                                        Text("\(diffPair.lineNumber)")
-                                            .font(.system(size: 12, design: .monospaced))
-                                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                                            .frame(width: 35, alignment: .trailing)
-                                        
-                                        Text(diffPair.modified?.displayText ?? "")
-                                            .font(.system(size: 13, design: .monospaced))
-                                            .foregroundColor(diffPair.modified?.type.color ?? DesignSystem.Colors.textPrimary)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .multilineTextAlignment(.leading)
-                                    }
-                                    .padding(.horizontal, DesignSystem.Spacing.sm)
-                                    .padding(.vertical, 4)
-                                    .background(diffPair.modified?.type.backgroundColor ?? Color.clear)
-                                    .frame(maxWidth: .infinity)
-                                }
-                                .overlay(
-                                    // Top border for better separation
-                                    Rectangle()
-                                        .fill(DesignSystem.Colors.border.opacity(0.2))
-                                        .frame(height: 0.5),
-                                    alignment: .top
-                                )
-                            }
-                        }
+                        Text(generatedUUID)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(DesignSystem.Spacing.sm)
+                            .textSelection(.enabled)
                     }
+                    .frame(height: 120) // Bigger height for better visibility
                     .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                            .fill(DesignSystem.Colors.surface)
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                            .fill(DesignSystem.Colors.surface.opacity(0.2))
                             .overlay(
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                                    .stroke(DesignSystem.Colors.success.opacity(0.3), lineWidth: 1)
                             )
                     )
                 }
-                .frame(maxHeight: .infinity)
-            } else if !diffText1.isEmpty || !diffText2.isEmpty {
-                // Empty state when texts are identical
-                VStack(spacing: DesignSystem.Spacing.md) {
-                    Image(systemName: "checkmark.circle")
-                        .font(.system(size: 48))
-                        .foregroundColor(DesignSystem.Colors.success)
-                    
-                    Text("No differences found")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.success)
-                    
-                    Text("The texts are identical")
-                        .font(DesignSystem.Typography.body)
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
+            }
+        }
+    }
+    
+    // MARK: - Compact cURL Generator Interface
+    
+    private var compactCurlGeneratorInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Text("cURL Generator")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                // HTTP Method dropdown
+                Menu {
+                    ForEach(HTTPMethod.allCases, id: \.self) { method in
+                        Button(method.rawValue) {
+                            curlMethod = method
+                            generateCURL()
+                        }
+                    }
+                } label: {
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        Text(curlMethod.rawValue)
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
+                    .padding(.horizontal, DesignSystem.Spacing.xs)
+                    .padding(.vertical, DesignSystem.Spacing.xxs)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                            .fill(DesignSystem.Colors.surface.opacity(0.3))
+                    )
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                        .fill(DesignSystem.Colors.success.opacity(0.05))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(DesignSystem.Colors.success.opacity(0.3), lineWidth: 1)
+                .buttonStyle(.plain)
+            }
+            
+            // URL Input
+            CompactInputArea(
+                title: "URL",
+                text: $curlURL,
+                placeholder: "https://api.example.com/users",
+                focusBinding: $isInputFocused
+            )
+            .onChange(of: curlURL) { _, _ in generateCURL() }
+            
+            // Headers Input (optional)
+            CompactInputArea(
+                title: "Headers (Optional)",
+                text: $curlHeaders,
+                placeholder: "Content-Type: application/json\nAuthorization: Bearer token",
+                focusBinding: nil
+            )
+            .onChange(of: curlHeaders) { _, _ in generateCURL() }
+            
+            // Body Input (for POST/PUT/PATCH)
+            if curlMethod.hasBody {
+                CompactInputArea(
+                    title: "Request Body",
+                    text: $curlBody,
+                    placeholder: curlMethod.bodyPlaceholder,
+                    focusBinding: nil
+                )
+                .onChange(of: curlBody) { _, _ in generateCURL() }
+            }
+            
+            // Quick action buttons
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ActionButton(title: "Sample API", icon: "doc.text") {
+                    curlURL = "https://jsonplaceholder.typicode.com/posts/1"
+                    curlMethod = .GET
+                    curlHeaders = "Accept: application/json"
+                    curlBody = ""
+                    generateCURL()
+                }
+                
+                ActionButton(title: "Clear", icon: "trash") {
+                    clearCURLInputs()
+                }
+            }
+            
+            // Output
+            if !curlResult.isEmpty {
+                CompactOutputArea(
+                    title: "Generated cURL Command",
+                    text: curlResult,
+                    height: 60
+                ) {
+                    copyToClipboard(curlResult)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Compact JWT Decoder Interface
+    
+    private var compactJwtDecoderInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Text("JWT Token Decoder")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                if !jwtToken.isEmpty && jwtPayload.isEmpty {
+                    Text("❌ Invalid JWT")
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(DesignSystem.Colors.error)
+                }
+            }
+            
+            CompactInputArea(
+                title: "JWT Token",
+                text: $jwtToken,
+                placeholder: "Paste JWT token here...",
+                focusBinding: $isInputFocused
+            )
+            .onChange(of: jwtToken) { _, _ in processJWT() }
+            
+            if !jwtHeader.isEmpty {
+                VStack(spacing: DesignSystem.Spacing.xs) {
+                    CompactOutputArea(title: "Header", text: jwtHeader, height: 60) {
+                        copyToClipboard(jwtHeader)
+                    }
+                    
+                    CompactOutputArea(title: "Payload", text: jwtPayload, height: 60) {
+                        copyToClipboard(jwtPayload)
+                    }
+                    
+                    if !jwtSignature.isEmpty {
+                        CompactOutputArea(title: "Signature", text: jwtSignature, height: 60) {
+                            copyToClipboard(jwtSignature)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Compact GraphQL Generator Interface
+    
+    private var compactGraphqlGeneratorInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Text("GraphQL Query Generator")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                // Operation type dropdown
+                Menu {
+                    ForEach(GraphQLOperation.allCases, id: \.self) { operation in
+                        Button(operation.title) {
+                            graphqlOperation = operation
+                            generateGraphQLQuery()
+                        }
+                    }
+                } label: {
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        Text(graphqlOperation.title)
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
+                    .padding(.horizontal, DesignSystem.Spacing.xs)
+                    .padding(.vertical, DesignSystem.Spacing.xxs)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                            .fill(DesignSystem.Colors.surface.opacity(0.3))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            
+            CompactInputArea(
+                title: "GraphQL \(graphqlOperation.title)",
+                text: $graphqlQuery,
+                placeholder: graphqlOperation.placeholder,
+                focusBinding: $isInputFocused
+            )
+            .onChange(of: graphqlQuery) { _, _ in generateGraphQLQuery() }
+            
+            CompactInputArea(
+                title: "Variables (JSON)",
+                text: $graphqlVariables,
+                placeholder: graphqlOperation.variablesPlaceholder,
+                focusBinding: nil
+            )
+            .onChange(of: graphqlVariables) { _, _ in generateGraphQLQuery() }
+            
+            // Quick action buttons
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ActionButton(title: "Sample Query", icon: "doc.text") {
+                    graphqlOperation = .query
+                    graphqlQuery = "users(limit: $limit) {\n  id\n  name\n  email\n  posts {\n    title\n    content\n  }\n}"
+                    graphqlVariables = "{\n  \"limit\": 10\n}"
+                    generateGraphQLQuery()
+                }
+                
+                ActionButton(title: "Clear", icon: "trash") {
+                    clearGraphQLInputs()
+                }
+            }
+            
+            // Output
+            if !graphqlResult.isEmpty {
+                CompactOutputArea(
+                    title: "Complete GraphQL Request",
+                    text: graphqlResult,
+                    height: 240
+                ) {
+                    copyToClipboard(graphqlResult)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Compact API Mockup Interface
+    
+    private var compactApiMockupInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Text("API Response Mockup")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    // Count stepper
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        Button("-") {
+                            if apiResponseCount > 1 {
+                                apiResponseCount -= 1
+                                generateAPIResponse()
+                            }
+                        }
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .frame(width: 16, height: 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
                         )
+                        .buttonStyle(.plain)
+                        
+                        Text("\(apiResponseCount)")
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .frame(minWidth: 20)
+                        
+                        Button("+") {
+                            if apiResponseCount < 50 {
+                                apiResponseCount += 1
+                                generateAPIResponse()
+                            }
+                        }
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .frame(width: 16, height: 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
+                        .buttonStyle(.plain)
+                    }
+                    
+                    // Response type dropdown
+                    Menu {
+                        ForEach(APIResponseType.allCases, id: \.self) { type in
+                            Button(type.title) {
+                                apiResponseType = type
+                                generateAPIResponse()
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: DesignSystem.Spacing.xxs) {
+                            Text(apiResponseType.title)
+                                .font(DesignSystem.Typography.micro)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                        }
+                        .padding(.horizontal, DesignSystem.Spacing.xs)
+                        .padding(.vertical, DesignSystem.Spacing.xxs)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            
+            if apiResponseType == .custom {
+                CompactInputArea(
+                    title: "Custom Schema (JSON)",
+                    text: $apiCustomSchema,
+                    placeholder: "{\n  \"name\": \"{{name}}\",\n  \"email\": \"{{email}}\",\n  \"age\": \"{{number}}\"\n}",
+                    focusBinding: $isInputFocused
+                )
+                .onChange(of: apiCustomSchema) { _, _ in generateAPIResponse() }
+            }
+            
+            // Quick action buttons
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ActionButton(title: "Generate", icon: "arrow.clockwise") {
+                    generateAPIResponse()
+                }
+                
+                ActionButton(title: "Clear", icon: "trash") {
+                    clearAPIResponse()
+                }
+            }
+            
+            // Output
+            if !apiResponseResult.isEmpty {
+                CompactOutputArea(
+                    title: "Generated API Response",
+                    text: apiResponseResult,
+                    height: 240
+                ) {
+                    copyToClipboard(apiResponseResult)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Compact YAML/JSON Converter Interface
+    
+    private var compactYamlJsonConverterInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Text("YAML ↔ JSON Converter")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                // Conversion mode dropdown
+                Menu {
+                    ForEach(YAMLJSONMode.allCases, id: \.self) { mode in
+                        Button(mode.title) {
+                            yamlJsonMode = mode
+                            convertYAMLJSON()
+                        }
+                    }
+                } label: {
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        Text(yamlJsonMode.title)
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
+                    .padding(.horizontal, DesignSystem.Spacing.xs)
+                    .padding(.vertical, DesignSystem.Spacing.xxs)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                            .fill(DesignSystem.Colors.surface.opacity(0.3))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            
+            CompactInputArea(
+                title: yamlJsonMode.inputTitle,
+                text: $yamlJsonInput,
+                placeholder: yamlJsonMode.placeholder,
+                focusBinding: $isInputFocused
+            )
+            .onChange(of: yamlJsonInput) { _, _ in convertYAMLJSON() }
+            
+            // Quick action buttons
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ActionButton(title: "Sample K8s", icon: "doc.text") {
+                    yamlJsonMode = .yamlToJson
+                    yamlJsonInput = """
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.20
+        ports:
+        - containerPort: 80
+"""
+                    convertYAMLJSON()
+                }
+                
+                ActionButton(title: "Clear", icon: "trash") {
+                    clearYAMLJSON()
+                }
+            }
+            
+            // Output
+            if !yamlJsonOutput.isEmpty {
+                CompactOutputArea(
+                    title: yamlJsonMode.outputTitle,
+                    text: yamlJsonOutput,
+                    height: 240
+                ) {
+                    copyToClipboard(yamlJsonOutput)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Compact Text Diff Interface
+    
+    private var compactTextDiffInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Text("Text Diff Tool")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                ActionButton(title: "Compare", icon: "eye") {
+                    compareDiff()
+                }
+            }
+            
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                CompactInputArea(
+                    title: "Text 1",
+                    text: $diffText1,
+                    placeholder: "Enter first text...",
+                    focusBinding: $isInputFocused
+                )
+                
+                CompactInputArea(
+                    title: "Text 2",
+                    text: $diffText2,
+                    placeholder: "Enter second text...",
+                    focusBinding: nil
                 )
             }
+            
+            if !diffResult.isEmpty {
+                DiffResultView(diffLines: diffResult)
+            }
         }
     }
     
-    // MARK: - Regex Tester Interface
+    // MARK: - Compact Regex Tester Interface
     
-    private var regexTesterInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            // Pattern and flags
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                Text("Regular Expression Pattern")
-                    .font(DesignSystem.Typography.bodySemibold)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                TextField("Enter regex pattern...", text: $regexPattern)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 14, design: .monospaced))
-                    .onChange(of: regexPattern) { _, _ in testRegex() }
-                
-                // Flags
-                HStack {
-                    Text("Flags:")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    ForEach(RegexFlag.allCases, id: \.self) { flag in
-                        Toggle(flag.title, isOn: Binding(
-                            get: { regexFlags.contains(flag) },
-                            set: { isOn in
-                                if isOn {
-                                    regexFlags.insert(flag)
-                                } else {
-                                    regexFlags.remove(flag)
-                                }
-                                testRegex()
-                            }
-                        ))
-                        .toggleStyle(.checkbox)
-                    }
-                    
-                    Spacer()
-                }
-            }
-            
-            // Test text and results
-            HStack(spacing: DesignSystem.Spacing.xl) {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Test Text")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    TextEditor(text: $regexText)
-                        .font(.system(size: 14, design: .monospaced))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
-                        .onChange(of: regexText) { _, _ in testRegex() }
-                }
-                .frame(maxWidth: .infinity)
-                
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Matches (\(regexMatches.count))")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                            ForEach(Array(regexMatches.enumerated()), id: \.offset) { index, match in
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Match \(index + 1)")
-                                        .font(DesignSystem.Typography.captionMedium)
-                                        .foregroundColor(DesignSystem.Colors.success)
-                                    
-                                    let matchText = String(regexText[Range(match.range, in: regexText)!])
-                                    Text(matchText)
-                                        .font(.system(size: 14, design: .monospaced))
-                                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                                        .padding(.horizontal, DesignSystem.Spacing.sm)
-                                        .padding(.vertical, DesignSystem.Spacing.xs)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                                                .fill(DesignSystem.Colors.success.opacity(0.1))
-                                        )
-                                }
-                            }
-                        }
-                        .padding(DesignSystem.Spacing.lg)
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                            .fill(DesignSystem.Colors.surface)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .frame(maxHeight: .infinity)
-        }
-    }
-    
-    // MARK: - QR Generator Interface
-    
-    private var qrGeneratorInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            // Input and settings
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                Text("Text to encode")
-                    .font(DesignSystem.Typography.bodySemibold)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                TextEditor(text: $qrText)
-                    .font(.system(size: 14))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                    )
-                    .onChange(of: qrText) { _, _ in generateQRCode() }
-            }
-            .frame(height: 120)
-            
-            // Style and size controls
+    private var compactRegexTesterInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
             HStack {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Style:")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Picker("Style", selection: $qrStyle) {
-                        ForEach(QRStyle.allCases, id: \.self) { style in
-                            Text(style.title).tag(style)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 150)
-                }
-                
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Size:")
-                        .font(DesignSystem.Typography.bodySemibold)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Picker("Size", selection: $qrSize) {
-                        ForEach(QRSize.allCases, id: \.self) { size in
-                            Text(size.title).tag(size)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 120)
-                }
+                Text("Regex Tester")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
                 
                 Spacer()
                 
-                if qrCode != nil {
-                    Button("Save Image") {
-                        saveQRCode()
+                HStack(spacing: DesignSystem.Spacing.xxs) {
+                    ForEach(RegexFlag.allCases, id: \.self) { flag in
+                        Button(flag.rawValue) {
+                            if regexFlags.contains(flag) {
+                                regexFlags.remove(flag)
+                            } else {
+                                regexFlags.insert(flag)
+                            }
+                            testRegex()
+                        }
+                        .font(DesignSystem.Typography.micro)
+                        .foregroundColor(regexFlags.contains(flag) ? .white : DesignSystem.Colors.textSecondary)
+                        .padding(.horizontal, DesignSystem.Spacing.xs)
+                        .padding(.vertical, DesignSystem.Spacing.xxs)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(regexFlags.contains(flag) ? DesignSystem.Colors.primary : DesignSystem.Colors.surface.opacity(0.3))
+                        )
                     }
-                    .buttonStyle_custom(.secondary)
-                    
-                    Button("Copy Image") {
-                        copyQRCodeToClipboard()
-                    }
-                    .buttonStyle_custom(.primary)
                 }
             }
             
-            // Generated QR Code
-            VStack(spacing: DesignSystem.Spacing.lg) {
-                if let qrCode = qrCode {
+            CompactInputArea(
+                title: "Regex Pattern",
+                text: $regexPattern,
+                placeholder: "Enter regex pattern...",
+                focusBinding: $isInputFocused
+            )
+            .onChange(of: regexPattern) { _, _ in testRegex() }
+            
+            CompactInputArea(
+                title: "Test Text",
+                text: $regexText,
+                placeholder: "Enter text to test against...",
+                focusBinding: nil
+            )
+            .onChange(of: regexText) { _, _ in testRegex() }
+            
+            if !regexMatches.isEmpty {
+                RegexResultView(matches: regexMatches, text: regexText)
+            } else if !regexPattern.isEmpty && !regexText.isEmpty {
+                Text("No matches found")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .padding(DesignSystem.Spacing.sm)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                            .fill(DesignSystem.Colors.surface.opacity(0.3))
+                    )
+            }
+        }
+    }
+    
+    // MARK: - Compact QR Generator Interface
+    
+    private var compactQrGeneratorInterface: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Text("QR Code Generator")
+                    .font(DesignSystem.Typography.captionMedium)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                // Compact controls - moved left and added style selector
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    // Style dropdown
+                    Menu {
+                        ForEach(QRStyle.allCases, id: \.self) { style in
+                            Button(style.title) {
+                                qrStyle = style
+                                generateQRCode()
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: DesignSystem.Spacing.xxs) {
+                            Text(qrStyle.title)
+                                .font(DesignSystem.Typography.micro)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                        }
+                        .padding(.horizontal, DesignSystem.Spacing.xs)
+                        .padding(.vertical, DesignSystem.Spacing.xxs)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    
+                    // Size dropdown
+                    Menu {
+                        ForEach(QRSize.allCases, id: \.self) { size in
+                            Button(size.title) {
+                                qrSize = size
+                                generateQRCode()
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: DesignSystem.Spacing.xxs) {
+                            Text(qrSize.title)
+                                .font(DesignSystem.Typography.micro)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                        }
+                        .padding(.horizontal, DesignSystem.Spacing.xs)
+                        .padding(.vertical, DesignSystem.Spacing.xxs)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            
+            CompactInputArea(
+                title: "Text/URL",
+                text: $qrText,
+                placeholder: "Enter text or URL to encode...",
+                focusBinding: $isInputFocused
+            )
+            .onChange(of: qrText) { _, _ in generateQRCode() }
+            
+            if let qrCode = qrCode {
+                VStack(spacing: DesignSystem.Spacing.xs) {
                     Image(nsImage: qrCode)
-                        .resizable()
                         .interpolation(.none)
+                        .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: qrSize.displaySize, height: qrSize.displaySize)
                         .background(qrStyle.backgroundColor)
-                        .clipShape(RoundedRectangle(cornerRadius: qrStyle.cornerRadius))
+                        .cornerRadius(qrStyle.cornerRadius)
+                    
+                    ActionButton(title: "Save Image", icon: "square.and.arrow.down") {
+                        saveQRCode()
+                    }
+                }
+                .padding(DesignSystem.Spacing.md)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                        .fill(DesignSystem.Colors.surface.opacity(0.3))
+                )
+            }
+        }
+    }
+    
+    // MARK: - Helper Views
+    
+    private var fileDropArea: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            HStack {
+                Text("Drop File")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                if let fileName = draggedFileName {
+                    Spacer()
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        Image(systemName: "doc.fill")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.success)
+                        Text(fileName)
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                    }
+                }
+            }
+            
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                .frame(height: 80)
+                .overlay(
+                    VStack(spacing: DesignSystem.Spacing.xs) {
+                        Image(systemName: draggedFileName != nil ? "checkmark.circle.fill" : "doc.badge.plus")
+                            .font(.system(size: 24, weight: .medium))
+                            .foregroundColor(draggedFileName != nil ? DesignSystem.Colors.success : DesignSystem.Colors.textSecondary)
+                        
+                        Text(draggedFileName != nil ? "File loaded" : "Drop file here")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                        .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
+                )
+                .onDrop(of: ["public.file-url"], isTargeted: nil) { providers in
+                    handleFileDrop(providers: providers)
+                    return true
+                }
+        }
+    }
+    
+    private var allHashesView: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            Text("All Hash Types")
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+            
+            VStack(spacing: DesignSystem.Spacing.xs) {
+                ForEach(HashType.allCases, id: \.self) { type in
+                    HashRow(
+                        type: type,
+                        hash: generateHashFromText(hashInput, type: type),
+                        isSelected: hashType == type
+                    ) {
+                        copyToClipboard(generateHashFromText(hashInput, type: type))
+                    }
+                }
+            }
+            .padding(DesignSystem.Spacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                    .fill(DesignSystem.Colors.surface.opacity(0.2))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                            .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
+                    )
+            )
+        }
+    }
+    
+    // MARK: - Supporting Views
+    
+    struct CompactInputArea: View {
+        let title: String
+        @Binding var text: String
+        let placeholder: String
+        var focusBinding: FocusState<Bool>.Binding?
+        
+        var body: some View {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text(title)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Group {
+                    if let focusBinding = focusBinding {
+                        TextEditor(text: $text)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .scrollContentBackground(.hidden)
+                            .background(Color.clear)
+                            .frame(height: 60)
+                            .padding(DesignSystem.Spacing.sm)
+                            .focused(focusBinding)
+                    } else {
+                        TextEditor(text: $text)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .scrollContentBackground(.hidden)
+                            .background(Color.clear)
+                            .frame(height: 60)
+                            .padding(DesignSystem.Spacing.sm)
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                        .fill(DesignSystem.Colors.surface.opacity(0.3))
                         .overlay(
-                            RoundedRectangle(cornerRadius: qrStyle.cornerRadius)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                                .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
                         )
-                } else {
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
-                        .fill(DesignSystem.Colors.surface)
-                        .frame(width: qrSize.displaySize, height: qrSize.displaySize)
-                        .overlay(
-                            VStack(spacing: DesignSystem.Spacing.md) {
-                                Image(systemName: "qrcode")
-                                    .font(.system(size: 48, weight: .thin))
-                                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                                
-                                Text("QR code will appear here")
-                                    .font(DesignSystem.Typography.caption)
-                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                )
+                .overlay(
+                    Group {
+                        if text.isEmpty {
+                            HStack {
+                                VStack {
+                                    HStack {
+                                        Text(placeholder)
+                                            .font(.system(size: 12, design: .monospaced))
+                                            .foregroundColor(DesignSystem.Colors.textSecondary.opacity(0.6))
+                                            .padding(.leading, DesignSystem.Spacing.sm)
+                                            .padding(.top, DesignSystem.Spacing.sm + 2)
+                                        Spacer()
+                                    }
+                                    Spacer()
+                                }
+                                Spacer()
                             }
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
-                                .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                        )
+                            .allowsHitTesting(false)
+                        }
+                    }
+                )
+            }
+        }
+    }
+    
+    struct CompactOutputArea: View {
+        let title: String
+        let text: String
+        let height: CGFloat
+        let action: () -> Void
+        
+        init(title: String, text: String, height: CGFloat = 60, action: @escaping () -> Void) {
+            self.title = title
+            self.text = text
+            self.height = height
+            self.action = action
+        }
+        
+        var body: some View {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                HStack {
+                    Text(title)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                    
+                    Spacer()
+                    
+                    Button("Copy") {
+                        action()
+                    }
+                    .font(DesignSystem.Typography.micro)
+                    .foregroundColor(DesignSystem.Colors.primary)
                 }
                 
-                Spacer()
+                ScrollView {
+                    Text(text)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(DesignSystem.Spacing.sm)
+                }
+                .frame(height: height)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                        .fill(DesignSystem.Colors.surface.opacity(0.2))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                                .stroke(DesignSystem.Colors.success.opacity(0.3), lineWidth: 1)
+                        )
+                )
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .onChange(of: qrStyle) { _, _ in generateQRCode() }
-        .onChange(of: qrSize) { _, _ in generateQRCode() }
-        .onAppear { generateQRCode() }
+    }
+    
+    struct ActionButton: View {
+        let title: String
+        let icon: String
+        let action: () -> Void
+        
+        var body: some View {
+            Button(action: action) {
+                HStack(spacing: DesignSystem.Spacing.xxs) {
+                    Image(systemName: icon)
+                        .font(.system(size: 10, weight: .medium))
+                    Text(title)
+                        .font(DesignSystem.Typography.micro)
+                }
+                .foregroundColor(DesignSystem.Colors.primary)
+                .padding(.horizontal, DesignSystem.Spacing.sm)
+                .padding(.vertical, DesignSystem.Spacing.xs)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                        .fill(DesignSystem.Colors.primary.opacity(0.1))
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+    
+    struct DiffResultView: View {
+        let diffLines: [DiffLine]
+        
+        var body: some View {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(diffLines.indices, id: \.self) { index in
+                        HStack {
+                            Text(diffLines[index].text)
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(diffLines[index].type.color)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding(.horizontal, DesignSystem.Spacing.sm)
+                        .padding(.vertical, 2)
+                        .background(diffLines[index].type.backgroundColor)
+                    }
+                }
+            }
+            .frame(height: 120)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                    .fill(DesignSystem.Colors.surface.opacity(0.2))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                            .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
+                    )
+            )
+        }
+    }
+    
+    struct RegexResultView: View {
+        let matches: [NSTextCheckingResult]
+        let text: String
+        
+        var body: some View {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text("\(matches.count) match\(matches.count == 1 ? "" : "es") found")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.success)
+                
+                ScrollView {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        ForEach(matches.indices, id: \.self) { index in
+                            let match = matches[index]
+                            let range = Range(match.range, in: text)
+                            if let range = range {
+                                HStack {
+                                    Text("Match \(index + 1):")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                                    
+                                    Text("\"\(String(text[range]))\"")
+                                        .font(.system(size: 10, design: .monospaced))
+                                        .foregroundColor(DesignSystem.Colors.success)
+                                        .padding(.horizontal, DesignSystem.Spacing.xs)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                                                .fill(DesignSystem.Colors.success.opacity(0.1))
+                                        )
+                                    
+                                    Spacer()
+                                    
+                                    Text("Position: \(match.range.location)-\(match.range.location + match.range.length)")
+                                        .font(.system(size: 9))
+                                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                                }
+                            }
+                        }
+                    }
+                    .padding(DesignSystem.Spacing.sm)
+                }
+                .frame(height: 100)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                        .fill(DesignSystem.Colors.surface.opacity(0.2))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                                .stroke(DesignSystem.Colors.success.opacity(0.3), lineWidth: 1)
+                        )
+                )
+            }
+        }
+    }
+    
+    struct HashRow: View {
+        let type: HashType
+        let hash: String
+        let isSelected: Bool
+        let onCopy: () -> Void
+        
+        var body: some View {
+            HStack {
+                Text(type.title)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .frame(width: 60, alignment: .leading)
+                
+                Text(hash)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                
+                Spacer()
+                
+                Button(action: onCopy) {
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.primary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.sm)
+            .padding(.vertical, DesignSystem.Spacing.xs)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                    .fill(isSelected ? type.color.opacity(0.1) : DesignSystem.Colors.surface.opacity(0.2))
+            )
+        }
+    }
+    
+    // MARK: - Processing Functions
+    
+    private func processJSON() {
+        guard !jsonInput.isEmpty else {
+            jsonOutput = ""
+            return
+        }
+        
+        switch jsonOperation {
+        case .format:
+            formatJSON()
+        case .minify:
+            minifyJSON()
+        case .validate:
+            validateJSON()
+        }
+    }
+    
+    private func formatJSON() {
+        do {
+            let jsonData = jsonInput.data(using: .utf8) ?? Data()
+            let jsonObject = try JSONSerialization.jsonObject(with: jsonData, options: [])
+            let formattedData = try JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys])
+            jsonOutput = String(data: formattedData, encoding: .utf8) ?? "Formatting failed"
+        } catch {
+            jsonOutput = "❌ Invalid JSON: \(error.localizedDescription)"
+        }
+    }
+    
+    private func minifyJSON() {
+        do {
+            let jsonData = jsonInput.data(using: .utf8) ?? Data()
+            let jsonObject = try JSONSerialization.jsonObject(with: jsonData, options: [])
+            let minifiedData = try JSONSerialization.data(withJSONObject: jsonObject, options: [])
+            jsonOutput = String(data: minifiedData, encoding: .utf8) ?? "Minification failed"
+        } catch {
+            jsonOutput = "❌ Invalid JSON: \(error.localizedDescription)"
+        }
+    }
+    
+    private func validateJSON() {
+        do {
+            let jsonData = jsonInput.data(using: .utf8) ?? Data()
+            let jsonObject = try JSONSerialization.jsonObject(with: jsonData, options: [])
+            
+            // Get JSON info
+            let size = jsonData.count
+            let keys = extractKeys(from: jsonObject)
+            
+            jsonOutput = """
+✅ Valid JSON
+
+📊 Statistics:
+• Size: \(size) bytes
+• Keys found: \(keys.count)
+• Type: \(type(of: jsonObject))
+
+🔑 Keys:
+\(keys.isEmpty ? "No keys found" : keys.joined(separator: ", "))
+"""
+        } catch {
+            jsonOutput = "❌ Invalid JSON: \(error.localizedDescription)"
+        }
+    }
+    
+    private func extractKeys(from object: Any) -> [String] {
+        var keys: [String] = []
+        
+        if let dict = object as? [String: Any] {
+            keys.append(contentsOf: dict.keys)
+            for value in dict.values {
+                keys.append(contentsOf: extractKeys(from: value))
+            }
+        } else if let array = object as? [Any] {
+            for item in array {
+                keys.append(contentsOf: extractKeys(from: item))
+            }
+        }
+        
+        return Array(Set(keys)).sorted()
+    }
+    
+    private func processHash() {
+        if isFileMode {
+            if let fileData = fileData {
+                hashResult = generateHashFromData(fileData, type: hashType)
+            } else {
+                hashResult = ""
+            }
+        } else {
+            guard !hashInput.isEmpty else {
+                hashResult = ""
+                return
+            }
+            hashResult = generateHashFromText(hashInput, type: hashType)
+        }
+    }
+    
+    private func generateHashFromText(_ text: String, type: HashType) -> String {
+        let data = Data(text.utf8)
+        return generateHashFromData(data, type: type)
+    }
+    
+    private func generateHashFromData(_ data: Data, type: HashType) -> String {
+        switch type {
+        case .md5:
+            return data.md5
+        case .sha1:
+            return data.sha1
+        case .sha256:
+            return data.sha256
+        case .sha384:
+            return data.sha384
+        case .sha512:
+            return data.sha512
+        }
+    }
+    
+    private func handleFileDrop(providers: [NSItemProvider]) {
+        guard let provider = providers.first else { return }
+        
+        provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { (item, error) in
+            guard let data = item as? Data,
+                  let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
+            
+            DispatchQueue.main.async {
+                self.draggedFileName = url.lastPathComponent
+                do {
+                    self.fileData = try Data(contentsOf: url)
+                    self.processHash()
+                } catch {
+                    print("Failed to read file: \(error)")
+                }
+            }
+        }
+    }
+    
+    private func processBase64() {
+        guard !base64Input.isEmpty else {
+            base64Output = ""
+            return
+        }
+        
+        switch base64Mode {
+        case .encode:
+            let data = base64Input.data(using: .utf8) ?? Data()
+            base64Output = data.base64EncodedString()
+        case .decode:
+            guard let data = Data(base64Encoded: base64Input) else {
+                base64Output = "❌ Invalid Base64"
+                return
+            }
+            base64Output = String(data: data, encoding: .utf8) ?? "❌ Unable to decode as UTF-8"
+        }
+    }
+    
+    private func generateUUIDs() {
+        var uuids: [String] = []
+        for _ in 0..<uuidCount {
+            let uuid = UUID().uuidString
+            switch uuidFormat {
+            case .uppercase:
+                uuids.append(uuid)
+            case .lowercase:
+                uuids.append(uuid.lowercased())
+            case .noDashes:
+                uuids.append(uuid.replacingOccurrences(of: "-", with: ""))
+            }
+        }
+        generatedUUID = uuids.joined(separator: "\n")
+    }
+    
+    private func generateCURL() {
+        guard !curlURL.isEmpty else {
+            curlResult = ""
+            return
+        }
+        
+        var curlCommand = "curl"
+        
+        // Add method if not GET
+        if curlMethod != .GET {
+            curlCommand += " -X \(curlMethod.rawValue)"
+        }
+        
+        // Add headers
+        if !curlHeaders.isEmpty {
+            let headerLines = curlHeaders.components(separatedBy: .newlines)
+                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            
+            for header in headerLines {
+                curlCommand += " \\\n  -H '\(header.trimmingCharacters(in: .whitespaces))'"
+            }
+        }
+        
+        // Add body for methods that support it
+        if curlMethod.hasBody && !curlBody.isEmpty {
+            curlCommand += " \\\n  -d '\(curlBody)'"
+        }
+        
+        // Add URL (always last)
+        curlCommand += " \\\n  '\(curlURL)'"
+        
+        curlResult = curlCommand
+    }
+    
+    private func clearCURLInputs() {
+        curlURL = ""
+        curlHeaders = ""
+        curlBody = ""
+        curlResult = ""
+    }
+    
+    private func processJWT() {
+        guard !jwtToken.isEmpty else {
+            jwtHeader = ""
+            jwtPayload = ""
+            jwtSignature = ""
+            return
+        }
+        
+        let parts = jwtToken.components(separatedBy: ".")
+        guard parts.count >= 2 else {
+            jwtHeader = ""
+            jwtPayload = ""
+            jwtSignature = ""
+            return
+        }
+        
+        // Decode header
+        if let headerData = base64Decode(parts[0]),
+           let headerString = String(data: headerData, encoding: .utf8) {
+            jwtHeader = formatJSON(headerString)
+        }
+        
+        // Decode payload
+        if let payloadData = base64Decode(parts[1]),
+           let payloadString = String(data: payloadData, encoding: .utf8) {
+            jwtPayload = formatJSON(payloadString)
+        }
+        
+        // Store signature (no need to decode)
+        if parts.count > 2 {
+            jwtSignature = parts[2]
+        }
+    }
+    
+    private func base64Decode(_ string: String) -> Data? {
+        // Add padding if needed
+        var base64 = string
+        let remainder = base64.count % 4
+        if remainder > 0 {
+            base64 += String(repeating: "=", count: 4 - remainder)
+        }
+        return Data(base64Encoded: base64)
+    }
+    
+    private func formatJSON(_ jsonString: String) -> String {
+        guard let data = jsonString.data(using: .utf8),
+              let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []),
+              let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys])
+        else {
+            return jsonString
+        }
+        return String(data: prettyData, encoding: .utf8) ?? "Formatting failed"
+    }
+    
+    private func generateGraphQLQuery() {
+        guard !graphqlQuery.isEmpty else {
+            graphqlResult = ""
+            return
+        }
+        
+        let operationType = graphqlOperation.title.lowercased()
+        var result = "# GraphQL \(graphqlOperation.title)\n\n"
+        
+        result += "\(operationType) {\n"
+        
+        // Clean up the query - remove extra newlines and format properly
+        let cleanQuery = graphqlQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lines = cleanQuery.components(separatedBy: .newlines)
+        for line in lines {
+            if !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                result += "  \(line.trimmingCharacters(in: .whitespacesAndNewlines))\n"
+            }
+        }
+        
+        result += "}\n"
+        
+        // Add variables if present
+        if !graphqlVariables.isEmpty {
+            result += "\n# Variables:\n"
+            result += graphqlVariables
+        }
+        
+        // Add HTTP request example
+        result += "\n\n# HTTP Request Example:\n"
+        result += "POST /graphql\n"
+        result += "Content-Type: application/json\n\n"
+        result += "{\n"
+        result += "  \"query\": \"\(cleanQuery.replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "\n", with: "\\n"))\""
+        
+        if !graphqlVariables.isEmpty {
+            result += ",\n  \"variables\": \(graphqlVariables.trimmingCharacters(in: .whitespacesAndNewlines))"
+        }
+        
+        result += "\n}"
+        
+        graphqlResult = result
+    }
+    
+    private func clearGraphQLInputs() {
+        graphqlQuery = ""
+        graphqlVariables = ""
+        graphqlResult = ""
+    }
+    
+    private func generateAPIResponse() {
+        var result = ""
+        
+        if apiResponseType == .custom {
+            guard !apiCustomSchema.isEmpty else {
+                apiResponseResult = ""
+                return
+            }
+            result = generateCustomAPIResponse()
+        } else {
+            result = generatePresetAPIResponse()
+        }
+        
+        apiResponseResult = result
+    }
+    
+    private func clearAPIResponse() {
+        apiResponseResult = ""
+        apiCustomSchema = ""
+    }
+    
+    private func convertYAMLJSON() {
+        guard !yamlJsonInput.isEmpty else {
+            yamlJsonOutput = ""
+            return
+        }
+        
+        switch yamlJsonMode {
+        case .yamlToJson:
+            yamlJsonOutput = convertYAMLToJSON(yamlJsonInput)
+        case .jsonToYaml:
+            yamlJsonOutput = convertJSONToYAML(yamlJsonInput)
+        }
+    }
+    
+    private func clearYAMLJSON() {
+        yamlJsonInput = ""
+        yamlJsonOutput = ""
+    }
+    
+    private func compareDiff() {
+        let lines1 = diffText1.components(separatedBy: .newlines)
+        let lines2 = diffText2.components(separatedBy: .newlines)
+        
+        diffResult = []
+        let maxLines = max(lines1.count, lines2.count)
+        
+        for i in 0..<maxLines {
+            let line1 = i < lines1.count ? lines1[i] : ""
+            let line2 = i < lines2.count ? lines2[i] : ""
+            
+            if line1 == line2 {
+                diffResult.append(DiffLine(text: line1, type: .same))
+            } else {
+                if !line1.isEmpty {
+                    diffResult.append(DiffLine(text: "- \(line1)", type: .removed))
+                }
+                if !line2.isEmpty {
+                    diffResult.append(DiffLine(text: "+ \(line2)", type: .added))
+                }
+            }
+        }
+    }
+    
+    private func testRegex() {
+        guard !regexPattern.isEmpty && !regexText.isEmpty else {
+            regexMatches = []
+            return
+        }
+        
+        do {
+            var options: NSRegularExpression.Options = []
+            if regexFlags.contains(.caseInsensitive) {
+                options.insert(.caseInsensitive)
+            }
+            if regexFlags.contains(.multiline) {
+                options.insert(.anchorsMatchLines)
+            }
+            if regexFlags.contains(.dotMatchesLineSeparators) {
+                options.insert(.dotMatchesLineSeparators)
+            }
+            
+            let regex = try NSRegularExpression(pattern: regexPattern, options: options)
+            regexMatches = regex.matches(in: regexText, options: [], range: NSRange(location: 0, length: regexText.count))
+        } catch {
+            regexMatches = []
+        }
+    }
+    
+    private func generateQRCode() {
+        guard !qrText.isEmpty else {
+            qrCode = nil
+            return
+        }
+        
+        let data = qrText.data(using: .utf8)
+        let filter = CIFilter(name: "CIQRCodeGenerator")
+        filter?.setValue(data, forKey: "inputMessage")
+        filter?.setValue("Q", forKey: "inputCorrectionLevel")
+        
+        if let outputImage = filter?.outputImage {
+            let scaleX = qrSize.rawValue / outputImage.extent.size.width
+            let scaleY = qrSize.rawValue / outputImage.extent.size.height
+            let scaledImage = outputImage.transformed(by: CGAffineTransform(scaleX: scaleX, y: scaleY))
+            
+            // Apply style transformations
+            let styledImage = applyQRStyle(to: scaledImage, style: qrStyle)
+            
+            let rep = NSCIImageRep(ciImage: styledImage)
+            let nsImage = NSImage(size: rep.size)
+            nsImage.addRepresentation(rep)
+            qrCode = nsImage
+        }
+    }
+    
+    private func saveQRCode() {
+        guard let qrCode = qrCode else { return }
+        
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.png]
+        savePanel.nameFieldStringValue = "qrcode.png"
+        
+        if savePanel.runModal() == .OK, let url = savePanel.url {
+            if let tiffData = qrCode.tiffRepresentation,
+               let bitmapRep = NSBitmapImageRep(data: tiffData),
+               let pngData = bitmapRep.representation(using: .png, properties: [:]) {
+                try? pngData.write(to: url)
+            }
+        }
+    }
+    
+    // MARK: - Helper Functions (placeholder implementations)
+    
+    private func generatePresetAPIResponse() -> String {
+        return "{\n  \"message\": \"Preset API response generation not yet implemented in expanded view\"\n}"
+    }
+    
+    private func generateCustomAPIResponse() -> String {
+        return "{\n  \"message\": \"Custom API response generation not yet implemented in expanded view\"\n}"
+    }
+    
+    private func convertYAMLToJSON(_ yaml: String) -> String {
+        return "{\n  \"message\": \"YAML to JSON conversion not yet implemented in expanded view\"\n}"
+    }
+    
+    private func convertJSONToYAML(_ json: String) -> String {
+        return "message: \"JSON to YAML conversion not yet implemented in expanded view\""
+    }
+    
+    private func applyQRStyle(to image: CIImage, style: QRStyle) -> CIImage {
+        return image // Simplified for now
     }
     
     // MARK: - Helper Functions
@@ -2865,890 +2338,25 @@ struct ExpandedDevToolsView: View {
         qrText = ""
         qrCode = nil
         
-        // Clear API client inputs
-        apiClientURL = ""
-        apiClientHeaders = ""
-        apiClientBody = ""
-        apiClientResponse = ""
-        apiClientStatusCode = 0
-        apiClientResponseTime = 0
-        apiClientResponseHeaders = ""
-        apiClientIsLoading = false
-    }
-    
-    private func processJSON() {
-        guard !jsonInput.isEmpty else {
-            jsonOutput = ""
-            return
-        }
-        
-        do {
-            let data = jsonInput.data(using: .utf8) ?? Data()
-            let json = try JSONSerialization.jsonObject(with: data, options: [])
-            
-            switch jsonOperation {
-            case .format:
-                let formatted = try JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys])
-                jsonOutput = String(data: formatted, encoding: .utf8) ?? "Error formatting JSON"
-            case .minify:
-                let minified = try JSONSerialization.data(withJSONObject: json, options: [])
-                jsonOutput = String(data: minified, encoding: .utf8) ?? "Error minifying JSON"
-            case .validate:
-                jsonOutput = "✅ Valid JSON"
-            }
-        } catch {
-            jsonOutput = "❌ Invalid JSON: \(error.localizedDescription)"
-        }
-    }
-    
-    private func generateHash() {
-        guard !hashInput.isEmpty else {
-            hashResult = ""
-            return
-        }
-        
-        let data = hashInput.data(using: .utf8) ?? Data()
-        hashResult = data.hashFromDeveloperTools(type: hashType)
-    }
-    
-    private func generateHashFromFile() {
-        guard let data = fileData else {
-            hashResult = ""
-            return
-        }
-        
-        hashResult = data.hashFromDeveloperTools(type: hashType)
-    }
-    
-    private func processBase64() {
-        guard !base64Input.isEmpty else {
-            base64Output = ""
-            return
-        }
-        
-        switch base64Mode {
-        case .encode:
-            let data = base64Input.data(using: .utf8) ?? Data()
-            base64Output = data.base64EncodedString()
-        case .decode:
-            guard let data = Data(base64Encoded: base64Input) else {
-                base64Output = "❌ Invalid Base64"
-                return
-            }
-            base64Output = String(data: data, encoding: .utf8) ?? "❌ Unable to decode as UTF-8"
-        }
-    }
-    
-    private func generateUUIDs() {
-        generatedUUIDs = (0..<uuidCount).map { _ in UUID().uuidString }
-        switch uuidFormat {
-        case .uppercase:
-            break
-        case .lowercase:
-            generatedUUIDs = generatedUUIDs.map { $0.lowercased() }
-        case .noDashes:
-            generatedUUIDs = generatedUUIDs.map { $0.replacingOccurrences(of: "-", with: "") }
-        }
-    }
-    
-    private func selectFile() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        
-        if panel.runModal() == .OK, let url = panel.url {
-            draggedFileName = url.lastPathComponent
-            do {
-                fileData = try Data(contentsOf: url)
-                generateHashFromFile()
-            } catch {
-                hashResult = "❌ Error reading file: \(error.localizedDescription)"
-            }
-        }
-    }
-    
-    private func handleFileDrop(_ providers: [NSItemProvider]) -> Bool {
-        for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier("public.file-url") {
-                provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, error in
-                    if let data = item as? Data, let url = URL(dataRepresentation: data, relativeTo: nil) {
-                        DispatchQueue.main.async {
-                            draggedFileName = url.lastPathComponent
-                            do {
-                                fileData = try Data(contentsOf: url)
-                                generateHashFromFile()
-                            } catch {
-                                hashResult = "❌ Error reading file: \(error.localizedDescription)"
-                            }
-                        }
-                    }
-                }
-                return true
-            }
-        }
-        return false
+        // Clear API Client tabs
+        apiClientTabs = [APIRequestTab(name: "Request 1")]
+        currentAPITabIndex = 0
     }
     
     private func copyToClipboard(_ text: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
         
-        showCopiedFeedback = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            showCopiedFeedback = false
-        }
-    }
-    
-    // MARK: - cURL Functions
-    
-    private func generateCURL() {
-        guard !curlURL.isEmpty else {
-            curlResult = ""
-            return
+        withAnimation(DesignSystem.Animation.gentle) {
+            showCopiedFeedback = true
+            lastCopiedText = text.prefix(20) + (text.count > 20 ? "..." : "")
         }
         
-        var command = "curl -X \(curlMethod.rawValue) \\\n"
-        command += "  '\(curlURL)'"
-        
-        // Add headers
-        if !curlHeaders.isEmpty {
-            let headers = curlHeaders.components(separatedBy: .newlines)
-                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-            
-            for header in headers {
-                command += " \\\n  -H '\(header.trimmingCharacters(in: .whitespaces))'"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation(DesignSystem.Animation.gentle) {
+                showCopiedFeedback = false
             }
         }
-        
-        // Add body for methods that support it
-        if curlMethod.hasBody && !curlBody.isEmpty {
-            command += " \\\n  -d '\(curlBody)'"
-        }
-        
-        curlResult = command
-    }
-    
-    // MARK: - JWT Functions
-    
-    private func decodeJWT() {
-        guard !jwtToken.isEmpty else {
-            jwtHeader = ""
-            jwtPayload = ""
-            jwtSignature = ""
-            return
-        }
-        
-        let components = jwtToken.components(separatedBy: ".")
-        guard components.count == 3 else {
-            jwtHeader = "❌ Invalid JWT format"
-            jwtPayload = "❌ Invalid JWT format"
-            jwtSignature = "❌ Invalid JWT format"
-            return
-        }
-        
-        // Decode header
-        if let headerData = base64URLDecode(components[0]),
-           let headerString = String(data: headerData, encoding: .utf8) {
-            jwtHeader = formatJSON(headerString)
-        } else {
-            jwtHeader = "❌ Failed to decode header"
-        }
-        
-        // Decode payload
-        if let payloadData = base64URLDecode(components[1]),
-           let payloadString = String(data: payloadData, encoding: .utf8) {
-            jwtPayload = formatJSON(payloadString)
-        } else {
-            jwtPayload = "❌ Failed to decode payload"
-        }
-        
-        jwtSignature = components[2]
-    }
-    
-    private func base64URLDecode(_ string: String) -> Data? {
-        var base64 = string
-            .replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
-        
-        // Add padding if needed
-        let padding = base64.count % 4
-        if padding > 0 {
-            base64 += String(repeating: "=", count: 4 - padding)
-        }
-        
-        return Data(base64Encoded: base64)
-    }
-    
-    private func formatJSON(_ jsonString: String) -> String {
-        guard let data = jsonString.data(using: .utf8),
-              let jsonObject = try? JSONSerialization.jsonObject(with: data),
-              let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys]) else {
-            return jsonString
-        }
-        return String(data: prettyData, encoding: .utf8) ?? jsonString
-    }
-    
-    // MARK: - GraphQL Functions
-    
-    private func generateGraphQLResult() {
-        guard !graphqlQuery.isEmpty else {
-            graphqlResult = ""
-            return
-        }
-        
-        var result = "{\n  \"query\": \"\(escapeForJSON(graphqlQuery))\""
-        
-        if !graphqlVariables.isEmpty {
-            if let data = graphqlVariables.data(using: .utf8),
-               let _ = try? JSONSerialization.jsonObject(with: data) {
-                result += ",\n  \"variables\": \(graphqlVariables)"
-            } else {
-                result += ",\n  \"variables\": ❌ Invalid JSON"
-            }
-        }
-        
-        result += "\n}"
-        
-        graphqlResult = result
-    }
-    
-    private func escapeForJSON(_ string: String) -> String {
-        return string
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-            .replacingOccurrences(of: "\n", with: "\\n")
-            .replacingOccurrences(of: "\r", with: "\\r")
-            .replacingOccurrences(of: "\t", with: "\\t")
-    }
-    
-    // MARK: - API Response Generation
-    
-    private func generateAPIResponse() {
-        switch apiResponseType {
-        case .user:
-            apiResponseResult = generateUserResponse()
-        case .post:
-            apiResponseResult = generatePostResponse()
-        case .comment:
-            apiResponseResult = generateCommentResponse()
-        case .product:
-            apiResponseResult = generateProductResponse()
-        case .order:
-            apiResponseResult = generateOrderResponse()
-        case .custom:
-            apiResponseResult = generateCustomResponse()
-        }
-    }
-    
-    private func generateUserResponse() -> String {
-        let users = (1...apiResponseCount).map { i in
-            """
-            {
-              "id": \(i),
-              "name": "User \(i)",
-              "email": "user\(i)@example.com",
-              "username": "user\(i)",
-              "phone": "+1-555-\(String(format: "%04d", i))",
-              "website": "user\(i).example.com",
-              "address": {
-                "street": "\(100 + i) Main St",
-                "suite": "Apt. \(i)",
-                "city": "Sample City",
-                "zipcode": "\(10000 + i)",
-                "geo": {
-                  "lat": "\(40.0 + Double(i) * 0.1)",
-                  "lng": "\(-74.0 + Double(i) * 0.1)"
-                }
-              },
-              "company": {
-                "name": "Company \(i)",
-                "catchPhrase": "Innovative solutions for tomorrow",
-                "bs": "synergistic next-generation applications"
-              }
-            }
-            """
-        }
-        
-        return apiResponseCount == 1 ? users[0] : "[\n" + users.joined(separator: ",\n") + "\n]"
-    }
-    
-    private func generatePostResponse() -> String {
-        let posts = (1...apiResponseCount).map { i in
-            """
-            {
-              "id": \(i),
-              "userId": \((i - 1) % 10 + 1),
-              "title": "Sample Post Title \(i)",
-              "body": "This is the body content of post \(i). It contains some sample text to demonstrate what a typical post might look like."
-            }
-            """
-        }
-        
-        return apiResponseCount == 1 ? posts[0] : "[\n" + posts.joined(separator: ",\n") + "\n]"
-    }
-    
-    private func generateCommentResponse() -> String {
-        let comments = (1...apiResponseCount).map { i in
-            """
-            {
-              "id": \(i),
-              "postId": \((i - 1) % 100 + 1),
-              "name": "Sample Comment \(i)",
-              "email": "commenter\(i)@example.com",
-              "body": "This is a sample comment \(i). It provides feedback or additional information about the post."
-            }
-            """
-        }
-        
-        return apiResponseCount == 1 ? comments[0] : "[\n" + comments.joined(separator: ",\n") + "\n]"
-    }
-    
-    private func generateProductResponse() -> String {
-        let products = (1...apiResponseCount).map { i in
-            """
-            {
-              "id": \(i),
-              "title": "Sample Product \(i)",
-              "price": \(19.99 + Double(i) * 10.0),
-              "description": "This is a high-quality product \(i) with excellent features and great value.",
-              "category": "Electronics",
-              "image": "https://via.placeholder.com/300/\(String(format: "%06x", i * 123456 % 0xFFFFFF))",
-              "rating": {
-                "rate": \(3.5 + Double(i % 3)),
-                "count": \(50 + i * 10)
-              }
-            }
-            """
-        }
-        
-        return apiResponseCount == 1 ? products[0] : "[\n" + products.joined(separator: ",\n") + "\n]"
-    }
-    
-    private func generateOrderResponse() -> String {
-        let orders = (1...apiResponseCount).map { i in
-            """
-            {
-              "id": \(i),
-              "userId": \((i - 1) % 10 + 1),
-              "date": "2024-01-\(String(format: "%02d", (i % 28) + 1))",
-              "status": "\(["pending", "processing", "shipped", "delivered"][i % 4])",
-              "total": \(50.0 + Double(i) * 25.0),
-              "items": [
-                {
-                  "productId": \(i),
-                  "quantity": \((i % 3) + 1),
-                  "price": \(19.99 + Double(i) * 5.0)
-                }
-              ]
-            }
-            """
-        }
-        
-        return apiResponseCount == 1 ? orders[0] : "[\n" + orders.joined(separator: ",\n") + "\n]"
-    }
-    
-    private func generateCustomResponse() -> String {
-        guard !apiCustomSchema.isEmpty else {
-            return "❌ Please provide a custom schema"
-        }
-        
-        guard let data = apiCustomSchema.data(using: .utf8),
-              let schema = try? JSONSerialization.jsonObject(with: data) else {
-            return "❌ Invalid JSON schema"
-        }
-        
-        // For simplicity, just return the schema repeated
-        let responses = (1...apiResponseCount).map { _ in apiCustomSchema }
-        return apiResponseCount == 1 ? responses[0] : "[\n" + responses.joined(separator: ",\n") + "\n]"
-    }
-    
-    // MARK: - YAML-JSON Conversion
-    
-    private func convertYamlJson() {
-        guard !yamlJsonInput.isEmpty else {
-            yamlJsonOutput = ""
-            return
-        }
-        
-        switch yamlJsonMode {
-        case .yamlToJson:
-            yamlJsonOutput = convertYamlToJson(yamlJsonInput)
-        case .jsonToYaml:
-            yamlJsonOutput = convertJsonToYaml(yamlJsonInput)
-        }
-    }
-    
-    private func convertYamlToJson(_ yaml: String) -> String {
-        // Basic YAML to JSON conversion (simplified)
-        // In a real implementation, you'd use a proper YAML parser
-        return "❌ YAML parsing not implemented. Use a proper YAML library for full functionality."
-    }
-    
-    private func convertJsonToYaml(_ json: String) -> String {
-        guard let data = json.data(using: .utf8),
-              let jsonObject = try? JSONSerialization.jsonObject(with: data) else {
-            return "❌ Invalid JSON"
-        }
-        
-        // Basic JSON to YAML conversion (simplified)
-        return convertObjectToYaml(jsonObject, indent: 0)
-    }
-    
-    private func convertObjectToYaml(_ object: Any, indent: Int) -> String {
-        let indentString = String(repeating: "  ", count: indent)
-        
-        if let dict = object as? [String: Any] {
-            return dict.map { key, value in
-                if let dictValue = value as? [String: Any] {
-                    return "\(indentString)\(key):\n\(convertObjectToYaml(dictValue, indent: indent + 1))"
-                } else if let arrayValue = value as? [Any] {
-                    return "\(indentString)\(key):\n\(convertObjectToYaml(arrayValue, indent: indent + 1))"
-                } else {
-                    return "\(indentString)\(key): \(value)"
-                }
-            }.joined(separator: "\n")
-        } else if let array = object as? [Any] {
-            return array.map { item in
-                "\(indentString)- \(convertObjectToYaml(item, indent: indent + 1).trimmingCharacters(in: .whitespaces))"
-            }.joined(separator: "\n")
-        } else {
-            return "\(object)"
-        }
-    }
-    
-    // MARK: - Text Diff Functions
-    
-    private func generateTextDiff() {
-        let lines1 = diffText1.components(separatedBy: .newlines)
-        let lines2 = diffText2.components(separatedBy: .newlines)
-        
-        diffResult = []
-        enhancedDiffResult = []
-        
-        // Generate basic diff result for backward compatibility
-        let maxCount = max(lines1.count, lines2.count)
-        
-        for i in 0..<maxCount {
-            let line1 = i < lines1.count ? lines1[i] : ""
-            let line2 = i < lines2.count ? lines2[i] : ""
-            
-            if line1 == line2 {
-                diffResult.append(DiffLine(text: line1, type: .same))
-            } else {
-                if i < lines1.count {
-                    diffResult.append(DiffLine(text: "- \(line1)", type: .removed))
-                }
-                if i < lines2.count {
-                    diffResult.append(DiffLine(text: "+ \(line2)", type: .added))
-                }
-            }
-        }
-        
-        // Generate enhanced side-by-side diff
-        enhancedDiffResult = generateSideBySideDiff(lines1: lines1, lines2: lines2)
-        
-        // Calculate statistics
-        var added = 0, removed = 0, unchanged = 0
-        
-        for pair in enhancedDiffResult {
-            if let original = pair.original, let modified = pair.modified {
-                if original.type == .same && modified.type == .same {
-                    unchanged += 1
-                } else if original.type == .removed && modified.type == .added {
-                    // Line changed
-                    added += 1
-                    removed += 1
-                }
-            } else if pair.original?.type == .removed {
-                removed += 1
-            } else if pair.modified?.type == .added {
-                added += 1
-            } else {
-                unchanged += 1
-            }
-        }
-        
-        diffStats = DiffStats(added: added, removed: removed, unchanged: unchanged)
-    }
-    
-    private func generateSideBySideDiff(lines1: [String], lines2: [String]) -> [DiffPair] {
-        var result: [DiffPair] = []
-        let maxCount = max(lines1.count, lines2.count)
-        
-        for i in 0..<maxCount {
-            let line1 = i < lines1.count ? lines1[i] : nil
-            let line2 = i < lines2.count ? lines2[i] : nil
-            
-            var originalDiffLine: DiffLine?
-            var modifiedDiffLine: DiffLine?
-            
-            // Determine the type and content for each side
-            if let l1 = line1, let l2 = line2 {
-                if l1 == l2 {
-                    // Lines are identical
-                    originalDiffLine = DiffLine(text: l1, type: .same)
-                    modifiedDiffLine = DiffLine(text: l2, type: .same)
-                } else {
-                    // Lines are different
-                    originalDiffLine = DiffLine(text: l1, type: .removed)
-                    modifiedDiffLine = DiffLine(text: l2, type: .added)
-                }
-            } else if let l1 = line1 {
-                // Line exists only in original
-                originalDiffLine = DiffLine(text: l1, type: .removed)
-                modifiedDiffLine = nil
-            } else if let l2 = line2 {
-                // Line exists only in modified
-                originalDiffLine = nil
-                modifiedDiffLine = DiffLine(text: l2, type: .added)
-            }
-            
-            result.append(DiffPair(
-                lineNumber: i + 1,
-                original: originalDiffLine,
-                modified: modifiedDiffLine
-            ))
-        }
-        
-        return result
-    }
-    
-    private func clearDiffInputs() {
-        diffText1 = ""
-        diffText2 = ""
-        diffResult = []
-        enhancedDiffResult = []
-        diffStats = DiffStats()
-    }
-    
-    // MARK: - Regex Functions
-    
-    private func testRegex() {
-        guard !regexPattern.isEmpty && !regexText.isEmpty else {
-            regexMatches = []
-            return
-        }
-        
-        do {
-            var options: NSRegularExpression.Options = []
-            
-            if regexFlags.contains(.caseInsensitive) {
-                options.insert(.caseInsensitive)
-            }
-            if regexFlags.contains(.multiline) {
-                options.insert(.anchorsMatchLines)
-            }
-            if regexFlags.contains(.dotMatchesLineSeparators) {
-                options.insert(.dotMatchesLineSeparators)
-            }
-            
-            let regex = try NSRegularExpression(pattern: regexPattern, options: options)
-            let range = NSRange(location: 0, length: regexText.utf16.count)
-            regexMatches = regex.matches(in: regexText, options: [], range: range)
-        } catch {
-            regexMatches = []
-        }
-    }
-    
-    // MARK: - QR Code Functions
-    
-    private func generateQRCode() {
-        guard !qrText.isEmpty else {
-            qrCode = nil
-            return
-        }
-        
-        let data = qrText.data(using: .utf8)!
-        
-        if let filter = CIFilter(name: "CIQRCodeGenerator") {
-            filter.setValue(data, forKey: "inputMessage")
-            
-            if let outputImage = filter.outputImage {
-                let transform = CGAffineTransform(scaleX: qrSize.rawValue / outputImage.extent.width,
-                                                y: qrSize.rawValue / outputImage.extent.height)
-                let scaledImage = outputImage.transformed(by: transform)
-                
-                let rep = NSCIImageRep(ciImage: scaledImage)
-                let nsImage = NSImage(size: rep.size)
-                nsImage.addRepresentation(rep)
-                
-                qrCode = nsImage
-            }
-        }
-    }
-    
-    private func saveQRCode() {
-        guard let qrCode = qrCode else { return }
-        
-        let savePanel = NSSavePanel()
-        savePanel.allowedContentTypes = [.png]
-        savePanel.nameFieldStringValue = "qrcode.png"
-        
-        if savePanel.runModal() == .OK, let url = savePanel.url {
-            if let tiffData = qrCode.tiffRepresentation,
-               let bitmap = NSBitmapImageRep(data: tiffData),
-               let pngData = bitmap.representation(using: .png, properties: [:]) {
-                try? pngData.write(to: url)
-            }
-        }
-    }
-    
-    private func copyQRCodeToClipboard() {
-        guard let qrCode = qrCode else { return }
-        
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.writeObjects([qrCode])
-        
-        copyToClipboard("QR Code copied to clipboard")
-    }
-}
-
-// MARK: - Coming Soon View
-
-struct ComingSoonView: View {
-    let toolName: String
-    
-    var body: some View {
-        VStack(spacing: DesignSystem.Spacing.xl) {
-            Image(systemName: "hammer.fill")
-                .font(.system(size: 64, weight: .thin))
-                .foregroundColor(DesignSystem.Colors.developer)
-            
-            VStack(spacing: DesignSystem.Spacing.md) {
-                Text("\(toolName)")
-                    .font(DesignSystem.Typography.headline1)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                Text("Coming Soon")
-                    .font(DesignSystem.Typography.body)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                
-                Text("This tool will be available in a future update")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-// MARK: - Data Extension for Expanded View
-
-extension Data {
-    func hashFromDeveloperTools(type: HashType) -> String {
-        switch type {
-        case .md5:
-            return hexString(from: md5Data())
-        case .sha1:
-            return hexString(from: sha1Data())
-        case .sha256:
-            return hexString(from: sha256Data())
-        case .sha384:
-            return hexString(from: sha384Data())
-        case .sha512:
-            return hexString(from: sha512Data())
-        }
-    }
-    
-    private func hexString(from data: Data) -> String {
-        return data.map { String(format: "%02x", $0) }.joined()
-    }
-    
-    private func md5Data() -> Data {
-        var hash = [UInt8](repeating: 0, count: Int(CC_MD5_DIGEST_LENGTH))
-        self.withUnsafeBytes { bytes in
-            CC_MD5(bytes.baseAddress, CC_LONG(self.count), &hash)
-        }
-        return Data(hash)
-    }
-    
-    private func sha1Data() -> Data {
-        var hash = [UInt8](repeating: 0, count: Int(CC_SHA1_DIGEST_LENGTH))
-        self.withUnsafeBytes { bytes in
-            CC_SHA1(bytes.baseAddress, CC_LONG(self.count), &hash)
-        }
-        return Data(hash)
-    }
-    
-    private func sha256Data() -> Data {
-        var hash = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
-        self.withUnsafeBytes { bytes in
-            CC_SHA256(bytes.baseAddress, CC_LONG(self.count), &hash)
-        }
-        return Data(hash)
-    }
-    
-    private func sha384Data() -> Data {
-        var hash = [UInt8](repeating: 0, count: Int(CC_SHA384_DIGEST_LENGTH))
-        self.withUnsafeBytes { bytes in
-            CC_SHA384(bytes.baseAddress, CC_LONG(self.count), &hash)
-        }
-        return Data(hash)
-    }
-    
-    private func sha512Data() -> Data {
-        var hash = [UInt8](repeating: 0, count: Int(CC_SHA512_DIGEST_LENGTH))
-        self.withUnsafeBytes { bytes in
-            CC_SHA512(bytes.baseAddress, CC_LONG(self.count), &hash)
-        }
-        return Data(hash)
-    }
-} 
-
-// MARK: - Enhanced Diff Data Structures
-
-struct DiffPair {
-    let lineNumber: Int
-    let original: DiffLine?
-    let modified: DiffLine?
-}
-
-struct DiffStats {
-    let added: Int
-    let removed: Int
-    let unchanged: Int
-    
-    init(added: Int = 0, removed: Int = 0, unchanged: Int = 0) {
-        self.added = added
-        self.removed = removed
-        self.unchanged = unchanged
-    }
-}
-
-// Extension to support enhanced diff functionality
-extension DiffLine {
-    var displayText: String {
-        return text
-    }
-} 
-
-// MARK: - API Client Support
-
-enum APIContentType: CaseIterable {
-    case json, xml, formData, text, none
-    
-    var displayName: String {
-        switch self {
-        case .json: return "JSON"
-        case .xml: return "XML"
-        case .formData: return "Form Data"
-        case .text: return "Text"
-        case .none: return "None"
-        }
-    }
-    
-    var headerValue: String {
-        switch self {
-        case .json: return "application/json"
-        case .xml: return "application/xml"
-        case .formData: return "application/x-www-form-urlencoded"
-        case .text: return "text/plain"
-        case .none: return ""
-        }
-    }
-}
-
-extension ExpandedDevToolsView {
-    // MARK: - API Client Functions
-    
-    private func sendAPIRequest() {
-        guard !apiClientURL.isEmpty else { return }
-        
-        apiClientIsLoading = true
-        apiClientResponse = ""
-        apiClientStatusCode = 0
-        apiClientResponseTime = 0
-        apiClientResponseHeaders = ""
-        
-        let startTime = Date()
-        
-        // Create URL
-        guard let url = URL(string: apiClientURL) else {
-            apiClientResponse = "❌ Invalid URL"
-            apiClientIsLoading = false
-            return
-        }
-        
-        // Create request
-        var request = URLRequest(url: url)
-        request.httpMethod = apiClientMethod.rawValue
-        request.timeoutInterval = 30
-        
-        // Add headers
-        let headerLines = apiClientHeaders.components(separatedBy: .newlines)
-            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-        
-        for header in headerLines {
-            let components = header.components(separatedBy: ":")
-            if components.count >= 2 {
-                let key = components[0].trimmingCharacters(in: .whitespaces)
-                let value = components.dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespaces)
-                request.setValue(value, forHTTPHeaderField: key)
-            }
-        }
-        
-        // Add content type if specified
-        if apiClientContentType != .none && !apiClientContentType.headerValue.isEmpty {
-            request.setValue(apiClientContentType.headerValue, forHTTPHeaderField: "Content-Type")
-        }
-        
-        // Add body for applicable methods
-        if apiClientMethod.hasBody && !apiClientBody.isEmpty {
-            request.httpBody = apiClientBody.data(using: .utf8)
-        }
-        
-        // Perform request
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                let responseTime = Date().timeIntervalSince(startTime)
-                self.apiClientResponseTime = responseTime
-                self.apiClientIsLoading = false
-                
-                if let error = error {
-                    self.apiClientResponse = "❌ Error: \(error.localizedDescription)"
-                    return
-                }
-                
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    self.apiClientResponse = "❌ Invalid response"
-                    return
-                }
-                
-                self.apiClientStatusCode = httpResponse.statusCode
-                
-                // Format response body
-                var responseText = ""
-                if let data = data {
-                    if let string = String(data: data, encoding: .utf8) {
-                        // Try to format as JSON if possible
-                        if let jsonData = string.data(using: .utf8),
-                           let jsonObject = try? JSONSerialization.jsonObject(with: jsonData),
-                           let prettyJsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted]),
-                           let prettyJsonString = String(data: prettyJsonData, encoding: .utf8) {
-                            responseText = prettyJsonString
-                        } else {
-                            responseText = string
-                        }
-                    } else {
-                        responseText = "Binary data (\(data.count) bytes)"
-                    }
-                } else {
-                    responseText = "No response body"
-                }
-                
-                // Format headers
-                let headers = httpResponse.allHeaderFields.map { key, value in
-                    "\(key): \(value)"
-                }.sorted().joined(separator: "\n")
-                
-                // Combine status info and body
-                let statusText = "Status: \(httpResponse.statusCode)\nTime: \(Int(responseTime * 1000))ms\n\nHeaders:\n\(headers)\n\nBody:\n\(responseText)"
-                self.apiClientResponse = statusText
-            }
-        }.resume()
     }
     
     private func statusCodeColor(_ statusCode: Int) -> Color {
@@ -3761,3 +2369,138 @@ extension ExpandedDevToolsView {
         }
     }
 }
+
+// MARK: - API Client Functions
+extension ExpandedDevToolsView {
+    private func updateCurrentTab(_ update: (inout APIRequestTab) -> Void) {
+        guard currentAPITabIndex < apiClientTabs.count else { return }
+        update(&apiClientTabs[currentAPITabIndex])
+    }
+    
+    private func addNewAPITab() {
+        let newTab = APIRequestTab(name: "Request \(apiClientTabs.count + 1)")
+        apiClientTabs.append(newTab)
+        currentAPITabIndex = apiClientTabs.count - 1
+    }
+    
+    private func duplicateCurrentTab() {
+        guard currentAPITabIndex < apiClientTabs.count else { return }
+        var newTab = apiClientTabs[currentAPITabIndex]
+        newTab.id = UUID()
+        newTab.name = "\(newTab.name) Copy"
+        newTab.response = ""
+        newTab.statusCode = 0
+        newTab.responseTime = 0
+        newTab.isLoading = false
+        apiClientTabs.append(newTab)
+        currentAPITabIndex = apiClientTabs.count - 1
+    }
+    
+    private func closeAPITab(at index: Int) {
+        guard apiClientTabs.count > 1 && index < apiClientTabs.count else { return }
+        apiClientTabs.remove(at: index)
+        if currentAPITabIndex >= apiClientTabs.count {
+            currentAPITabIndex = apiClientTabs.count - 1
+        } else if currentAPITabIndex > index {
+            currentAPITabIndex -= 1
+        }
+    }
+    
+    private func sendAPIRequest() {
+        guard !currentAPITab.url.isEmpty else { return }
+        
+        updateCurrentTab { tab in
+            tab.isLoading = true
+            tab.response = ""
+            tab.statusCode = 0
+            tab.responseTime = 0
+        }
+        
+        let startTime = Date()
+        
+        // Create URL
+        guard let url = URL(string: currentAPITab.url) else {
+            updateCurrentTab { tab in
+                tab.response = "❌ Invalid URL"
+                tab.isLoading = false
+            }
+            return
+        }
+        
+        // Create request
+        var request = URLRequest(url: url)
+        request.httpMethod = currentAPITab.method.rawValue
+        request.timeoutInterval = 30
+        
+        // Add headers
+        let headerLines = currentAPITab.headers.components(separatedBy: .newlines)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        
+        for header in headerLines {
+            let components = header.components(separatedBy: ":")
+            if components.count >= 2 {
+                let key = components[0].trimmingCharacters(in: .whitespaces)
+                let value = components.dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespaces)
+                request.setValue(value, forHTTPHeaderField: key)
+            }
+        }
+        
+        // Add body for applicable methods
+        if currentAPITab.method.hasBody && !currentAPITab.body.isEmpty {
+            request.httpBody = currentAPITab.body.data(using: .utf8)
+        }
+        
+        // Perform request
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                let responseTime = Date().timeIntervalSince(startTime)
+                
+                self.updateCurrentTab { tab in
+                    tab.responseTime = responseTime
+                    tab.isLoading = false
+                    
+                    if let error = error {
+                        tab.response = "❌ Error: \(error.localizedDescription)"
+                        return
+                    }
+                    
+                    guard let httpResponse = response as? HTTPURLResponse else {
+                        tab.response = "❌ Invalid response"
+                        return
+                    }
+                    
+                    tab.statusCode = httpResponse.statusCode
+                    
+                    // Format response body
+                    var responseText = ""
+                    if let data = data {
+                        if let string = String(data: data, encoding: .utf8) {
+                            // Try to format as JSON if possible
+                            if let jsonData = string.data(using: .utf8),
+                               let jsonObject = try? JSONSerialization.jsonObject(with: jsonData),
+                               let prettyJsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted]),
+                               let prettyJsonString = String(data: prettyJsonData, encoding: .utf8) {
+                                responseText = prettyJsonString
+                            } else {
+                                responseText = string
+                            }
+                        } else {
+                            responseText = "Binary data (\(data.count) bytes)"
+                        }
+                    } else {
+                        responseText = "No response body"
+                    }
+                    
+                    // Format headers
+                    let headers = httpResponse.allHeaderFields.map { key, value in
+                        "\(key): \(value)"
+                    }.sorted().joined(separator: "\n")
+                    
+                    // Combine status info and body
+                    let statusText = "Status: \(httpResponse.statusCode)\nTime: \(Int(responseTime * 1000))ms\n\nHeaders:\n\(headers)\n\nBody:\n\(responseText)"
+                    tab.response = statusText
+                }
+            }
+        }.resume()
+    }
+} 

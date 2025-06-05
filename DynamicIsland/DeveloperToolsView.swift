@@ -2,6 +2,32 @@ import SwiftUI
 import CommonCrypto
 import Foundation
 
+// MARK: - API Request Tab
+struct APIRequestTab: Identifiable {
+    var id = UUID()
+    var name: String
+    var method: HTTPMethod
+    var url: String
+    var headers: String
+    var body: String
+    var response: String
+    var statusCode: Int
+    var responseTime: Double
+    var isLoading: Bool
+    
+    init(name: String = "New Request") {
+        self.name = name
+        self.method = .GET
+        self.url = ""
+        self.headers = ""
+        self.body = ""
+        self.response = ""
+        self.statusCode = 0
+        self.responseTime = 0
+        self.isLoading = false
+    }
+}
+
 struct DeveloperToolsView: View {
     @State private var selectedTool: DeveloperTool = .curlGenerator
     @State private var showCopiedFeedback = false
@@ -84,15 +110,16 @@ struct DeveloperToolsView: View {
     @State private var base64Output: String = ""
     @State private var base64Mode: Base64Mode = .encode
     
-    // API Client
-    @State private var apiClientMethod: HTTPMethod = .GET
-    @State private var apiClientURL: String = ""
-    @State private var apiClientHeaders: String = ""
-    @State private var apiClientBody: String = ""
-    @State private var apiClientResponse: String = ""
-    @State private var apiClientStatusCode: Int = 0
-    @State private var apiClientResponseTime: Double = 0
-    @State private var apiClientIsLoading: Bool = false
+    // API Client Tabs
+    @State private var apiClientTabs: [APIRequestTab] = [APIRequestTab(name: "Request 1")]
+    @State private var currentAPITabIndex: Int = 0
+    
+    var currentAPITab: APIRequestTab {
+        guard currentAPITabIndex < apiClientTabs.count else {
+            return APIRequestTab()
+        }
+        return apiClientTabs[currentAPITabIndex]
+    }
     
     var body: some View {
         VStack(spacing: DesignSystem.Spacing.md) {
@@ -1810,14 +1837,8 @@ spec:
         base64Output = ""
         
         // Clear API Client inputs
-        apiClientMethod = .GET
-        apiClientURL = ""
-        apiClientHeaders = ""
-        apiClientBody = ""
-        apiClientResponse = ""
-        apiClientStatusCode = 0
-        apiClientResponseTime = 0
-        apiClientIsLoading = false
+        apiClientTabs = [APIRequestTab(name: "Request 1")]
+        currentAPITabIndex = 0
     }
     
     private func clearCURLInputs() {
@@ -2272,16 +2293,29 @@ spec:
                 
                 Spacer()
                 
+                // Current tab name (small window)
+                Text(currentAPITab.name)
+                    .font(DesignSystem.Typography.micro)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .padding(.horizontal, DesignSystem.Spacing.xs)
+                    .padding(.vertical, DesignSystem.Spacing.xxs)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                            .fill(DesignSystem.Colors.surface.opacity(0.3))
+                    )
+                
                 // HTTP Method dropdown
                 Menu {
                     ForEach(HTTPMethod.allCases, id: \.self) { method in
                         Button(method.rawValue) {
-                            apiClientMethod = method
+                            updateCurrentTab { tab in
+                                tab.method = method
+                            }
                         }
                     }
                 } label: {
                     HStack(spacing: DesignSystem.Spacing.xxs) {
-                        Text(apiClientMethod.rawValue)
+                        Text(currentAPITab.method.rawValue)
                             .font(DesignSystem.Typography.micro)
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                         Image(systemName: "chevron.down")
@@ -2301,7 +2335,14 @@ spec:
             // URL Input
             CompactInputArea(
                 title: "URL",
-                text: $apiClientURL,
+                text: Binding(
+                    get: { currentAPITab.url },
+                    set: { newValue in
+                        updateCurrentTab { tab in
+                            tab.url = newValue
+                        }
+                    }
+                ),
                 placeholder: "https://api.example.com/users",
                 focusBinding: $isInputFocused
             )
@@ -2309,17 +2350,31 @@ spec:
             // Headers Input (optional)
             CompactInputArea(
                 title: "Headers (Optional)",
-                text: $apiClientHeaders,
+                text: Binding(
+                    get: { currentAPITab.headers },
+                    set: { newValue in
+                        updateCurrentTab { tab in
+                            tab.headers = newValue
+                        }
+                    }
+                ),
                 placeholder: "Content-Type: application/json\nAuthorization: Bearer token",
                 focusBinding: nil
             )
             
             // Body Input (for POST/PUT/PATCH)
-            if apiClientMethod.hasBody {
+            if currentAPITab.method.hasBody {
                 CompactInputArea(
                     title: "Request Body",
-                    text: $apiClientBody,
-                    placeholder: apiClientMethod.bodyPlaceholder,
+                    text: Binding(
+                        get: { currentAPITab.body },
+                        set: { newValue in
+                            updateCurrentTab { tab in
+                                tab.body = newValue
+                            }
+                        }
+                    ),
+                    placeholder: currentAPITab.method.bodyPlaceholder,
                     focusBinding: nil
                 )
             }
@@ -2328,14 +2383,14 @@ spec:
             HStack(spacing: DesignSystem.Spacing.xs) {
                 Button(action: sendAPIRequest) {
                     HStack(spacing: DesignSystem.Spacing.xxs) {
-                        if apiClientIsLoading {
+                        if currentAPITab.isLoading {
                             ProgressView()
                                 .scaleEffect(0.6)
                         } else {
                             Image(systemName: "paperplane")
                                 .font(.system(size: 10, weight: .medium))
                         }
-                        Text(apiClientIsLoading ? "Sending..." : "Send Request")
+                        Text(currentAPITab.isLoading ? "Sending..." : "Send Request")
                             .font(DesignSystem.Typography.micro)
                     }
                     .foregroundColor(.white)
@@ -2343,26 +2398,26 @@ spec:
                     .padding(.vertical, DesignSystem.Spacing.xs)
                     .background(
                         RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
-                            .fill(apiClientIsLoading ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.accent)
+                            .fill(currentAPITab.isLoading ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.accent)
                     )
                 }
                 .buttonStyle(.plain)
-                .disabled(apiClientURL.isEmpty || apiClientIsLoading)
+                .disabled(currentAPITab.url.isEmpty || currentAPITab.isLoading)
                 
-                if apiClientStatusCode > 0 {
-                    Text("\(apiClientStatusCode)")
+                if currentAPITab.statusCode > 0 {
+                    Text("\(currentAPITab.statusCode)")
                         .font(DesignSystem.Typography.micro)
-                        .foregroundColor(statusCodeColor(apiClientStatusCode))
+                        .foregroundColor(statusCodeColor(currentAPITab.statusCode))
                         .padding(.horizontal, DesignSystem.Spacing.xs)
                         .padding(.vertical, DesignSystem.Spacing.xxs)
                         .background(
                             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
-                                .fill(statusCodeColor(apiClientStatusCode).opacity(0.1))
+                                .fill(statusCodeColor(currentAPITab.statusCode).opacity(0.1))
                         )
                 }
                 
-                if apiClientResponseTime > 0 {
-                    Text("\(Int(apiClientResponseTime * 1000))ms")
+                if currentAPITab.responseTime > 0 {
+                    Text("\(Int(currentAPITab.responseTime * 1000))ms")
                         .font(DesignSystem.Typography.micro)
                         .foregroundColor(DesignSystem.Colors.textSecondary)
                 }
@@ -2375,13 +2430,13 @@ spec:
             }
             
             // Response Output
-            if !apiClientResponse.isEmpty {
+            if !currentAPITab.response.isEmpty {
                 CompactOutputArea(
                     title: "Response",
-                    text: apiClientResponse,
+                    text: currentAPITab.response,
                     height: 120
                 ) {
-                    copyToClipboard(apiClientResponse)
+                    copyToClipboard(currentAPITab.response)
                 }
             }
         }
@@ -3135,30 +3190,68 @@ extension Data {
 
 // MARK: - API Client Functions
 extension DeveloperToolsView {
+    private func updateCurrentTab(_ update: (inout APIRequestTab) -> Void) {
+        guard currentAPITabIndex < apiClientTabs.count else { return }
+        update(&apiClientTabs[currentAPITabIndex])
+    }
+    
+    private func addNewAPITab() {
+        let newTab = APIRequestTab(name: "Request \(apiClientTabs.count + 1)")
+        apiClientTabs.append(newTab)
+        currentAPITabIndex = apiClientTabs.count - 1
+    }
+    
+    private func duplicateCurrentTab() {
+        guard currentAPITabIndex < apiClientTabs.count else { return }
+        var newTab = apiClientTabs[currentAPITabIndex]
+        newTab.id = UUID()
+        newTab.name = "\(newTab.name) Copy"
+        newTab.response = ""
+        newTab.statusCode = 0
+        newTab.responseTime = 0
+        newTab.isLoading = false
+        apiClientTabs.append(newTab)
+        currentAPITabIndex = apiClientTabs.count - 1
+    }
+    
+    private func closeAPITab(at index: Int) {
+        guard apiClientTabs.count > 1 && index < apiClientTabs.count else { return }
+        apiClientTabs.remove(at: index)
+        if currentAPITabIndex >= apiClientTabs.count {
+            currentAPITabIndex = apiClientTabs.count - 1
+        } else if currentAPITabIndex > index {
+            currentAPITabIndex -= 1
+        }
+    }
+    
     private func sendAPIRequest() {
-        guard !apiClientURL.isEmpty else { return }
+        guard !currentAPITab.url.isEmpty else { return }
         
-        apiClientIsLoading = true
-        apiClientResponse = ""
-        apiClientStatusCode = 0
-        apiClientResponseTime = 0
+        updateCurrentTab { tab in
+            tab.isLoading = true
+            tab.response = ""
+            tab.statusCode = 0
+            tab.responseTime = 0
+        }
         
         let startTime = Date()
         
         // Create URL
-        guard let url = URL(string: apiClientURL) else {
-            apiClientResponse = "❌ Invalid URL"
-            apiClientIsLoading = false
+        guard let url = URL(string: currentAPITab.url) else {
+            updateCurrentTab { tab in
+                tab.response = "❌ Invalid URL"
+                tab.isLoading = false
+            }
             return
         }
         
         // Create request
         var request = URLRequest(url: url)
-        request.httpMethod = apiClientMethod.rawValue
+        request.httpMethod = currentAPITab.method.rawValue
         request.timeoutInterval = 30
         
         // Add headers
-        let headerLines = apiClientHeaders.components(separatedBy: .newlines)
+        let headerLines = currentAPITab.headers.components(separatedBy: .newlines)
             .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
         
         for header in headerLines {
@@ -3171,70 +3264,75 @@ extension DeveloperToolsView {
         }
         
         // Add body for applicable methods
-        if apiClientMethod.hasBody && !apiClientBody.isEmpty {
-            request.httpBody = apiClientBody.data(using: .utf8)
+        if currentAPITab.method.hasBody && !currentAPITab.body.isEmpty {
+            request.httpBody = currentAPITab.body.data(using: .utf8)
         }
         
         // Perform request
         URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 let responseTime = Date().timeIntervalSince(startTime)
-                self.apiClientResponseTime = responseTime
-                self.apiClientIsLoading = false
                 
-                if let error = error {
-                    self.apiClientResponse = "❌ Error: \(error.localizedDescription)"
-                    return
-                }
-                
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    self.apiClientResponse = "❌ Invalid response"
-                    return
-                }
-                
-                self.apiClientStatusCode = httpResponse.statusCode
-                
-                // Format response body
-                var responseText = ""
-                if let data = data {
-                    if let string = String(data: data, encoding: .utf8) {
-                        // Try to format as JSON if possible
-                        if let jsonData = string.data(using: .utf8),
-                           let jsonObject = try? JSONSerialization.jsonObject(with: jsonData),
-                           let prettyJsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted]),
-                           let prettyJsonString = String(data: prettyJsonData, encoding: .utf8) {
-                            responseText = prettyJsonString
+                self.updateCurrentTab { tab in
+                    tab.responseTime = responseTime
+                    tab.isLoading = false
+                    
+                    if let error = error {
+                        tab.response = "❌ Error: \(error.localizedDescription)"
+                        return
+                    }
+                    
+                    guard let httpResponse = response as? HTTPURLResponse else {
+                        tab.response = "❌ Invalid response"
+                        return
+                    }
+                    
+                    tab.statusCode = httpResponse.statusCode
+                    
+                    // Format response body
+                    var responseText = ""
+                    if let data = data {
+                        if let string = String(data: data, encoding: .utf8) {
+                            // Try to format as JSON if possible
+                            if let jsonData = string.data(using: .utf8),
+                               let jsonObject = try? JSONSerialization.jsonObject(with: jsonData),
+                               let prettyJsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted]),
+                               let prettyJsonString = String(data: prettyJsonData, encoding: .utf8) {
+                                responseText = prettyJsonString
+                            } else {
+                                responseText = string
+                            }
                         } else {
-                            responseText = string
+                            responseText = "Binary data (\(data.count) bytes)"
                         }
                     } else {
-                        responseText = "Binary data (\(data.count) bytes)"
+                        responseText = "No response body"
                     }
-                } else {
-                    responseText = "No response body"
+                    
+                    // Format headers
+                    let headers = httpResponse.allHeaderFields.map { key, value in
+                        "\(key): \(value)"
+                    }.sorted().joined(separator: "\n")
+                    
+                    // Combine status info and body
+                    let statusText = "Status: \(httpResponse.statusCode)\nTime: \(Int(responseTime * 1000))ms\n\nHeaders:\n\(headers)\n\nBody:\n\(responseText)"
+                    tab.response = statusText
                 }
-                
-                // Format headers
-                let headers = httpResponse.allHeaderFields.map { key, value in
-                    "\(key): \(value)"
-                }.sorted().joined(separator: "\n")
-                
-                // Combine status info and body
-                let statusText = "Status: \(httpResponse.statusCode)\nTime: \(Int(responseTime * 1000))ms\n\nHeaders:\n\(headers)\n\nBody:\n\(responseText)"
-                self.apiClientResponse = statusText
             }
         }.resume()
     }
     
     private func clearAPIClientInputs() {
-        apiClientMethod = .GET
-        apiClientURL = ""
-        apiClientHeaders = ""
-        apiClientBody = ""
-        apiClientResponse = ""
-        apiClientStatusCode = 0
-        apiClientResponseTime = 0
-        apiClientIsLoading = false
+        updateCurrentTab { tab in
+            tab.method = .GET
+            tab.url = ""
+            tab.headers = ""
+            tab.body = ""
+            tab.response = ""
+            tab.statusCode = 0
+            tab.responseTime = 0
+            tab.isLoading = false
+        }
     }
     
     private func statusCodeColor(_ statusCode: Int) -> Color {
