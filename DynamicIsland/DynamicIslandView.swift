@@ -322,6 +322,9 @@ struct DynamicIslandView: View {
     }
     
     private func openExpandedWindow(for viewType: MainViewType) {
+        // Hide the Dynamic Island immediately when expand is clicked
+        closeDynamicIsland()
+        
         switch viewType {
         case .clipboard:
             ExpandedWindowManager.shared.showClipboardWindow()

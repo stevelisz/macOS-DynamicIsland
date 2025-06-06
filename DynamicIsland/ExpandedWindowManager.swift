@@ -15,22 +15,30 @@ class ExpandedWindowManager: ObservableObject {
     // MARK: - Dynamic Island Level Management
     
     private func lowerDynamicIslandLevel() {
-        // Find the Dynamic Island window and temporarily lower its level
+        // Find the Dynamic Island window and hide it
         for window in NSApplication.shared.windows {
             if window is DynamicIslandWindow {
                 dynamicIslandWindow = window
                 originalDynamicIslandLevel = window.level
-                window.level = .normal // Set to normal level so expanded windows appear above
+                // Hide the Dynamic Island window when expanded windows are shown
+                window.orderOut(nil)
                 break
             }
         }
     }
     
     private func restoreDynamicIslandLevel() {
-        // Restore the Dynamic Island window to its original level
-        if let window = dynamicIslandWindow, let originalLevel = originalDynamicIslandLevel {
-            window.level = originalLevel
+        // Always search for the Dynamic Island window fresh in case references changed
+        for window in NSApplication.shared.windows {
+            if window is DynamicIslandWindow {
+                // Restore the window level if we have it stored, otherwise use floating level
+                let levelToRestore = originalDynamicIslandLevel ?? .floating
+                window.level = levelToRestore
+                window.makeKeyAndOrderFront(nil)
+                break
+            }
         }
+        // Clear the stored references after use
         dynamicIslandWindow = nil
         originalDynamicIslandLevel = nil
     }
@@ -44,6 +52,9 @@ class ExpandedWindowManager: ObservableObject {
     // MARK: - Window Creation
     
     func showClipboardWindow() {
+        // Clean up any closed window references first
+        cleanupClosedWindows()
+        
         if clipboardWindow?.isVisible == true {
             clipboardWindow?.orderFront(nil)
             return
@@ -65,6 +76,9 @@ class ExpandedWindowManager: ObservableObject {
     }
     
     func showAIAssistantWindow() {
+        // Clean up any closed window references first
+        cleanupClosedWindows()
+        
         if aiAssistantWindow?.isVisible == true {
             aiAssistantWindow?.orderFront(nil)
             return
@@ -86,6 +100,9 @@ class ExpandedWindowManager: ObservableObject {
     }
     
     func showDevToolsWindow() {
+        // Clean up any closed window references first
+        cleanupClosedWindows()
+        
         if devToolsWindow?.isVisible == true {
             devToolsWindow?.orderFront(nil)
             return
@@ -128,8 +145,8 @@ class ExpandedWindowManager: ObservableObject {
         window.minSize = minSize
         window.center()
         
-        // Use normal window level since we're managing Dynamic Island level separately
-        window.level = .normal
+        // Start at floating level to pop up on top of everything
+        window.level = .floating
         
         // Set up window delegate to handle cleanup when window closes
         let delegate = ExpandedWindowDelegate()
@@ -149,6 +166,11 @@ class ExpandedWindowManager: ObservableObject {
         let windowController = NSWindowController(window: window)
         windowController.showWindow(nil)
         
+        // After a brief moment, lower to normal level so it doesn't stay always on top
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            window.level = .normal
+        }
+        
         return window
     }
     
@@ -165,9 +187,8 @@ class ExpandedWindowManager: ObservableObject {
         restoreDynamicIslandLevel()
     }
     
-    // Called when any expanded window closes
-    func onWindowClosed() {
-        // Clean up nil references
+    // Clean up references to closed windows
+    private func cleanupClosedWindows() {
         if clipboardWindow?.isVisible != true {
             clipboardWindow = nil
         }
@@ -177,10 +198,18 @@ class ExpandedWindowManager: ObservableObject {
         if devToolsWindow?.isVisible != true {
             devToolsWindow = nil
         }
-        
-        // If no expanded windows are visible, restore Dynamic Island level
-        if !hasVisibleExpandedWindow() {
-            restoreDynamicIslandLevel()
+    }
+    
+    // Called when any expanded window closes
+    func onWindowClosed() {
+        // Use a small delay to ensure window is fully closed before cleanup
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            self?.cleanupClosedWindows()
+            
+            // If no expanded windows are visible, restore Dynamic Island level
+            if !(self?.hasVisibleExpandedWindow() ?? false) {
+                self?.restoreDynamicIslandLevel()
+            }
         }
     }
 }
