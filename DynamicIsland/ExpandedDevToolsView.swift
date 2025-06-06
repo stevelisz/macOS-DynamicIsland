@@ -197,6 +197,7 @@ struct ExpandedDevToolsView: View {
                             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
                                 .fill(selectedTool == tool ? tool.color : Color.clear)
                         )
+                        .contentShape(Rectangle()) // This makes the entire area clickable
                     }
                     .buttonStyle(.plain)
                 }
