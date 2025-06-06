@@ -123,7 +123,7 @@ struct ExpandedDevToolsView: View {
                 
                 // Tool Interface
                 ScrollView {
-                    VStack(spacing: DesignSystem.Spacing.lg) {
+                    VStack(spacing: DesignSystem.Spacing.xl) { // Increased from lg to xl for more spacing
                         switch selectedTool {
                         case .apiClient:
                             compactApiClientInterface
@@ -301,8 +301,8 @@ struct ExpandedDevToolsView: View {
                             }
                         }
                     ))
-                    .font(.system(size: 12, design: .monospaced))
-                    .frame(height: 80)
+                    .font(.system(size: 13, design: .monospaced)) // Increased font size
+                    .frame(height: 100) // Increased from 80
                     .overlay(
                         RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                             .stroke(DesignSystem.Colors.border, lineWidth: 1)
@@ -324,8 +324,8 @@ struct ExpandedDevToolsView: View {
                                 }
                             }
                         ))
-                        .font(.system(size: 12, design: .monospaced))
-                        .frame(height: 120)
+                        .font(.system(size: 13, design: .monospaced)) // Increased font size
+                        .frame(height: 150) // Increased from 120
                         .overlay(
                             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                                 .stroke(DesignSystem.Colors.border, lineWidth: 1)
@@ -395,13 +395,13 @@ struct ExpandedDevToolsView: View {
                     
                     ScrollView {
                         Text(currentAPITab.response)
-                            .font(.system(size: 11, design: .monospaced))
+                            .font(.system(size: 12, design: .monospaced)) // Slightly increased font
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(DesignSystem.Spacing.md)
+                            .padding(DesignSystem.Spacing.md) // Increased padding
                             .textSelection(.enabled)
                     }
-                    .frame(height: 200)
+                    .frame(height: 280) // Increased from 200
                     .background(
                         RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                             .fill(DesignSystem.Colors.surface.opacity(0.3))
@@ -532,7 +532,7 @@ struct ExpandedDevToolsView: View {
                 CompactOutputArea(
                     title: jsonOperation.outputTitle,
                     text: jsonOutput,
-                    height: 60
+                    height: 160 // Increased from 60
                 ) {
                     copyToClipboard(jsonOutput)
                 }
@@ -664,7 +664,7 @@ struct ExpandedDevToolsView: View {
                 CompactOutputArea(
                     title: "\(hashType.title) Hash",
                     text: hashResult,
-                    height: 60
+                    height: 140 // Increased from 60
                 ) {
                     copyToClipboard(hashResult)
                 }
@@ -723,7 +723,7 @@ struct ExpandedDevToolsView: View {
                 CompactOutputArea(
                     title: base64Mode == .encode ? "Base64 Encoded" : "Decoded Text",
                     text: base64Output,
-                    height: 80
+                    height: 160 // Increased from 80
                 ) {
                     copyToClipboard(base64Output)
                 }
@@ -848,7 +848,7 @@ struct ExpandedDevToolsView: View {
                             .padding(DesignSystem.Spacing.sm)
                             .textSelection(.enabled)
                     }
-                    .frame(height: 120) // Bigger height for better visibility
+                    .frame(height: 180) // Increased from 120
                     .background(
                         RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                             .fill(DesignSystem.Colors.surface.opacity(0.2))
@@ -949,7 +949,7 @@ struct ExpandedDevToolsView: View {
                 CompactOutputArea(
                     title: "Generated cURL Command",
                     text: curlResult,
-                    height: 60
+                    height: 140 // Increased from 60
                 ) {
                     copyToClipboard(curlResult)
                 }
@@ -984,17 +984,17 @@ struct ExpandedDevToolsView: View {
             .onChange(of: jwtToken) { _, _ in processJWT() }
             
             if !jwtHeader.isEmpty {
-                VStack(spacing: DesignSystem.Spacing.xs) {
-                    CompactOutputArea(title: "Header", text: jwtHeader, height: 60) {
+                VStack(spacing: DesignSystem.Spacing.sm) { // Increased spacing
+                    CompactOutputArea(title: "Header", text: jwtHeader, height: 120) { // Increased from 60
                         copyToClipboard(jwtHeader)
                     }
                     
-                    CompactOutputArea(title: "Payload", text: jwtPayload, height: 60) {
+                    CompactOutputArea(title: "Payload", text: jwtPayload, height: 140) { // Increased from 60
                         copyToClipboard(jwtPayload)
                     }
                     
                     if !jwtSignature.isEmpty {
-                        CompactOutputArea(title: "Signature", text: jwtSignature, height: 60) {
+                        CompactOutputArea(title: "Signature", text: jwtSignature, height: 100) { // Increased from 60
                             copyToClipboard(jwtSignature)
                         }
                     }
@@ -1076,7 +1076,7 @@ struct ExpandedDevToolsView: View {
                 CompactOutputArea(
                     title: "Complete GraphQL Request",
                     text: graphqlResult,
-                    height: 240
+                    height: 300 // Increased from 240
                 ) {
                     copyToClipboard(graphqlResult)
                 }
@@ -1188,7 +1188,7 @@ struct ExpandedDevToolsView: View {
                 CompactOutputArea(
                     title: "Generated API Response",
                     text: apiResponseResult,
-                    height: 240
+                    height: 300 // Increased from 240
                 ) {
                     copyToClipboard(apiResponseResult)
                 }
@@ -1282,7 +1282,7 @@ spec:
                 CompactOutputArea(
                     title: yamlJsonMode.outputTitle,
                     text: yamlJsonOutput,
-                    height: 240
+                    height: 300 // Increased from 240
                 ) {
                     copyToClipboard(yamlJsonOutput)
                 }
@@ -1515,7 +1515,7 @@ spec:
             
             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                 .fill(DesignSystem.Colors.surface.opacity(0.3))
-                .frame(height: 80)
+                .frame(height: 120) // Increased from 80 for expanded view
                 .overlay(
                     VStack(spacing: DesignSystem.Spacing.xs) {
                         Image(systemName: draggedFileName != nil ? "checkmark.circle.fill" : "doc.badge.plus")
@@ -1578,27 +1578,27 @@ spec:
         var body: some View {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                 Text(title)
-                    .font(DesignSystem.Typography.caption)
+                    .font(DesignSystem.Typography.captionMedium)
                     .foregroundColor(DesignSystem.Colors.textSecondary)
                 
                 Group {
                     if let focusBinding = focusBinding {
                         TextEditor(text: $text)
-                            .font(.system(size: 12, design: .monospaced))
+                            .font(.system(size: 14, design: .monospaced))
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                             .scrollContentBackground(.hidden)
                             .background(Color.clear)
-                            .frame(height: 60)
-                            .padding(DesignSystem.Spacing.sm)
+                            .frame(height: 120) // Increased from 60
+                            .padding(DesignSystem.Spacing.md)
                             .focused(focusBinding)
                     } else {
                         TextEditor(text: $text)
-                            .font(.system(size: 12, design: .monospaced))
+                            .font(.system(size: 14, design: .monospaced))
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                             .scrollContentBackground(.hidden)
                             .background(Color.clear)
-                            .frame(height: 60)
-                            .padding(DesignSystem.Spacing.sm)
+                            .frame(height: 120) // Increased from 60
+                            .padding(DesignSystem.Spacing.md)
                     }
                 }
                 .background(
@@ -1616,10 +1616,10 @@ spec:
                                 VStack {
                                     HStack {
                                         Text(placeholder)
-                                            .font(.system(size: 12, design: .monospaced))
+                                            .font(.system(size: 14, design: .monospaced))
                                             .foregroundColor(DesignSystem.Colors.textSecondary.opacity(0.6))
-                                            .padding(.leading, DesignSystem.Spacing.sm)
-                                            .padding(.top, DesignSystem.Spacing.sm + 2)
+                                            .padding(.leading, DesignSystem.Spacing.md)
+                                            .padding(.top, DesignSystem.Spacing.md + 2)
                                         Spacer()
                                     }
                                     Spacer()
@@ -1640,7 +1640,7 @@ spec:
         let height: CGFloat
         let action: () -> Void
         
-        init(title: String, text: String, height: CGFloat = 60, action: @escaping () -> Void) {
+        init(title: String, text: String, height: CGFloat = 120, action: @escaping () -> Void) { // Increased default from 60
             self.title = title
             self.text = text
             self.height = height
@@ -1648,10 +1648,10 @@ spec:
         }
         
         var body: some View {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) { // Increased spacing
                 HStack {
                     Text(title)
-                        .font(DesignSystem.Typography.caption)
+                        .font(DesignSystem.Typography.captionMedium)
                         .foregroundColor(DesignSystem.Colors.textSecondary)
                     
                     Spacer()
@@ -1659,16 +1659,17 @@ spec:
                     Button("Copy") {
                         action()
                     }
-                    .font(DesignSystem.Typography.micro)
+                    .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.primary)
                 }
                 
                 ScrollView {
                     Text(text)
-                        .font(.system(size: 12, design: .monospaced))
+                        .font(.system(size: 13, design: .monospaced)) // Increased font size
                         .foregroundColor(DesignSystem.Colors.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(DesignSystem.Spacing.sm)
+                        .padding(DesignSystem.Spacing.md) // Increased padding
+                        .textSelection(.enabled)
                 }
                 .frame(height: height)
                 .background(
@@ -1727,7 +1728,7 @@ spec:
                     }
                 }
             }
-            .frame(height: 120)
+            .frame(height: 180) // Increased from 120 for expanded view
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                     .fill(DesignSystem.Colors.surface.opacity(0.2))
@@ -1780,7 +1781,7 @@ spec:
                     }
                     .padding(DesignSystem.Spacing.sm)
                 }
-                .frame(height: 100)
+                .frame(height: 140) // Increased from 100 for expanded view
                 .background(
                     RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                         .fill(DesignSystem.Colors.surface.opacity(0.2))
