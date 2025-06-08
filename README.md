@@ -6,7 +6,7 @@ A macOS productivity app that provides quick access to essential tools through y
 ![Swift](https://img.shields.io/badge/Built%20with-SwiftUI-orange?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
-Download - https://stevelisz.github.io/macOS-DynamicIsland/
+Page and Download - https://stevelisz.github.io/macOS-DynamicToolbox/
 ## Features
 
 ### AI Assistant
