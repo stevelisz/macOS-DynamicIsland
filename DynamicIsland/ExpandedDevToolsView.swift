@@ -40,6 +40,7 @@ struct ExpandedDevToolsView: View {
     // UUID Generator
     @State private var generatedUUID: String = ""
     @State private var uuidCount: Int = 1
+    @State private var uuidCountText: String = "1"
     @State private var uuidFormat: UUIDFormat = .uppercase
     
     // GraphQL Query Generator
@@ -772,42 +773,31 @@ struct ExpandedDevToolsView: View {
                 
                 // Compact controls
                 HStack(spacing: DesignSystem.Spacing.xs) {
-                    // Count stepper with -/+ buttons
+                    // Count input field with label
                     HStack(spacing: DesignSystem.Spacing.xxs) {
-                        Button("-") {
-                            if uuidCount > 1 {
-                                uuidCount -= 1
-                            }
-                        }
-                        .font(DesignSystem.Typography.micro)
-                        .foregroundColor(uuidCount > 1 ? DesignSystem.Colors.textPrimary : DesignSystem.Colors.textSecondary.opacity(0.5))
-                        .frame(width: 20, height: 20)
-                        .background(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
-                                .fill(DesignSystem.Colors.surface.opacity(0.3))
-                        )
-                        .disabled(uuidCount <= 1)
-                        .buttonStyle(.plain)
+                        Text("Count:")
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
                         
-                        Text("\(uuidCount)")
+                        TextField("1", text: $uuidCountText)
                             .font(DesignSystem.Typography.micro)
                             .foregroundColor(DesignSystem.Colors.textPrimary)
-                            .frame(width: 20)
-                        
-                        Button("+") {
-                            if uuidCount < 10 {
-                                uuidCount += 1
+                            .frame(width: 40)
+                            .textFieldStyle(.roundedBorder)
+                            .onChange(of: uuidCountText) { _, newValue in
+                                // Validate and update the count
+                                if let count = Int(newValue), count >= 1, count <= 1000 {
+                                    uuidCount = count
+                                } else if newValue.isEmpty {
+                                    // Allow empty field temporarily
+                                    uuidCount = 1
+                                } else {
+                                    // Revert to previous valid value
+                                    DispatchQueue.main.async {
+                                        uuidCountText = "\(uuidCount)"
+                                    }
+                                }
                             }
-                        }
-                        .font(DesignSystem.Typography.micro)
-                        .foregroundColor(uuidCount < 10 ? DesignSystem.Colors.textPrimary : DesignSystem.Colors.textSecondary.opacity(0.5))
-                        .frame(width: 20, height: 20)
-                        .background(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
-                                .fill(DesignSystem.Colors.surface.opacity(0.3))
-                        )
-                        .disabled(uuidCount >= 10)
-                        .buttonStyle(.plain)
                     }
                     
                     // Format dropdown
