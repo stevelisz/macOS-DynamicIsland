@@ -255,19 +255,35 @@ struct ExpandedDevToolsView: View {
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                         
-                        Picker("Method", selection: Binding(
-                            get: { currentAPITab.method },
-                            set: { newValue in
-                                updateCurrentTab { tab in
-                                    tab.method = newValue
+                        Menu {
+                            ForEach(HTTPMethod.allCases, id: \.self) { method in
+                                Button(method.rawValue) {
+                                    updateCurrentTab { tab in
+                                        tab.method = method
+                                    }
                                 }
                             }
-                        )) {
-                            ForEach(HTTPMethod.allCases, id: \.self) { method in
-                                Text(method.rawValue).tag(method)
+                        } label: {
+                            HStack(spacing: DesignSystem.Spacing.xs) {
+                                Text(currentAPITab.method.rawValue)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
                             }
+                            .padding(.horizontal, DesignSystem.Spacing.md)
+                            .padding(.vertical, DesignSystem.Spacing.sm)
+                            .background(
+                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                                    .fill(DesignSystem.Colors.surface.opacity(0.3))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                                    )
+                            )
                         }
-                        .pickerStyle(.menu)
+                        .buttonStyle(.plain)
                         .frame(width: 120)
                     }
                     
