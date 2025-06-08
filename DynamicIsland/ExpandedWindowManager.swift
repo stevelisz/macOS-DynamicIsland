@@ -68,8 +68,8 @@ class ExpandedWindowManager: ObservableObject {
         clipboardWindow = createWindow(
             title: "Clipboard Manager",
             contentView: ExpandedClipboardView(),
-            size: NSSize(width: 800, height: 600),
-            minSize: NSSize(width: 600, height: 400)
+            size: NSSize(width: 900, height: 700),
+            minSize: NSSize(width: 400, height: 300)
         )
         
         clipboardWindow?.makeKeyAndOrderFront(nil)
