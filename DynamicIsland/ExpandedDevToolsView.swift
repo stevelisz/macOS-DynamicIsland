@@ -79,6 +79,7 @@ struct ExpandedDevToolsView: View {
     // API Client Tabs
     @State private var apiClientTabs: [APIRequestTab] = [APIRequestTab(name: "Request 1")]
     @State private var currentAPITabIndex: Int = 0
+    @State private var nextTabNumber: Int = 2 // Track the next tab number to avoid duplicates
     
     var currentAPITab: APIRequestTab {
         guard currentAPITabIndex < apiClientTabs.count else {
@@ -434,6 +435,17 @@ struct ExpandedDevToolsView: View {
         
         var body: some View {
             HStack(spacing: 6) {
+                // HTTP Method indicator with color
+                Text(tab.method.rawValue)
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(tab.method.color)
+                    )
+                
                 // Status indicator
                 Circle()
                     .fill(tab.isLoading ? DesignSystem.Colors.warning : 
@@ -2343,6 +2355,7 @@ spec:
         // Clear API Client tabs
         apiClientTabs = [APIRequestTab(name: "Request 1")]
         currentAPITabIndex = 0
+        nextTabNumber = 2
     }
     
     private func copyToClipboard(_ text: String) {
@@ -2372,6 +2385,21 @@ spec:
     }
 }
 
+// MARK: - HTTP Method Colors
+extension HTTPMethod {
+    var color: Color {
+        switch self {
+        case .GET: return Color.blue
+        case .POST: return Color.green
+        case .PUT: return Color.orange
+        case .PATCH: return Color.purple
+        case .DELETE: return Color.red
+        case .HEAD: return Color.gray
+        case .OPTIONS: return Color.brown
+        }
+    }
+}
+
 // MARK: - API Client Functions
 extension ExpandedDevToolsView {
     private func updateCurrentTab(_ update: (inout APIRequestTab) -> Void) {
@@ -2380,9 +2408,10 @@ extension ExpandedDevToolsView {
     }
     
     private func addNewAPITab() {
-        let newTab = APIRequestTab(name: "Request \(apiClientTabs.count + 1)")
+        let newTab = APIRequestTab(name: "Request \(nextTabNumber)")
         apiClientTabs.append(newTab)
         currentAPITabIndex = apiClientTabs.count - 1
+        nextTabNumber += 1
     }
     
     private func duplicateCurrentTab() {

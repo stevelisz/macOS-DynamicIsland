@@ -113,6 +113,7 @@ struct DeveloperToolsView: View {
     // API Client Tabs
     @State private var apiClientTabs: [APIRequestTab] = [APIRequestTab(name: "Request 1")]
     @State private var currentAPITabIndex: Int = 0
+    @State private var nextTabNumber: Int = 2 // Track the next tab number to avoid duplicates
     
     var currentAPITab: APIRequestTab {
         guard currentAPITabIndex < apiClientTabs.count else {
@@ -1839,6 +1840,7 @@ spec:
         // Clear API Client inputs
         apiClientTabs = [APIRequestTab(name: "Request 1")]
         currentAPITabIndex = 0
+        nextTabNumber = 2
     }
     
     private func clearCURLInputs() {
@@ -3196,9 +3198,10 @@ extension DeveloperToolsView {
     }
     
     private func addNewAPITab() {
-        let newTab = APIRequestTab(name: "Request \(apiClientTabs.count + 1)")
+        let newTab = APIRequestTab(name: "Request \(nextTabNumber)")
         apiClientTabs.append(newTab)
         currentAPITabIndex = apiClientTabs.count - 1
+        nextTabNumber += 1
     }
     
     private func duplicateCurrentTab() {
