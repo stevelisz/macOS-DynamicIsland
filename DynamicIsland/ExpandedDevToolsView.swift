@@ -64,6 +64,7 @@ struct ExpandedDevToolsView: View {
     @State private var diffText1: String = ""
     @State private var diffText2: String = ""
     @State private var diffResult: [DiffLine] = []
+    @State private var sideBySideDiff: [SideBySideDiffLine] = []
     
     // Regex Tester
     @State private var regexPattern: String = ""
@@ -1319,8 +1320,15 @@ spec:
                 
                 Spacer()
                 
-                ActionButton(title: "Compare", icon: "eye") {
-                    compareDiff()
+                if !diffText1.isEmpty || !diffText2.isEmpty {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Image(systemName: "eye")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.success)
+                        Text("Real-time comparison")
+                            .font(DesignSystem.Typography.micro)
+                            .foregroundColor(DesignSystem.Colors.success)
+                    }
                 }
             }
             
@@ -1331,6 +1339,9 @@ spec:
                     placeholder: "Enter first text...",
                     focusBinding: $isInputFocused
                 )
+                .onChange(of: diffText1) { _, _ in
+                    compareDiff()
+                }
                 
                 CompactInputArea(
                     title: "Text 2",
@@ -1338,10 +1349,30 @@ spec:
                     placeholder: "Enter second text...",
                     focusBinding: nil
                 )
+                .onChange(of: diffText2) { _, _ in
+                    compareDiff()
+                }
             }
             
-            if !diffResult.isEmpty {
-                DiffResultView(diffLines: diffResult)
+            if !sideBySideDiff.isEmpty {
+                KDiffStyleView(diffLines: sideBySideDiff)
+            } else if !diffText1.isEmpty || !diffText2.isEmpty {
+                VStack(spacing: DesignSystem.Spacing.sm) {
+                    Text("Start typing to see differences")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                        .padding(DesignSystem.Spacing.lg)
+                }
+                .frame(height: 120)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                        .fill(DesignSystem.Colors.surface.opacity(0.2))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                                .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
+                        )
+                )
             }
         }
     }
@@ -1727,26 +1758,104 @@ spec:
         }
     }
     
-    struct DiffResultView: View {
-        let diffLines: [DiffLine]
+    struct KDiffStyleView: View {
+        let diffLines: [SideBySideDiffLine]
         
         var body: some View {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(diffLines.indices, id: \.self) { index in
-                        HStack {
-                            Text(diffLines[index].text)
-                                .font(.system(size: 12, design: .monospaced))
-                                .foregroundColor(diffLines[index].type.color)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(spacing: 0) {
+                // Header
+                HStack(spacing: 0) {
+                    // Left header
+                    HStack {
+                        Text("Text 1 (Original)")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, DesignSystem.Spacing.sm)
+                    .padding(.vertical, DesignSystem.Spacing.xs)
+                    .background(DesignSystem.Colors.surface.opacity(0.5))
+                    
+                    // Divider
+                    Rectangle()
+                        .fill(DesignSystem.Colors.border)
+                        .frame(width: 1)
+                    
+                    // Right header
+                    HStack {
+                        Text("Text 2 (Modified)")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, DesignSystem.Spacing.sm)
+                    .padding(.vertical, DesignSystem.Spacing.xs)
+                    .background(DesignSystem.Colors.surface.opacity(0.5))
+                }
+                
+                // Content
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(diffLines.indices, id: \.self) { index in
+                            let line = diffLines[index]
+                            
+                            HStack(spacing: 0) {
+                                // Left side (original)
+                                HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
+                                    // Line number
+                                    Text("\(line.leftLineNumber)")
+                                        .font(.system(size: 10, design: .monospaced))
+                                        .foregroundColor(DesignSystem.Colors.textSecondary.opacity(0.7))
+                                        .frame(width: 30, alignment: .trailing)
+                                    
+                                    // Content
+                                    Text(line.leftText)
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundColor(line.leftType.textColor)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                                .padding(.horizontal, DesignSystem.Spacing.sm)
+                                .padding(.vertical, 2)
+                                .background(line.leftType.backgroundColor)
+                                .frame(maxWidth: .infinity)
+                                
+                                // Divider
+                                Rectangle()
+                                    .fill(DesignSystem.Colors.border.opacity(0.5))
+                                    .frame(width: 1)
+                                
+                                // Right side (modified)
+                                HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
+                                    // Line number
+                                    Text("\(line.rightLineNumber)")
+                                        .font(.system(size: 10, design: .monospaced))
+                                        .foregroundColor(DesignSystem.Colors.textSecondary.opacity(0.7))
+                                        .frame(width: 30, alignment: .trailing)
+                                    
+                                    // Content
+                                    Text(line.rightText)
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundColor(line.rightType.textColor)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                                .padding(.horizontal, DesignSystem.Spacing.sm)
+                                .padding(.vertical, 2)
+                                .background(line.rightType.backgroundColor)
+                                .frame(maxWidth: .infinity)
+                            }
+                            .overlay(
+                                Rectangle()
+                                    .fill(DesignSystem.Colors.border.opacity(0.2))
+                                    .frame(height: 1),
+                                alignment: .bottom
+                            )
                         }
-                        .padding(.horizontal, DesignSystem.Spacing.sm)
-                        .padding(.vertical, 2)
-                        .background(diffLines[index].type.backgroundColor)
                     }
                 }
+                .frame(height: 300) // Larger height for KDiff style
             }
-            .frame(height: 180) // Increased from 120 for expanded view
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                     .fill(DesignSystem.Colors.surface.opacity(0.2))
@@ -2211,15 +2320,46 @@ spec:
         let lines2 = diffText2.components(separatedBy: .newlines)
         
         diffResult = []
+        sideBySideDiff = []
+        
         let maxLines = max(lines1.count, lines2.count)
         
         for i in 0..<maxLines {
             let line1 = i < lines1.count ? lines1[i] : ""
             let line2 = i < lines2.count ? lines2[i] : ""
             
+            let leftLineNumber = i < lines1.count ? "\(i + 1)" : ""
+            let rightLineNumber = i < lines2.count ? "\(i + 1)" : ""
+            
             if line1 == line2 {
+                // Same line
+                sideBySideDiff.append(SideBySideDiffLine(
+                    leftText: line1,
+                    rightText: line2,
+                    leftType: .same,
+                    rightType: .same,
+                    leftLineNumber: leftLineNumber,
+                    rightLineNumber: rightLineNumber
+                ))
                 diffResult.append(DiffLine(text: line1, type: .same))
             } else {
+                // Different lines
+                let leftText = i < lines1.count ? line1 : ""
+                let rightText = i < lines2.count ? line2 : ""
+                
+                let leftType: KDiffLineType = i < lines1.count ? (line1.isEmpty ? .same : .removed) : .empty
+                let rightType: KDiffLineType = i < lines2.count ? (line2.isEmpty ? .same : .added) : .empty
+                
+                sideBySideDiff.append(SideBySideDiffLine(
+                    leftText: leftText,
+                    rightText: rightText,
+                    leftType: leftType,
+                    rightType: rightType,
+                    leftLineNumber: leftLineNumber,
+                    rightLineNumber: rightLineNumber
+                ))
+                
+                // Legacy diff result for compatibility
                 if !line1.isEmpty {
                     diffResult.append(DiffLine(text: "- \(line1)", type: .removed))
                 }
@@ -2350,6 +2490,7 @@ spec:
         diffText1 = ""
         diffText2 = ""
         diffResult = []
+        sideBySideDiff = []
         regexPattern = ""
         regexText = ""
         regexMatches = []
@@ -2539,4 +2680,37 @@ extension ExpandedDevToolsView {
             }
         }.resume()
     }
-} 
+}
+
+// MARK: - KDiff Style Data Structures
+
+struct SideBySideDiffLine {
+    let leftText: String
+    let rightText: String
+    let leftType: KDiffLineType
+    let rightType: KDiffLineType
+    let leftLineNumber: String
+    let rightLineNumber: String
+}
+
+enum KDiffLineType {
+    case same, added, removed, empty
+    
+    var textColor: Color {
+        switch self {
+        case .same: return DesignSystem.Colors.textPrimary
+        case .added: return DesignSystem.Colors.success
+        case .removed: return DesignSystem.Colors.error
+        case .empty: return DesignSystem.Colors.textSecondary.opacity(0.5)
+        }
+    }
+    
+    var backgroundColor: Color {
+        switch self {
+        case .same: return Color.clear
+        case .added: return DesignSystem.Colors.success.opacity(0.15)
+        case .removed: return DesignSystem.Colors.error.opacity(0.15)
+        case .empty: return DesignSystem.Colors.surface.opacity(0.1)
+        }
+    }
+}
