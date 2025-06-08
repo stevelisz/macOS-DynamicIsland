@@ -4,7 +4,7 @@ Few tools in there, depending on your habits, those tools can be helpful at time
 The search function in AI chat is not very complete yet. 
 
 ## Disclaimer:
-This app allow users to chat with Large Langauge Models in Ollama. AI-generated content may be inaccurate or incomplete. Please verify information independently before relying on it.
+This app allows users to chat with Large Langauge Models that are running in Ollama. AI-generated content may be inaccurate or incomplete. Please verify information independently before relying on it.
 
 ![Dynamic Toolbox](https://img.shields.io/badge/Platform-macOS%2015.1+-blue?style=flat-square)
 ![Swift](https://img.shields.io/badge/Built%20with-SwiftUI-orange?style=flat-square)
