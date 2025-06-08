@@ -284,7 +284,6 @@ struct ExpandedDevToolsView: View {
                             )
                         }
                         .buttonStyle(.plain)
-                        .frame(width: 120)
                     }
                     
                     VStack(alignment: .leading, spacing: 8) {
