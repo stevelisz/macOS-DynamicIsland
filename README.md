@@ -8,7 +8,6 @@ This app allows users to chat with Large Langauge Models that are running in Oll
 
 ![Dynamic Toolbox](https://img.shields.io/badge/Platform-macOS%2015.1+-blue?style=flat-square)
 ![Swift](https://img.shields.io/badge/Built%20with-SwiftUI-orange?style=flat-square)
-![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
 Page and Download - https://stevelisz.github.io/macOS-DynamicToolbox/
 
