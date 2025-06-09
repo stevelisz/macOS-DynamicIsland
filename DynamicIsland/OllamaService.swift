@@ -175,10 +175,12 @@ class OllamaService: ObservableObject {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             
-            // Use enhanced message for AI processing
+            // Build context with conversation history
+            let contextualPrompt = buildContextualPrompt(for: enhancedMessage)
+            
             let requestBody: [String: Any] = [
                 "model": selectedModel,
-                "prompt": enhancedMessage,
+                "prompt": contextualPrompt,
                 "stream": false
             ]
             
@@ -255,10 +257,12 @@ class OllamaService: ObservableObject {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             
-            // Use enhanced message for AI processing
+            // Build context with conversation history
+            let contextualPrompt = buildContextualPrompt(for: enhancedMessage)
+            
             let requestBody: [String: Any] = [
                 "model": selectedModel,
-                "prompt": enhancedMessage,
+                "prompt": contextualPrompt,
                 "stream": true
             ]
             
@@ -392,10 +396,26 @@ class OllamaService: ObservableObject {
     
     // MARK: - Helper Methods
     
-    private func buildContext() -> [String] {
-        // Build context from recent conversation history
-        let recentMessages = conversationHistory.suffix(10) // Last 10 messages
-        return recentMessages.map { "\($0.role.rawValue): \($0.content)" }
+    private func buildContextualPrompt(for currentMessage: String) -> String {
+        // Take the last 10 messages for context (excluding the current one we just added)
+        let recentHistory = conversationHistory.dropLast().suffix(9) // 9 previous + 1 current = 10 total
+        
+        var contextualPrompt = ""
+        
+        // Add conversation history
+        if !recentHistory.isEmpty {
+            contextualPrompt += "Previous conversation:\n"
+            for message in recentHistory {
+                let rolePrefix = message.role == .user ? "Human" : "Assistant"
+                contextualPrompt += "\(rolePrefix): \(message.content)\n"
+            }
+            contextualPrompt += "\n"
+        }
+        
+        // Add current message
+        contextualPrompt += "Human: \(currentMessage)\nAssistant:"
+        
+        return contextualPrompt
     }
     
     func clearConversation() {
