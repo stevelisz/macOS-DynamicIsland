@@ -104,7 +104,3 @@ Common development utilities.
 ## Usage
 
 The app places an interactive area in your Mac's notch. Click to open the toolbox interface. Select the tab for the tool you want to use.
-
-## License
-
-MIT License - see LICENSE file for details.
