@@ -3188,7 +3188,7 @@ extension Data {
         }
         return hash.map { String(format: "%02x", $0) }.joined()
     }
-}
+} 
 
 // MARK: - API Client Functions
 extension DeveloperToolsView {

@@ -284,7 +284,7 @@ struct AIChatView: View {
                     .disabled(ollamaService.isConnectedButNoModels || ollamaService.isGenerating)
                     .onSubmit {
                         if !ollamaService.isGenerating {
-                            sendMessage()
+                        sendMessage()
                         }
                     }
                 

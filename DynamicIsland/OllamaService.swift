@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Darwin
 
 @MainActor
 class OllamaService: ObservableObject {
@@ -398,24 +399,26 @@ class OllamaService: ObservableObject {
     
     private func buildContextualPrompt(for currentMessage: String) -> String {
         // Take the last 10 messages for context (excluding the current one we just added)
-        let recentHistory = conversationHistory.dropLast().suffix(9) // 9 previous + 1 current = 10 total
+        let contextMessages = Array(conversationHistory.suffix(11).dropLast())
         
-        var contextualPrompt = ""
-        
-        // Add conversation history
-        if !recentHistory.isEmpty {
-            contextualPrompt += "Previous conversation:\n"
-            for message in recentHistory {
-                let rolePrefix = message.role == .user ? "Human" : "Assistant"
-                contextualPrompt += "\(rolePrefix): \(message.content)\n"
-            }
-            contextualPrompt += "\n"
+        if contextMessages.isEmpty {
+            return currentMessage
         }
         
-        // Add current message
-        contextualPrompt += "Human: \(currentMessage)\nAssistant:"
+        // Build conversation context
+        let context = contextMessages.map { message in
+            let role = message.isUser ? "User" : "AI"
+            return "\(role): \(message.content)"
+        }.joined(separator: "\n")
         
-        return contextualPrompt
+        return """
+        Previous conversation context:
+        \(context)
+        
+        Current question: \(currentMessage)
+        
+        Please provide a helpful response that takes into account the conversation history.
+        """
     }
     
     func clearConversation() {
@@ -613,6 +616,268 @@ class OllamaService: ObservableObject {
             conversationHistory = conversation.messages
         }
     }
+    
+    // MARK: - Model Management
+    
+    func getInstalledModels() async -> [OllamaModel] {
+        guard isConnected else { return [] }
+        
+        do {
+            let url = URL(string: "\(baseURL)/api/tags")!
+            let (data, _) = try await quickSession.data(from: url)
+            
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let models = json["models"] as? [[String: Any]] {
+                return models.compactMap { modelData in
+                    guard let name = modelData["name"] as? String else { return nil }
+                    
+                    // Get additional model info
+                    let size = (modelData["size"] as? Int64) ?? 0
+                    let modifiedAt = modelData["modified_at"] as? String ?? ""
+                    
+                    return OllamaModel(
+                        name: name,
+                        size: size,
+                        modifiedAt: modifiedAt
+                    )
+                }
+            }
+        } catch {
+            print("Error fetching installed models: \(error)")
+        }
+        
+        return []
+    }
+    
+    func deleteModel(_ modelName: String) async -> Bool {
+        guard isConnected else { return false }
+        
+        do {
+            let url = URL(string: "\(baseURL)/api/delete")!
+            var request = URLRequest(url: url)
+            request.httpMethod = "DELETE"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            let requestBody: [String: Any] = [
+                "name": modelName
+            ]
+            
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            
+            let (_, response) = try await quickSession.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                return httpResponse.statusCode == 200
+            }
+        } catch {
+            print("Error deleting model: \(error)")
+        }
+        
+        return false
+    }
+    
+    func downloadModel(_ modelName: String, onProgress: @escaping (String) -> Void) async -> Bool {
+        guard isConnected else { 
+            onProgress("Error: Ollama is not connected")
+            return false
+        }
+        
+        do {
+            let url = URL(string: "\(baseURL)/api/pull")!
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            let requestBody: [String: Any] = [
+                "name": modelName,
+                "stream": true
+            ]
+            
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            
+            let (bytes, _) = try await generateSession.bytes(for: request)
+            
+            for try await line in bytes.lines {
+                if let data = line.data(using: .utf8),
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    
+                    if let status = json["status"] as? String {
+                        onProgress(status)
+                    }
+                    
+                    if let completed = json["completed"] as? Int64,
+                       let total = json["total"] as? Int64, total > 0 {
+                        let percentage = Int((Double(completed) / Double(total)) * 100)
+                        onProgress("Downloading... \(percentage)%")
+                    }
+                    
+                    if let error = json["error"] as? String {
+                        onProgress("Error: \(error)")
+                        return false
+                    }
+                }
+            }
+            
+            // Refresh the models list after successful download
+            await loadAvailableModels()
+            onProgress("Download completed successfully!")
+            return true
+            
+        } catch {
+            onProgress("Error: \(error.localizedDescription)")
+            return false
+        }
+    }
+    
+    // Get system specifications for model recommendations
+    func getSystemSpecs() -> SystemSpecs {
+        var specs = SystemSpecs()
+        
+        // Get RAM information
+        var info = mach_task_basic_info()
+        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)/4
+        
+        let result = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
+                task_info(mach_task_self_,
+                         task_flavor_t(MACH_TASK_BASIC_INFO),
+                         $0,
+                         &count)
+            }
+        }
+        
+        if result == KERN_SUCCESS {
+            specs.totalRAM = ProcessInfo.processInfo.physicalMemory
+        }
+        
+        // Get CPU information
+        #if arch(arm64)
+        specs.architecture = "Apple Silicon"
+        if let cpuBrand = getAppleSiliconChip() {
+            specs.cpuModel = cpuBrand
+        }
+        #else
+        specs.architecture = "Intel"
+        specs.cpuModel = "Intel"
+        #endif
+        
+        return specs
+    }
+    
+    private func getAppleSiliconChip() -> String? {
+        var size = 0
+        sysctlbyname("hw.model", nil, &size, nil, 0)
+        var model = [CChar](repeating: 0, count: size)
+        sysctlbyname("hw.model", &model, &size, nil, 0)
+        let modelString = String(cString: model)
+        
+        // Map model identifiers to user-friendly names
+        if modelString.contains("Mac14,3") { return "M2 Pro" }
+        if modelString.contains("Mac14,5") { return "M2 Max" }
+        if modelString.contains("Mac14,2") { return "M2" }
+        if modelString.contains("Mac15,3") { return "M3 Pro" }
+        if modelString.contains("Mac15,5") { return "M3 Max" }
+        if modelString.contains("Mac15,1") { return "M3" }
+        if modelString.contains("Mac16,1") { return "M4" }
+        if modelString.contains("Mac16,3") { return "M4 Pro" }
+        if modelString.contains("Mac16,5") { return "M4 Max" }
+        
+        // Fallback for M1 and other chips
+        if modelString.contains("Mac") { return "Apple Silicon" }
+        
+        return nil
+    }
+    
+    // Get recommended models based on system specs
+    func getRecommendedModels(for specs: SystemSpecs) -> [RecommendedModel] {
+        let ramGB = specs.totalRAM / (1024 * 1024 * 1024)
+        var models: [RecommendedModel] = []
+        
+        // Always recommend lightweight models
+        models.append(RecommendedModel(
+            name: "llama3.2:1b",
+            description: "Ultra-fast 1B model, perfect for quick tasks",
+            size: "1.3GB",
+            recommended: true,
+            reason: "Excellent for all systems, very fast"
+        ))
+        
+        models.append(RecommendedModel(
+            name: "llama3.2:3b",
+            description: "Balanced 3B model with good performance",
+            size: "2.0GB", 
+            recommended: ramGB >= 8,
+            reason: ramGB >= 8 ? "Great balance of speed and quality" : "May be slow on 8GB systems"
+        ))
+        
+        // 7B models for 8GB+ systems
+        if ramGB >= 8 {
+            models.append(RecommendedModel(
+                name: "llama3.1:7b",
+                description: "High-quality 7B model for general use",
+                size: "4.7GB",
+                recommended: ramGB >= 12,
+                reason: ramGB >= 12 ? "Excellent quality for most tasks" : "Good quality, may use swap"
+            ))
+            
+            models.append(RecommendedModel(
+                name: "mistral:7b",
+                description: "Efficient 7B model with great performance",
+                size: "4.1GB",
+                recommended: ramGB >= 12,
+                reason: ramGB >= 12 ? "Very efficient and fast" : "Good option for 8GB systems"
+            ))
+        }
+        
+        // 9B+ models for 16GB+ systems
+        if ramGB >= 16 {
+            models.append(RecommendedModel(
+                name: "gemma2:9b",
+                description: "Google's 9B model with excellent capabilities",
+                size: "5.4GB",
+                recommended: true,
+                reason: "Excellent for 16GB+ systems"
+            ))
+            
+            models.append(RecommendedModel(
+                name: "qwen2.5:14b",
+                description: "Advanced 14B model with multilingual support",
+                size: "8.7GB",
+                recommended: ramGB >= 24,
+                reason: ramGB >= 24 ? "Great for complex tasks" : "May be slower on 16GB"
+            ))
+        }
+        
+        // Large models for 32GB+ systems
+        if ramGB >= 32 {
+            models.append(RecommendedModel(
+                name: "llama3.1:70b",
+                description: "State-of-the-art 70B model for professional use",
+                size: "40GB",
+                recommended: ramGB >= 64,
+                reason: ramGB >= 64 ? "Professional grade performance" : "May exceed memory limits"
+            ))
+        }
+        
+        // Specialized models
+        models.append(RecommendedModel(
+            name: "llava:7b", 
+            description: "Vision-capable model for image analysis",
+            size: "4.7GB",
+            recommended: ramGB >= 12,
+            reason: "Supports image understanding"
+        ))
+        
+        models.append(RecommendedModel(
+            name: "codegemma:7b",
+            description: "Specialized coding model",
+            size: "5.0GB", 
+            recommended: ramGB >= 12,
+            reason: "Optimized for code generation"
+        ))
+        
+        return models.sorted { $0.recommended && !$1.recommended }
+    }
 }
 
 // MARK: - Models
@@ -620,14 +885,46 @@ class OllamaService: ObservableObject {
 struct OllamaModel: Identifiable, Equatable, Hashable {
     let id = UUID()
     let name: String
+    let size: Int64
+    let modifiedAt: String
     
-    init(name: String) {
+    init(name: String, size: Int64 = 0, modifiedAt: String = "") {
         self.name = name
+        self.size = size
+        self.modifiedAt = modifiedAt
     }
     
     func hash(into hasher: inout Hasher) {
         hasher.combine(name)
     }
+    
+    // Computed property for human-readable size
+    var formattedSize: String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useGB, .useMB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: size)
+    }
+}
+
+struct SystemSpecs {
+    var totalRAM: UInt64 = 0
+    var architecture: String = "Unknown"
+    var cpuModel: String = "Unknown"
+    
+    var formattedRAM: String {
+        let ramGB = totalRAM / (1024 * 1024 * 1024)
+        return "\(ramGB)GB"
+    }
+}
+
+struct RecommendedModel: Identifiable, Hashable {
+    let id = UUID()
+    let name: String
+    let description: String
+    let size: String
+    let recommended: Bool
+    let reason: String
 }
 
 struct ChatMessage: Identifiable, Equatable {

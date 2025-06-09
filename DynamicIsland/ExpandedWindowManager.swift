@@ -233,8 +233,8 @@ struct ExpandedWindowContainer<Content: View>: View {
     }
     
     var body: some View {
-        content
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                content
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(NSColor.controlBackgroundColor))
     }
 } 

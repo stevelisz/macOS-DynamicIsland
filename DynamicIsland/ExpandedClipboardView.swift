@@ -103,45 +103,45 @@ struct ExpandedClipboardView: View {
         VStack(spacing: DesignSystem.Spacing.lg) {
             // Title and stats
             GeometryReader { geometry in
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Clipboard Manager")
-                            .font(DesignSystem.Typography.headline1)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
-                        Text("\(filteredItems.count) items")
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                    }
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Clipboard Manager")
+                        .font(DesignSystem.Typography.headline1)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
                     
-                    Spacer()
-                    
+                    Text("\(filteredItems.count) items")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+                
+                Spacer()
+                
                     // Clear all button - adaptive based on width
-                    if !clipboardWatcher.items.isEmpty {
-                        Button(action: {
-                            clipboardWatcher.clearAll()
-                        }) {
-                            HStack(spacing: DesignSystem.Spacing.xs) {
-                                Image(systemName: "trash")
-                                    .font(.system(size: 14, weight: .medium))
+                if !clipboardWatcher.items.isEmpty {
+                    Button(action: {
+                        clipboardWatcher.clearAll()
+                    }) {
+                        HStack(spacing: DesignSystem.Spacing.xs) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 14, weight: .medium))
                                 
                                 // Only show text if there's enough width
                                 if geometry.size.width > 400 {
-                                    Text("Clear All")
-                                        .font(DesignSystem.Typography.captionMedium)
+                            Text("Clear All")
+                                .font(DesignSystem.Typography.captionMedium)
                                 }
-                            }
-                            .foregroundColor(DesignSystem.Colors.error)
-                            .padding(.horizontal, DesignSystem.Spacing.md)
-                            .padding(.vertical, DesignSystem.Spacing.sm)
-                            .background(
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                    .fill(DesignSystem.Colors.error.opacity(0.1))
-                            )
                         }
-                        .buttonStyle(.plain)
+                        .foregroundColor(DesignSystem.Colors.error)
+                        .padding(.horizontal, DesignSystem.Spacing.md)
+                        .padding(.vertical, DesignSystem.Spacing.sm)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .fill(DesignSystem.Colors.error.opacity(0.1))
+                        )
                     }
+                    .buttonStyle(.plain)
                 }
+            }
             }
             .frame(height: 60) // Fixed height for title area
             
@@ -177,51 +177,51 @@ struct ExpandedClipboardView: View {
     
     private var categoryFilter: some View {
         GeometryReader { geometry in
-            HStack(spacing: DesignSystem.Spacing.sm) {
-                ForEach(ClipboardFilter.allCases, id: \.self) { filter in
-                    let count = clipboardWatcher.items.filter { item in
-                        switch filter {
-                        case .all: return true
-                        case .text: return item.type == .text
-                        case .image: return item.type == .image
-                        case .file: return item.type == .file
-                        }
-                    }.count
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            ForEach(ClipboardFilter.allCases, id: \.self) { filter in
+                let count = clipboardWatcher.items.filter { item in
+                    switch filter {
+                    case .all: return true
+                    case .text: return item.type == .text
+                    case .image: return item.type == .image
+                    case .file: return item.type == .file
+                    }
+                }.count
                     
                     // Show text only if there's enough width (roughly 320px minimum for all text)
                     let showText = geometry.size.width > 320
-                    
-                    Button(action: {
-                        withAnimation(DesignSystem.Animation.gentle) {
-                            selectedFilter = filter
-                        }
-                    }) {
-                        HStack(spacing: DesignSystem.Spacing.xs) {
-                            Image(systemName: filter.icon)
+                
+                Button(action: {
+                    withAnimation(DesignSystem.Animation.gentle) {
+                        selectedFilter = filter
+                    }
+                }) {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Image(systemName: filter.icon)
                                 .font(.system(size: 14, weight: .medium))
                             
                             if showText {
-                                Text(filter.rawValue)
+                        Text(filter.rawValue)
                                     .font(.system(size: 14, weight: .medium))
-                                Text("(\(count))")
+                        Text("(\(count))")
                                     .font(.system(size: 13))
                             } else if selectedFilter == filter {
                                 // Only show count for selected filter when in icon mode
                                 Text("\(count)")
                                     .font(.system(size: 12, weight: .medium))
                             }
-                        }
-                        .foregroundColor(selectedFilter == filter ? .white : filter.color)
+                    }
+                    .foregroundColor(selectedFilter == filter ? .white : filter.color)
                         .padding(.horizontal, showText ? DesignSystem.Spacing.lg : DesignSystem.Spacing.md)
                         .padding(.vertical, DesignSystem.Spacing.md)
-                        .background(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                .fill(selectedFilter == filter ? filter.color : filter.color.opacity(0.1))
-                        )
-                    }
-                    .buttonStyle(.plain)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                            .fill(selectedFilter == filter ? filter.color : filter.color.opacity(0.1))
+                    )
                 }
+                .buttonStyle(.plain)
             }
+        }
         }
         .frame(height: 44) // Fixed height for the filter bar
     }
@@ -388,7 +388,7 @@ struct ExpandedClipboardCard: View {
             
             // Content preview with consistent height
             VStack(alignment: .leading, spacing: 0) {
-                contentPreview
+            contentPreview
                 Spacer(minLength: 0)
             }
             .frame(height: 100) // Fixed height for consistency
@@ -437,12 +437,12 @@ struct ExpandedClipboardCard: View {
             switch item.type {
             case .text:
                 ScrollView {
-                    Text(item.content ?? "")
+                Text(item.content ?? "")
                         .font(.system(size: 14))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
                         .lineLimit(6)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -450,16 +450,16 @@ struct ExpandedClipboardCard: View {
             case .image:
                 HStack {
                     Spacer()
-                    if let data = item.imageData, let nsImage = NSImage(data: data) {
-                        Image(nsImage: nsImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
+                if let data = item.imageData, let nsImage = NSImage(data: data) {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
                             .frame(maxHeight: 90)
-                            .cornerRadius(DesignSystem.BorderRadius.md)
-                    } else {
-                        Image(systemName: "photo")
+                        .cornerRadius(DesignSystem.BorderRadius.md)
+                } else {
+                    Image(systemName: "photo")
                             .font(.system(size: 40, weight: .thin))
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
                             .frame(height: 90)
                     }
                     Spacer()
@@ -467,21 +467,21 @@ struct ExpandedClipboardCard: View {
                 
             case .file:
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: DesignSystem.Spacing.sm) {
-                        Image(systemName: "doc.fill")
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: "doc.fill")
                             .font(.system(size: 28, weight: .medium))
-                            .foregroundColor(DesignSystem.Colors.files)
-                        
+                        .foregroundColor(DesignSystem.Colors.files)
+                    
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(item.fileURL?.lastPathComponent ?? "Unknown File")
+                        Text(item.fileURL?.lastPathComponent ?? "Unknown File")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(DesignSystem.Colors.textPrimary)
-                                .lineLimit(2)
-                            
-                            if let url = item.fileURL {
-                                Text(url.deletingLastPathComponent().path)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .lineLimit(2)
+                        
+                        if let url = item.fileURL {
+                            Text(url.deletingLastPathComponent().path)
                                     .font(.system(size: 12))
-                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
                                     .lineLimit(2)
                             }
                         }

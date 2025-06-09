@@ -100,26 +100,26 @@ struct ExpandedDevToolsView: View {
             // Main Interface
             VStack(spacing: 0) {
                 // Header
-                HStack {
+        HStack {
                     Text(selectedTool.title)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Spacer()
-                    
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+            
+            Spacer()
+            
                     Button("Clear All") {
                         clearInputs()
                     }
                     .font(.system(size: 12))
                     .foregroundColor(DesignSystem.Colors.textSecondary)
-                    .padding(.horizontal, DesignSystem.Spacing.md)
-                    .padding(.vertical, DesignSystem.Spacing.sm)
-                    .background(
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .padding(.vertical, DesignSystem.Spacing.sm)
+                .background(
                         RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
                             .fill(DesignSystem.Colors.surface.opacity(0.3))
-                    )
+                )
                     .buttonStyle(.plain)
-                }
+        }
                 .padding(.all, DesignSystem.Spacing.lg)
                 
                 Divider()
@@ -168,43 +168,43 @@ struct ExpandedDevToolsView: View {
     private var compactToolSidebar: some View {
         ScrollView {
             VStack(spacing: 6) {
-                ForEach(DeveloperTool.allCases, id: \.self) { tool in
-                    Button(action: {
-                        withAnimation(DesignSystem.Animation.gentle) {
-                            selectedTool = tool
-                        }
-                    }) {
-                        HStack(spacing: DesignSystem.Spacing.sm) {
-                            Image(systemName: tool.icon)
+            ForEach(DeveloperTool.allCases, id: \.self) { tool in
+                Button(action: {
+                    withAnimation(DesignSystem.Animation.gentle) {
+                        selectedTool = tool
+                    }
+                }) {
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        Image(systemName: tool.icon)
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(selectedTool == tool ? .white : tool.color)
+                            .foregroundColor(selectedTool == tool ? .white : tool.color)
                                 .frame(width: 18)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
+                        
+                        VStack(alignment: .leading, spacing: 2) {
                                 Text(tool.title)
                                     .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(selectedTool == tool ? .white : DesignSystem.Colors.textPrimary)
+                                .foregroundColor(selectedTool == tool ? .white : DesignSystem.Colors.textPrimary)
                                     .fixedSize(horizontal: true, vertical: false)
-                                
-                                Text(tool.subtitle)
-                                    .font(.system(size: 10))
-                                    .foregroundColor(selectedTool == tool ? .white.opacity(0.8) : DesignSystem.Colors.textSecondary)
-                                    .fixedSize(horizontal: true, vertical: false)
-                            }
                             
-                            Spacer()
+                            Text(tool.subtitle)
+                                    .font(.system(size: 10))
+                                .foregroundColor(selectedTool == tool ? .white.opacity(0.8) : DesignSystem.Colors.textSecondary)
+                                    .fixedSize(horizontal: true, vertical: false)
                         }
+                        
+                        Spacer()
+                    }
                         .padding(.horizontal, DesignSystem.Spacing.sm)
                         .padding(.vertical, 8)
-                        .background(
+                    .background(
                             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
-                                .fill(selectedTool == tool ? tool.color : Color.clear)
-                        )
+                            .fill(selectedTool == tool ? tool.color : Color.clear)
+                    )
                         .contentShape(Rectangle()) // This makes the entire area clickable
-                    }
-                    .buttonStyle(.plain)
                 }
+                .buttonStyle(.plain)
             }
+        }
             .padding(.all, DesignSystem.Spacing.sm)
         }
         .frame(width: 220)
@@ -244,7 +244,7 @@ struct ExpandedDevToolsView: View {
                             )
                     }
                     .buttonStyle(.plain)
-                }
+        }
                 .padding(.horizontal, DesignSystem.Spacing.sm)
             }
             
@@ -255,15 +255,15 @@ struct ExpandedDevToolsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Method")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                        
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
                         Menu {
                             ForEach(HTTPMethod.allCases, id: \.self) { method in
                                 Button(method.rawValue) {
                                     updateCurrentTab { tab in
                                         tab.method = method
-                                    }
-                                }
+                    }
+                }
                             }
                         } label: {
                             HStack(spacing: DesignSystem.Spacing.xs) {
@@ -273,7 +273,7 @@ struct ExpandedDevToolsView: View {
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 10, weight: .medium))
                                     .foregroundColor(DesignSystem.Colors.textSecondary)
-                            }
+            }
                             .padding(.horizontal, DesignSystem.Spacing.md)
                             .padding(.vertical, DesignSystem.Spacing.sm)
                             .background(
@@ -310,8 +310,8 @@ struct ExpandedDevToolsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Headers")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
                     TextEditor(text: Binding(
                         get: { currentAPITab.headers },
                         set: { newValue in
@@ -386,7 +386,7 @@ struct ExpandedDevToolsView: View {
                             if currentAPITab.responseTime > 0 {
                                 Text("• \(Int(currentAPITab.responseTime * 1000))ms")
                                     .font(.system(size: 12))
-                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
                             }
                         }
                     }
@@ -405,9 +405,9 @@ struct ExpandedDevToolsView: View {
                         
                         Spacer()
                         
-                        Button("Copy") {
+                            Button("Copy") {
                             copyToClipboard(currentAPITab.response)
-                        }
+                            }
                         .font(.system(size: 12))
                         .foregroundColor(DesignSystem.Colors.primary)
                     }
@@ -440,7 +440,7 @@ struct ExpandedDevToolsView: View {
             }
         }
     }
-
+    
     // MARK: - API Tab Button Component
     
     private struct APITabButton: View {
@@ -535,7 +535,7 @@ struct ExpandedDevToolsView: View {
                     HStack(spacing: DesignSystem.Spacing.xxs) {
                         Text(jsonOperation.title)
                             .font(DesignSystem.Typography.micro)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
                         Image(systemName: "chevron.down")
                             .font(.system(size: 8, weight: .medium))
                             .foregroundColor(DesignSystem.Colors.textSecondary)
@@ -603,8 +603,8 @@ struct ExpandedDevToolsView: View {
             HStack {
                 Text("Hash Generator")
                     .font(DesignSystem.Typography.captionMedium)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                            
                 Spacer()
                 
                 // Compact dropdown controls
@@ -647,7 +647,7 @@ struct ExpandedDevToolsView: View {
                             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
                                 .fill(DesignSystem.Colors.surface.opacity(0.3))
                         )
-                    }
+                            }
                     .buttonStyle(.plain)
                     
                     // Hash type dropdown
@@ -656,7 +656,7 @@ struct ExpandedDevToolsView: View {
                             Button(type.title) {
                                 hashType = type
                                 processHash()
-                            }
+                        }
                         }
                     } label: {
                         HStack(spacing: DesignSystem.Spacing.xxs) {
@@ -680,7 +680,7 @@ struct ExpandedDevToolsView: View {
             
             if isFileMode {
                 fileDropArea
-            } else {
+                    } else {
                 CompactInputArea(
                     title: "Text Input",
                     text: $hashInput,
@@ -703,9 +703,9 @@ struct ExpandedDevToolsView: View {
             // All hash types output (for text mode)
             if !isFileMode && !hashInput.isEmpty {
                 allHashesView
-            }
-        }
-    }
+                            }
+                    }
+                }
     
     // MARK: - Compact Base64 Interface
     
@@ -765,7 +765,7 @@ struct ExpandedDevToolsView: View {
     
     private var compactUuidGeneratorInterface: some View {
         VStack(spacing: DesignSystem.Spacing.sm) {
-            HStack {
+                    HStack {
                 Text("UUID Generator")
                     .font(DesignSystem.Typography.captionMedium)
                     .foregroundColor(DesignSystem.Colors.textSecondary)
@@ -838,10 +838,10 @@ struct ExpandedDevToolsView: View {
                         copyToClipboard(generatedUUID)
                     }
                 }
-                
-                Spacer()
+                        
+                        Spacer()
             }
-            
+                        
             if !generatedUUID.isEmpty {
                 // Larger UUID output area
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
@@ -852,9 +852,9 @@ struct ExpandedDevToolsView: View {
                         
                         Spacer()
                         
-                        Button("Copy") {
+                            Button("Copy") {
                             copyToClipboard(generatedUUID)
-                        }
+                            }
                         .font(DesignSystem.Typography.micro)
                         .foregroundColor(DesignSystem.Colors.primary)
                     }
@@ -915,7 +915,7 @@ struct ExpandedDevToolsView: View {
                         RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
                             .fill(DesignSystem.Colors.surface.opacity(0.3))
                     )
-                }
+        }
                 .buttonStyle(.plain)
             }
             
@@ -1045,7 +1045,7 @@ struct ExpandedDevToolsView: View {
                     HStack(spacing: DesignSystem.Spacing.xxs) {
                         Text(graphqlOperation.title)
                             .font(DesignSystem.Typography.micro)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
                         Image(systemName: "chevron.down")
                             .font(.system(size: 8, weight: .medium))
                             .foregroundColor(DesignSystem.Colors.textSecondary)
@@ -1065,7 +1065,7 @@ struct ExpandedDevToolsView: View {
                 text: $graphqlQuery,
                 placeholder: graphqlOperation.placeholder,
                 focusBinding: $isInputFocused
-            )
+                        )
             .onChange(of: graphqlQuery) { _, _ in generateGraphQLQuery() }
             
             CompactInputArea(
@@ -1107,13 +1107,13 @@ struct ExpandedDevToolsView: View {
     
     private var compactApiMockupInterface: some View {
         VStack(spacing: DesignSystem.Spacing.sm) {
-            HStack {
+                    HStack {
                 Text("API Response Mockup")
                     .font(DesignSystem.Typography.captionMedium)
                     .foregroundColor(DesignSystem.Colors.textSecondary)
-                
-                Spacer()
-                
+                        
+                        Spacer()
+                        
                 HStack(spacing: DesignSystem.Spacing.xs) {
                     // Count stepper
                     HStack(spacing: DesignSystem.Spacing.xxs) {
@@ -1122,7 +1122,7 @@ struct ExpandedDevToolsView: View {
                                 apiResponseCount -= 1
                                 generateAPIResponse()
                             }
-                        }
+                            }
                         .font(DesignSystem.Typography.micro)
                         .foregroundColor(DesignSystem.Colors.textPrimary)
                         .frame(width: 16, height: 16)
@@ -1172,7 +1172,7 @@ struct ExpandedDevToolsView: View {
                         }
                         .padding(.horizontal, DesignSystem.Spacing.xs)
                         .padding(.vertical, DesignSystem.Spacing.xxs)
-                        .background(
+                    .background(
                             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
                                 .fill(DesignSystem.Colors.surface.opacity(0.3))
                         )
@@ -1199,7 +1199,7 @@ struct ExpandedDevToolsView: View {
                 
                 ActionButton(title: "Clear", icon: "trash") {
                     clearAPIResponse()
-                }
+            }
             }
             
             // Output
@@ -1238,7 +1238,7 @@ struct ExpandedDevToolsView: View {
                     HStack(spacing: DesignSystem.Spacing.xxs) {
                         Text(yamlJsonMode.title)
                             .font(DesignSystem.Typography.micro)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
                         Image(systemName: "chevron.down")
                             .font(.system(size: 8, weight: .medium))
                             .foregroundColor(DesignSystem.Colors.textSecondary)
@@ -1313,7 +1313,7 @@ spec:
     
     private var compactTextDiffInterface: some View {
         VStack(spacing: DesignSystem.Spacing.sm) {
-            HStack {
+                    HStack {
                 Text("Text Diff Tool")
                     .font(DesignSystem.Typography.captionMedium)
                     .foregroundColor(DesignSystem.Colors.textSecondary)
@@ -1351,9 +1351,9 @@ spec:
                 )
                 .onChange(of: diffText2) { _, _ in
                     compareDiff()
+                    }
                 }
-            }
-            
+                
             if !sideBySideDiff.isEmpty {
                 KDiffStyleView(diffLines: sideBySideDiff)
             } else if !diffText1.isEmpty || !diffText2.isEmpty {
@@ -1373,14 +1373,14 @@ spec:
                                 .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
                         )
                 )
-            }
+                }
         }
     }
     
     // MARK: - Compact Regex Tester Interface
     
     private var compactRegexTesterInterface: some View {
-        VStack(spacing: DesignSystem.Spacing.sm) {
+                VStack(spacing: DesignSystem.Spacing.sm) {
             HStack {
                 Text("Regex Tester")
                     .font(DesignSystem.Typography.captionMedium)
@@ -1446,10 +1446,10 @@ spec:
     
     private var compactQrGeneratorInterface: some View {
         VStack(spacing: DesignSystem.Spacing.sm) {
-            HStack {
+                        HStack {
                 Text("QR Code Generator")
                     .font(DesignSystem.Typography.captionMedium)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
                 
                 Spacer()
                 
@@ -1550,7 +1550,7 @@ spec:
                     .foregroundColor(DesignSystem.Colors.textSecondary)
                 
                 if let fileName = draggedFileName {
-                    Spacer()
+                            Spacer()
                     HStack(spacing: DesignSystem.Spacing.xxs) {
                         Image(systemName: "doc.fill")
                             .font(.system(size: 10, weight: .medium))
@@ -1574,7 +1574,7 @@ spec:
                         Text(draggedFileName != nil ? "File loaded" : "Drop file here")
                             .font(DesignSystem.Typography.caption)
                             .foregroundColor(DesignSystem.Colors.textSecondary)
-                    }
+                        }
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
@@ -1605,16 +1605,16 @@ spec:
                 }
             }
             .padding(DesignSystem.Spacing.sm)
-            .background(
-                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                     .fill(DesignSystem.Colors.surface.opacity(0.2))
                     .overlay(
                         RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                             .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
                     )
-            )
-        }
-    }
+                        )
+                    }
+                }
     
     // MARK: - Supporting Views
     
@@ -1649,15 +1649,15 @@ spec:
                             .frame(height: 120) // Increased from 60
                             .padding(DesignSystem.Spacing.md)
                     }
-                }
-                .background(
+            }
+            .background(
                     RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                         .fill(DesignSystem.Colors.surface.opacity(0.3))
-                        .overlay(
+                    .overlay(
                             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
                                 .stroke(DesignSystem.Colors.border.opacity(0.3), lineWidth: 1)
-                        )
-                )
+                    )
+            )
                 .overlay(
                     Group {
                         if text.isEmpty {
@@ -1771,7 +1771,7 @@ spec:
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(DesignSystem.Colors.textSecondary)
                         Spacer()
-                    }
+    }
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, DesignSystem.Spacing.sm)
                     .padding(.vertical, DesignSystem.Spacing.xs)
@@ -1788,7 +1788,7 @@ spec:
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(DesignSystem.Colors.textSecondary)
                         Spacer()
-                    }
+    }
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, DesignSystem.Spacing.sm)
                     .padding(.vertical, DesignSystem.Spacing.xs)
@@ -1815,7 +1815,7 @@ spec:
                                         .font(.system(size: 11, design: .monospaced))
                                         .foregroundColor(line.leftType.textColor)
                                         .frame(maxWidth: .infinity, alignment: .leading)
-                                }
+    }
                                 .padding(.horizontal, DesignSystem.Spacing.sm)
                                 .padding(.vertical, 2)
                                 .background(line.leftType.backgroundColor)
@@ -1851,7 +1851,7 @@ spec:
                                     .frame(height: 1),
                                 alignment: .bottom
                             )
-                        }
+    }
                     }
                 }
                 .frame(height: 300) // Larger height for KDiff style
@@ -1902,7 +1902,7 @@ spec:
                                     Text("Position: \(match.range.location)-\(match.range.location + match.range.length)")
                                         .font(.system(size: 9))
                                         .foregroundColor(DesignSystem.Colors.textSecondary)
-                                }
+    }
                             }
                         }
                     }
@@ -1965,13 +1965,13 @@ spec:
             jsonOutput = ""
             return
         }
-        
-        switch jsonOperation {
-        case .format:
+            
+            switch jsonOperation {
+            case .format:
             formatJSON()
-        case .minify:
+            case .minify:
             minifyJSON()
-        case .validate:
+            case .validate:
             validateJSON()
         }
     }
@@ -2048,10 +2048,10 @@ spec:
                 hashResult = ""
             }
         } else {
-            guard !hashInput.isEmpty else {
-                hashResult = ""
-                return
-            }
+        guard !hashInput.isEmpty else {
+            hashResult = ""
+            return
+        }
             hashResult = generateHashFromText(hashInput, type: hashType)
         }
     }
@@ -2118,12 +2118,12 @@ spec:
         var uuids: [String] = []
         for _ in 0..<uuidCount {
             let uuid = UUID().uuidString
-            switch uuidFormat {
-            case .uppercase:
+        switch uuidFormat {
+        case .uppercase:
                 uuids.append(uuid)
-            case .lowercase:
+        case .lowercase:
                 uuids.append(uuid.lowercased())
-            case .noDashes:
+        case .noDashes:
                 uuids.append(uuid.replacingOccurrences(of: "-", with: ""))
             }
         }
@@ -2262,7 +2262,7 @@ spec:
         
         if !graphqlVariables.isEmpty {
             result += ",\n  \"variables\": \(graphqlVariables.trimmingCharacters(in: .whitespacesAndNewlines))"
-        }
+            }
         
         result += "\n}"
         
@@ -2390,7 +2390,7 @@ spec:
             
             let regex = try NSRegularExpression(pattern: regexPattern, options: options)
             regexMatches = regex.matches(in: regexText, options: [], range: NSRange(location: 0, length: regexText.count))
-        } catch {
+                            } catch {
             regexMatches = []
         }
     }
@@ -2509,17 +2509,17 @@ spec:
         NSPasteboard.general.setString(text, forType: .string)
         
         withAnimation(DesignSystem.Animation.gentle) {
-            showCopiedFeedback = true
+        showCopiedFeedback = true
             lastCopiedText = text.prefix(20) + (text.count > 20 ? "..." : "")
         }
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             withAnimation(DesignSystem.Animation.gentle) {
-                showCopiedFeedback = false
-            }
+            showCopiedFeedback = false
         }
     }
-    
+}
+
     private func statusCodeColor(_ statusCode: Int) -> Color {
         switch statusCode {
         case 200..<300: return DesignSystem.Colors.success
@@ -2619,7 +2619,7 @@ extension ExpandedDevToolsView {
                 let key = components[0].trimmingCharacters(in: .whitespaces)
                 let value = components.dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespaces)
                 request.setValue(value, forHTTPHeaderField: key)
-            }
+    }
         }
         
         // Add body for applicable methods
@@ -2713,4 +2713,4 @@ enum KDiffLineType {
         case .empty: return DesignSystem.Colors.surface.opacity(0.1)
         }
     }
-}
+} 

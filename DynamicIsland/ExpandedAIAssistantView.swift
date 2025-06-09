@@ -56,17 +56,17 @@ struct ExpandedAIAssistantView: View {
     private var connectedView: some View {
         ZStack(alignment: .leading) {
             // Main content
-            VStack(spacing: 0) {
-                // Header with model selector and tools
-                headerSection
-                
-                Divider()
-                    .background(DesignSystem.Colors.border)
-                
-                // Main chat interface
-                chatInterface
-            }
-            .background(Color.clear)
+        VStack(spacing: 0) {
+            // Header with model selector and tools
+            headerSection
+            
+            Divider()
+                .background(DesignSystem.Colors.border)
+            
+            // Main chat interface
+            chatInterface
+        }
+        .background(Color.clear)
             
             // Chat history sidebar overlay (only shown in chat mode)
             if selectedTool == .chat && showingHistory {
@@ -92,9 +92,9 @@ struct ExpandedAIAssistantView: View {
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                             .lineLimit(1)
                     } else {
-                        Text("AI Assistant")
-                            .font(DesignSystem.Typography.headline1)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                    Text("AI Assistant")
+                        .font(DesignSystem.Typography.headline1)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
                     }
                     
                     HStack(spacing: DesignSystem.Spacing.xs) {
@@ -107,9 +107,9 @@ struct ExpandedAIAssistantView: View {
                                 .font(DesignSystem.Typography.caption)
                                 .foregroundColor(DesignSystem.Colors.textSecondary)
                         } else {
-                            Text("Connected • \(ollamaService.currentModel?.name ?? "No model")")
-                                .font(DesignSystem.Typography.caption)
-                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                        Text("Connected • \(ollamaService.currentModel?.name ?? "No model")")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
                         }
                     }
                 }
@@ -121,9 +121,9 @@ struct ExpandedAIAssistantView: View {
                     if selectedTool == .chat {
                         chatControls
                     }
-                    
-                    // Model selector
-                    modelSelector
+                
+                // Model selector
+                modelSelector
                 }
             }
             
@@ -255,16 +255,16 @@ struct ExpandedAIAssistantView: View {
             
             // Input area - only show for chat
             if selectedTool == .chat {
-                inputSection
+            inputSection
             }
         }
     }
     
     private var chatMessages: some View {
         Group {
-            ForEach(ollamaService.messages, id: \.id) { message in
-                ExpandedChatMessage(message: message)
-                    .id(message.id)
+        ForEach(ollamaService.messages, id: \.id) { message in
+            ExpandedChatMessage(message: message)
+                .id(message.id)
             }
             
             // Loading indicator when AI is generating for this specific conversation
@@ -285,6 +285,9 @@ struct ExpandedAIAssistantView: View {
                 ExpandedCodeReviewView(ollamaService: ollamaService)
             case .textProcessor:
                 ExpandedTextProcessorView(ollamaService: ollamaService)
+
+            case .manageModels:
+                ExpandedModelManagerView(ollamaService: ollamaService)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -305,7 +308,7 @@ struct ExpandedAIAssistantView: View {
                         .disabled(ollamaService.isGenerating || !ollamaService.isReadyToChat)
                         .onSubmit {
                             if !ollamaService.isGenerating {
-                                sendMessage()
+                            sendMessage()
                             }
                         }
                     
@@ -927,10 +930,10 @@ struct ExpandedChatMessage: View {
                 }
                 
                 // Avatar (user on right)
-                Circle()
+            Circle()
                     .fill(DesignSystem.Colors.primary)
-                    .frame(width: 36, height: 36)
-                    .overlay(
+                .frame(width: 36, height: 36)
+                .overlay(
                         Image(systemName: "person.fill")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.white)
@@ -942,18 +945,18 @@ struct ExpandedChatMessage: View {
                     .frame(width: 36, height: 36)
                     .overlay(
                         Image(systemName: "brain.head.profile")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white)
-                    )
-                
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                )
+            
                 // Message content (AI on left)
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                    Text(message.content)
-                        .font(DesignSystem.Typography.body)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                        .padding(DesignSystem.Spacing.lg)
-                        .background(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
+                Text(message.content)
+                    .font(DesignSystem.Typography.body)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .padding(DesignSystem.Spacing.lg)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
                                 .fill(DesignSystem.Colors.surface.opacity(0.8))
                                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl))
                         )
@@ -981,8 +984,8 @@ struct ExpandedChatMessage: View {
     }
     
     private func copyMessage() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(message.content, forType: .string)
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(message.content, forType: .string)
         
         showCopiedFeedback = true
         
@@ -1048,7 +1051,7 @@ struct ExpandedCodeReviewView: View {
                 // Arrow
                 Image(systemName: "arrow.right")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
                 
                 // AI output
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -1081,9 +1084,9 @@ struct ExpandedCodeReviewView: View {
                             .padding(DesignSystem.Spacing.lg)
                             .textSelection(.enabled)
                     }
-                    .background(
+                        .background(
                         RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                            .fill(DesignSystem.Colors.surface)
+                                .fill(DesignSystem.Colors.surface)
                             .overlay(
                                 RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
                                     .stroke(DesignSystem.Colors.border, lineWidth: 1)
@@ -1232,17 +1235,7 @@ struct ExpandedTextProcessorView: View {
     }
 }
 
-// MARK: - AITool Extension
 
-extension AITool {
-    var displayName: String {
-        switch self {
-        case .chat: return "Chat"
-        case .codeAssistant: return "Code Assistant"
-        case .textProcessor: return "Text Processor"
-        }
-    }
-}
 
 // MARK: - Expanded Conversation Row View
 
@@ -1307,9 +1300,9 @@ struct ExpandedConversationRowView: View {
                                 .background(
                                     Circle()
                                         .fill(DesignSystem.Colors.error.opacity(0.1))
-                                )
-                        }
-                        .buttonStyle(.plain)
+                        )
+                    }
+                    .buttonStyle(.plain)
                         .transition(.opacity.combined(with: .scale))
                     }
                 }
@@ -1378,9 +1371,9 @@ struct TypingIndicatorView: View {
                                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl))
                         )
                     
-                    Spacer()
-                }
+                Spacer()
             }
+        }
             
             Spacer()
         }
@@ -1428,4 +1421,508 @@ extension DateFormatter {
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         return formatter
     }()
-} 
+}
+
+// MARK: - Expanded Model Manager View
+
+struct ExpandedModelManagerView: View {
+    let ollamaService: OllamaService
+    @State private var installedModels: [OllamaModel] = []
+    @State private var recommendedModels: [RecommendedModel] = []
+    @State private var systemSpecs = SystemSpecs()
+    @State private var isLoading = false
+    @State private var downloadingModels: Set<String> = []
+    @State private var downloadProgress: [String: String] = [:]
+    @State private var selectedTab: ModelTab = .installed
+    @State private var showDeleteConfirmation = false
+    @State private var modelToDelete: OllamaModel?
+    
+    enum ModelTab: String, CaseIterable {
+        case installed = "Installed"
+        case recommended = "Recommended"
+        case system = "System Info"
+        
+        var icon: String {
+            switch self {
+            case .installed: return "internaldrive"
+            case .recommended: return "star.fill"
+            case .system: return "info.circle"
+            }
+        }
+    }
+    
+    var body: some View {
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    Text("Model Manager")
+                        .font(DesignSystem.Typography.headline1)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Text("Manage your local AI models")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+                
+                Spacer()
+                
+                Button("Refresh") {
+                    Task { await loadData() }
+                }
+                .buttonStyle_custom(.secondary)
+                .disabled(isLoading)
+            }
+            
+            // Tab selector
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                ForEach(ModelTab.allCases, id: \.self) { tab in
+                    Button(action: { selectedTab = tab }) {
+                        HStack(spacing: DesignSystem.Spacing.xs) {
+                            Image(systemName: tab.icon)
+                                .font(.system(size: 12, weight: .medium))
+                            Text(tab.rawValue)
+                                .font(DesignSystem.Typography.captionMedium)
+                        }
+                        .foregroundColor(selectedTab == tab ? .white : DesignSystem.Colors.textSecondary)
+                        .padding(.horizontal, DesignSystem.Spacing.md)
+                        .padding(.vertical, DesignSystem.Spacing.sm)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .fill(selectedTab == tab ? DesignSystem.Colors.accent : DesignSystem.Colors.surface.opacity(0.3))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+                
+                Spacer()
+            }
+            
+            // Content
+            Group {
+                switch selectedTab {
+                case .installed:
+                    installedModelsView
+                case .recommended:
+                    recommendedModelsView
+                case .system:
+                    systemInfoView
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.xl)
+        .padding(.vertical, DesignSystem.Spacing.lg)
+        .onAppear {
+            Task { await loadData() }
+        }
+        .alert("Delete Model", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                if let model = modelToDelete {
+                    Task { await deleteModel(model) }
+                }
+            }
+        } message: {
+            if let model = modelToDelete {
+                Text("Are you sure you want to delete '\(model.name)'? This action cannot be undone.")
+            }
+        }
+    }
+    
+    private var installedModelsView: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            if isLoading {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Loading models...")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+                .frame(maxHeight: .infinity)
+            } else if installedModels.isEmpty {
+                VStack(spacing: DesignSystem.Spacing.lg) {
+                    Image(systemName: "tray")
+                        .font(.system(size: 48, weight: .thin))
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    
+                    VStack(spacing: DesignSystem.Spacing.sm) {
+                        Text("No Models Installed")
+                .font(DesignSystem.Typography.headline2)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Text("Check the Recommended tab to download models")
+                            .font(DesignSystem.Typography.body)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .frame(maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: DesignSystem.Spacing.sm) {
+                        ForEach(installedModels) { model in
+                            InstalledModelRow(
+                                model: model,
+                                onDelete: { confirmDelete(model) }
+                            )
+                        }
+                    }
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+                }
+            }
+        }
+    }
+    
+    private var recommendedModelsView: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            if recommendedModels.isEmpty {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Analyzing system...")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+                .frame(maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: DesignSystem.Spacing.sm) {
+                        ForEach(recommendedModels) { model in
+                            RecommendedModelRow(
+                                model: model,
+                                isDownloading: downloadingModels.contains(model.name),
+                                downloadProgress: downloadProgress[model.name] ?? "",
+                                onDownload: { downloadModel(model.name) }
+                            )
+                        }
+                    }
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+                }
+            }
+        }
+    }
+    
+    private var systemInfoView: some View {
+        VStack(spacing: DesignSystem.Spacing.xl) {
+            // System specifications
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                Text("System Specifications")
+                .font(DesignSystem.Typography.headline2)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                VStack(spacing: DesignSystem.Spacing.md) {
+                    SystemSpecRow(title: "Architecture", value: systemSpecs.architecture)
+                    SystemSpecRow(title: "CPU", value: systemSpecs.cpuModel)
+                    SystemSpecRow(title: "RAM", value: systemSpecs.formattedRAM)
+                }
+            }
+            
+            Divider()
+                .background(DesignSystem.Colors.border)
+            
+            // Performance guide
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                Text("Performance Guide")
+                    .font(DesignSystem.Typography.headline2)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                    PerformanceGuideRow(
+                        modelSize: "1-3B",
+                        description: "Fast and responsive, good for quick tasks",
+                        recommended: true
+                    )
+                    
+                    PerformanceGuideRow(
+                        modelSize: "7B",
+                        description: "Balanced performance and quality",
+                        recommended: systemSpecs.totalRAM >= 8 * 1024 * 1024 * 1024
+                    )
+                    
+                    PerformanceGuideRow(
+                        modelSize: "13-14B",
+                        description: "High quality, requires 16GB+ RAM",
+                        recommended: systemSpecs.totalRAM >= 16 * 1024 * 1024 * 1024
+                    )
+                    
+                    PerformanceGuideRow(
+                        modelSize: "30B+",
+                        description: "Professional grade, requires 32GB+ RAM",
+                        recommended: systemSpecs.totalRAM >= 32 * 1024 * 1024 * 1024
+                    )
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, DesignSystem.Spacing.lg)
+    }
+    
+    private func loadData() async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        async let installedTask = ollamaService.getInstalledModels()
+                    systemSpecs = ollamaService.getSystemSpecs()
+            let recommended = ollamaService.getRecommendedModels(for: systemSpecs)
+        
+        installedModels = await installedTask
+        recommendedModels = recommended
+    }
+    
+    private func confirmDelete(_ model: OllamaModel) {
+        modelToDelete = model
+        showDeleteConfirmation = true
+    }
+    
+    private func deleteModel(_ model: OllamaModel) async {
+        let success = await ollamaService.deleteModel(model.name)
+        if success {
+            await MainActor.run {
+                installedModels.removeAll { $0.id == model.id }
+            }
+        }
+    }
+    
+    private func downloadModel(_ modelName: String) {
+        guard !downloadingModels.contains(modelName) else { return }
+        
+        downloadingModels.insert(modelName)
+        downloadProgress[modelName] = "Starting download..."
+        
+        Task {
+            let success = await ollamaService.downloadModel(modelName) { progress in
+                Task { @MainActor in
+                    downloadProgress[modelName] = progress
+                }
+            }
+            
+            await MainActor.run {
+                downloadingModels.remove(modelName)
+                downloadProgress.removeValue(forKey: modelName)
+                
+                if success {
+                    // Refresh installed models
+                    Task { await loadData() }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Model Row Views
+
+struct InstalledModelRow: View {
+    let model: OllamaModel
+    let onDelete: () -> Void
+    @State private var isHovered = false
+    
+    var body: some View {
+        HStack(spacing: DesignSystem.Spacing.md) {
+            // Model icon
+            Image(systemName: "brain.head.profile")
+                .font(.system(size: 24, weight: .medium))
+                .foregroundColor(DesignSystem.Colors.accent)
+                .frame(width: 40)
+            
+            // Model info
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text(model.name)
+                    .font(DesignSystem.Typography.bodySemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    if model.size > 0 {
+                        Text(model.formattedSize)
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
+                    
+                    if !model.modifiedAt.isEmpty {
+                        Text("Modified: \(formatDate(model.modifiedAt))")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textTertiary)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            // Delete button (shown on hover)
+            if isHovered {
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.error)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(DesignSystem.Spacing.lg)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                .fill(isHovered ? DesignSystem.Colors.surface : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        .stroke(DesignSystem.Colors.border, lineWidth: 0.5)
+                )
+        )
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovered = hovering
+            }
+        }
+    }
+    
+    private func formatDate(_ dateString: String) -> String {
+        // Simple date formatting - could be enhanced
+        if let date = ISO8601DateFormatter().date(from: dateString) {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .short
+            return formatter.string(from: date)
+        }
+        return dateString
+    }
+}
+
+struct RecommendedModelRow: View {
+    let model: RecommendedModel
+    let isDownloading: Bool
+    let downloadProgress: String
+    let onDownload: () -> Void
+    @State private var isHovered = false
+    
+    var body: some View {
+        HStack(spacing: DesignSystem.Spacing.md) {
+            // Recommendation indicator
+            Circle()
+                .fill(model.recommended ? DesignSystem.Colors.success : DesignSystem.Colors.warning)
+                .frame(width: 8, height: 8)
+                .padding(.leading, DesignSystem.Spacing.md)
+            
+            // Model info
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                HStack {
+                    Text(model.name)
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    if model.recommended {
+                        Text("RECOMMENDED")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(DesignSystem.Colors.success)
+                            )
+                    }
+                }
+                
+                Text(model.description)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .lineLimit(2)
+                
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    Text("Size: \(model.size)")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    
+                    Text(model.reason)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(model.recommended ? DesignSystem.Colors.success : DesignSystem.Colors.warning)
+                }
+            }
+            
+            Spacer()
+            
+            // Download button/progress
+            if isDownloading {
+                VStack(spacing: DesignSystem.Spacing.xs) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    
+                    Text(downloadProgress)
+                        .font(.system(size: 10))
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                        .lineLimit(1)
+                }
+                .frame(width: 80)
+            } else {
+                Button("Download") {
+                    onDownload()
+                }
+                .buttonStyle_custom(model.recommended ? .primary : .secondary)
+            }
+        }
+        .padding(DesignSystem.Spacing.lg)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                .fill(isHovered ? DesignSystem.Colors.surface : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        .stroke(model.recommended ? DesignSystem.Colors.success.opacity(0.3) : DesignSystem.Colors.border, lineWidth: 0.5)
+                )
+        )
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovered = hovering
+            }
+        }
+    }
+}
+
+struct SystemSpecRow: View {
+    let title: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(DesignSystem.Typography.bodySemibold)
+                .foregroundColor(DesignSystem.Colors.textPrimary)
+                .frame(width: 80, alignment: .leading)
+            
+            Text(value)
+                .font(DesignSystem.Typography.body)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+            
+            Spacer()
+        }
+        .padding(.vertical, DesignSystem.Spacing.xs)
+    }
+}
+
+struct PerformanceGuideRow: View {
+    let modelSize: String
+    let description: String
+    let recommended: Bool
+    
+    var body: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            Circle()
+                .fill(recommended ? DesignSystem.Colors.success : DesignSystem.Colors.warning)
+                .frame(width: 6, height: 6)
+            
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text(modelSize)
+                    .font(DesignSystem.Typography.captionSemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Text(description)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, DesignSystem.Spacing.xs)
+    }
+}
+
+
+

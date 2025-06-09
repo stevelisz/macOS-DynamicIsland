@@ -386,6 +386,8 @@ struct AIAssistantView: View {
                 CodeAssistantView(ollamaService: ollamaService)
             case .textProcessor:
                 TextProcessorView(ollamaService: ollamaService)
+            case .manageModels:
+                CompactModelManagerView(ollamaService: ollamaService)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -473,12 +475,23 @@ enum AITool: CaseIterable {
     case chat
     case codeAssistant
     case textProcessor
+    case manageModels
     
     var title: String {
         switch self {
         case .chat: return "Chat"
         case .codeAssistant: return "Code"
         case .textProcessor: return "Text"
+        case .manageModels: return "Models"
+        }
+    }
+    
+    var displayName: String {
+        switch self {
+        case .chat: return "Chat"
+        case .codeAssistant: return "Code Assistant"
+        case .textProcessor: return "Text Processor"
+        case .manageModels: return "Manage Models"
         }
     }
     
@@ -487,6 +500,7 @@ enum AITool: CaseIterable {
         case .chat: return "message.fill"
         case .codeAssistant: return "chevron.left.forwardslash.chevron.right"
         case .textProcessor: return "doc.text.fill"
+        case .manageModels: return "square.and.arrow.down"
         }
     }
     
@@ -495,6 +509,7 @@ enum AITool: CaseIterable {
         case .chat: return DesignSystem.Colors.primary
         case .codeAssistant: return DesignSystem.Colors.success
         case .textProcessor: return DesignSystem.Colors.clipboard
+        case .manageModels: return DesignSystem.Colors.ai
         }
     }
 }
@@ -627,6 +642,311 @@ struct InstructionStep: View {
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
                 .fill(DesignSystem.Colors.surface.opacity(0.3))
+        )
+    }
+}
+
+// MARK: - Compact Model Manager View
+
+struct CompactModelManagerView: View {
+    let ollamaService: OllamaService
+    @State private var installedModels: [OllamaModel] = []
+    @State private var recommendedModels: [RecommendedModel] = []
+    @State private var isLoading = false
+    @State private var downloadingModels: Set<String> = []
+    @State private var downloadProgress: [String: String] = [:]
+    @State private var systemSpecs = SystemSpecs()
+    
+    var body: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Header
+            HStack {
+                Text("Model Manager")
+                    .font(DesignSystem.Typography.headline3)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Spacer()
+                
+                Button(action: {
+                    loadModels()
+                }) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 14))
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.lg)
+            .padding(.top, DesignSystem.Spacing.md)
+            
+            if isLoading {
+                ProgressView("Loading models...")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: DesignSystem.Spacing.sm) {
+                        // Installed Models Section
+                        if !installedModels.isEmpty {
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                                Text("Installed Models")
+                                    .font(DesignSystem.Typography.captionSemibold)
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                                
+                                ForEach(installedModels) { model in
+                                    CompactModelRow(
+                                        model: model,
+                                        status: .installed,
+                                        onAction: {
+                                            deleteModel(model.name)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        
+                        // Recommended Models Section
+                        if !recommendedModels.isEmpty {
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                                Text("Recommended for your Mac")
+                                    .font(DesignSystem.Typography.captionSemibold)
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                                    .padding(.top, DesignSystem.Spacing.md)
+                                
+                                ForEach(recommendedModels, id: \.name) { model in
+                                    let isInstalled = installedModels.contains { $0.name == model.name }
+                                    let isDownloading = downloadingModels.contains(model.name)
+                                    let progress = downloadProgress[model.name]
+                                    
+                                    CompactRecommendedModelRow(
+                                        model: model,
+                                        isInstalled: isInstalled,
+                                        isDownloading: isDownloading,
+                                        progress: progress,
+                                        onDownload: {
+                                            downloadModel(model.name)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    .padding(.bottom, DesignSystem.Spacing.lg)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            loadModels()
+        }
+    }
+    
+    private func loadModels() {
+        isLoading = true
+        
+        Task {
+            do {
+                systemSpecs = ollamaService.getSystemSpecs()
+                
+                async let installed = ollamaService.getInstalledModels()
+                let recommended = ollamaService.getRecommendedModels(for: systemSpecs)
+                
+                installedModels = try await installed
+                recommendedModels = recommended
+                
+            } catch {
+                print("Error loading models: \(error)")
+            }
+            
+            isLoading = false
+        }
+    }
+    
+    private func downloadModel(_ modelName: String) {
+        downloadingModels.insert(modelName)
+        downloadProgress[modelName] = "Starting..."
+        
+        Task {
+            do {
+                try await ollamaService.downloadModel(modelName) { progress in
+                    downloadProgress[modelName] = progress
+                }
+                
+                // Refresh models after download
+                loadModels()
+                
+            } catch {
+                print("Error downloading model: \(error)")
+                downloadProgress[modelName] = "Failed"
+            }
+            
+            downloadingModels.remove(modelName)
+        }
+    }
+    
+    private func deleteModel(_ modelName: String) {
+        Task {
+            do {
+                try await ollamaService.deleteModel(modelName)
+                loadModels() // Refresh the list
+            } catch {
+                print("Error deleting model: \(error)")
+            }
+        }
+    }
+}
+
+// MARK: - Compact Model Row Views
+
+struct CompactModelRow: View {
+    let model: OllamaModel
+    let status: ModelStatus
+    let onAction: () -> Void
+    @State private var isHovered = false
+    
+    enum ModelStatus {
+        case installed
+        case downloading(String)
+        case available
+    }
+    
+    var body: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            // Model info
+            VStack(alignment: .leading, spacing: 2) {
+                Text(model.name)
+                    .font(DesignSystem.Typography.captionSemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .lineLimit(1)
+                
+                Text(model.formattedSize)
+                    .font(.system(size: 11))
+                    .foregroundColor(DesignSystem.Colors.textTertiary)
+            }
+            
+            Spacer()
+            
+            // Status and action
+            switch status {
+            case .installed:
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Text("Installed")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.success)
+                    
+                    if isHovered {
+                        Button(action: onAction) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 11))
+                                .foregroundColor(DesignSystem.Colors.error)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            case .downloading(let progress):
+                Text(progress)
+                    .font(.system(size: 11))
+                    .foregroundColor(DesignSystem.Colors.warning)
+            case .available:
+                Button(action: onAction) {
+                    Image(systemName: "square.and.arrow.down")
+                        .font(.system(size: 11))
+                        .foregroundColor(DesignSystem.Colors.primary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.lg)
+        .padding(.vertical, DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                .fill(isHovered ? DesignSystem.Colors.surface.opacity(0.5) : DesignSystem.Colors.surface.opacity(0.2))
+        )
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovered = hovering
+            }
+        }
+    }
+}
+
+struct CompactRecommendedModelRow: View {
+    let model: RecommendedModel
+    let isInstalled: Bool
+    let isDownloading: Bool
+    let progress: String?
+    let onDownload: () -> Void
+    
+    var body: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            // Model info
+            VStack(alignment: .leading, spacing: 2) {
+                Text(model.name)
+                    .font(DesignSystem.Typography.captionSemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .lineLimit(1)
+                
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Text(model.size)
+                        .font(.system(size: 11))
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    
+                    Text("•")
+                        .font(.system(size: 11))
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    
+                    Text(model.reason)
+                        .font(.system(size: 11))
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                }
+            }
+            
+            Spacer()
+            
+            // Action button
+            if isInstalled {
+                Text("Installed")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.success)
+            } else if isDownloading {
+                VStack(alignment: .trailing, spacing: 2) {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                    
+                    if let progress = progress {
+                        Text(progress)
+                            .font(.system(size: 10))
+                            .foregroundColor(DesignSystem.Colors.warning)
+                            .lineLimit(1)
+                    }
+                }
+            } else {
+                Button(action: onDownload) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 11))
+                        Text("Get")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundColor(DesignSystem.Colors.primary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(DesignSystem.Colors.primary.opacity(0.1))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.lg)
+        .padding(.vertical, DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                .fill(DesignSystem.Colors.surface.opacity(0.2))
         )
     }
 } 
