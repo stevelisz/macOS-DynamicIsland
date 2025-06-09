@@ -11,6 +11,8 @@ This app allows users to chat with Large Langauge Models that are running in Oll
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
 Page and Download - https://stevelisz.github.io/macOS-DynamicToolbox/
+
+Or you can build this app yourself. Just run `./build-release.sh` under root directory.
 ## Features
 
 ### AI Assistant
