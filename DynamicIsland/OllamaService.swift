@@ -9,6 +9,18 @@ class OllamaService: ObservableObject {
     @Published var availableModels: [OllamaModel] = []
     @Published var selectedModel = "llama3.2:3b"
     @Published var conversationHistory: [ChatMessage] = []
+    
+    // Model management state - shared across all views
+    @Published var downloadingModels: Set<String> = []
+    @Published var downloadProgress: [String: String] = [:] {
+        didSet {
+            // Persist download progress to UserDefaults
+            UserDefaults.standard.set(downloadProgress, forKey: "downloadProgress")
+        }
+    }
+    
+    // Track cancelled downloads
+    private var cancelledDownloads: Set<String> = []
     @Published var isGenerating = false
     @Published var generatingConversationId: UUID?
     @Published var currentConversation: ChatConversation?
@@ -73,6 +85,11 @@ class OllamaService: ObservableObject {
         
         // Initialize web search setting
         self.webSearchEnabled = UserDefaults.standard.webSearchEnabled
+        
+        // Load persisted download progress
+        if let savedProgress = UserDefaults.standard.object(forKey: "downloadProgress") as? [String: String] {
+            self.downloadProgress = savedProgress
+        }
         
         // Load or create initial conversation
         loadCurrentConversation()
@@ -682,6 +699,35 @@ class OllamaService: ObservableObject {
             return false
         }
         
+        // Check if already downloading
+        if downloadingModels.contains(modelName) {
+            onProgress("Model is already being downloaded")
+            return false
+        }
+        
+        // Add to downloading set and update progress
+        await MainActor.run {
+            downloadingModels.insert(modelName)
+            downloadProgress[modelName] = "Starting..."
+        }
+        
+        defer {
+            // Remove from downloading set when done, but keep progress for status
+            Task { @MainActor in
+                downloadingModels.remove(modelName)
+                cancelledDownloads.remove(modelName)
+                // Don't remove progress immediately - let it persist to show final status
+            }
+        }
+        
+        // Check if download was cancelled
+        if cancelledDownloads.contains(modelName) {
+            await MainActor.run {
+                downloadProgress[modelName] = "Cancelled"
+            }
+            return false
+        }
+        
         do {
             let url = URL(string: "\(baseURL)/api/pull")!
             var request = URLRequest(url: url)
@@ -698,20 +744,37 @@ class OllamaService: ObservableObject {
             let (bytes, _) = try await generateSession.bytes(for: request)
             
             for try await line in bytes.lines {
+                // Check if download was cancelled
+                if cancelledDownloads.contains(modelName) {
+                    return false
+                }
+                
                 if let data = line.data(using: .utf8),
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     
+                    var progressText = ""
+                    
                     if let status = json["status"] as? String {
-                        onProgress(status)
+                        progressText = status
                     }
                     
                     if let completed = json["completed"] as? Int64,
                        let total = json["total"] as? Int64, total > 0 {
                         let percentage = Int((Double(completed) / Double(total)) * 100)
-                        onProgress("Downloading... \(percentage)%")
+                        progressText = "Downloading... \(percentage)%"
+                    }
+                    
+                    if !progressText.isEmpty {
+                        await MainActor.run {
+                            downloadProgress[modelName] = progressText
+                        }
+                        onProgress(progressText) 
                     }
                     
                     if let error = json["error"] as? String {
+                        await MainActor.run {
+                            downloadProgress[modelName] = "Error: \(error)"
+                        }
                         onProgress("Error: \(error)")
                         return false
                     }
@@ -720,12 +783,45 @@ class OllamaService: ObservableObject {
             
             // Refresh the models list after successful download
             await loadAvailableModels()
+            
+            await MainActor.run {
+                downloadProgress[modelName] = "Completed"
+            }
             onProgress("Download completed successfully!")
             return true
             
         } catch {
+            await MainActor.run {
+                downloadProgress[modelName] = "Failed: \(error.localizedDescription)"
+            }
             onProgress("Error: \(error.localizedDescription)")
             return false
+        }
+    }
+    
+    // Clear completed download progress
+    func clearDownloadProgress(_ modelName: String) {
+        Task { @MainActor in
+            downloadProgress.removeValue(forKey: modelName)
+        }
+    }
+    
+    // Clear all download progress
+    func clearAllDownloadProgress() {
+        Task { @MainActor in
+            downloadProgress.removeAll()
+        }
+    }
+    
+    // Cancel model download
+    func cancelModelDownload(_ modelName: String) {
+        Task { @MainActor in
+            if downloadingModels.contains(modelName) {
+                cancelledDownloads.insert(modelName)
+                downloadingModels.remove(modelName)
+                downloadProgress[modelName] = "Cancelled"
+                // Don't automatically clear - let user see the status
+            }
         }
     }
     

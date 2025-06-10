@@ -1426,13 +1426,11 @@ extension DateFormatter {
 // MARK: - Expanded Model Manager View
 
 struct ExpandedModelManagerView: View {
-    let ollamaService: OllamaService
+    @ObservedObject var ollamaService: OllamaService
     @State private var installedModels: [OllamaModel] = []
     @State private var recommendedModels: [RecommendedModel] = []
-    @State private var systemSpecs = SystemSpecs()
+
     @State private var isLoading = false
-    @State private var downloadingModels: Set<String> = []
-    @State private var downloadProgress: [String: String] = [:]
     @State private var selectedTab: ModelTab = .installed
     @State private var showDeleteConfirmation = false
     @State private var modelToDelete: OllamaModel?
@@ -1440,13 +1438,11 @@ struct ExpandedModelManagerView: View {
     enum ModelTab: String, CaseIterable {
         case installed = "Installed"
         case recommended = "Recommended"
-        case system = "System Info"
         
         var icon: String {
             switch self {
             case .installed: return "internaldrive"
             case .recommended: return "star.fill"
-            case .system: return "info.circle"
             }
         }
     }
@@ -1505,8 +1501,6 @@ struct ExpandedModelManagerView: View {
                     installedModelsView
                 case .recommended:
                     recommendedModelsView
-                case .system:
-                    systemInfoView
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1592,9 +1586,11 @@ struct ExpandedModelManagerView: View {
                         ForEach(recommendedModels) { model in
                             RecommendedModelRow(
                                 model: model,
-                                isDownloading: downloadingModels.contains(model.name),
-                                downloadProgress: downloadProgress[model.name] ?? "",
-                                onDownload: { downloadModel(model.name) }
+                                isDownloading: ollamaService.downloadingModels.contains(model.name),
+                                downloadProgress: ollamaService.downloadProgress[model.name] ?? "",
+                                onDownload: { downloadModel(model.name) },
+                                onCancel: { ollamaService.cancelModelDownload(model.name) },
+                                onClearProgress: { ollamaService.clearDownloadProgress(model.name) }
                             )
                         }
                     }
@@ -1604,69 +1600,15 @@ struct ExpandedModelManagerView: View {
         }
     }
     
-    private var systemInfoView: some View {
-        VStack(spacing: DesignSystem.Spacing.xl) {
-            // System specifications
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
-                Text("System Specifications")
-                .font(DesignSystem.Typography.headline2)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                VStack(spacing: DesignSystem.Spacing.md) {
-                    SystemSpecRow(title: "Architecture", value: systemSpecs.architecture)
-                    SystemSpecRow(title: "CPU", value: systemSpecs.cpuModel)
-                    SystemSpecRow(title: "RAM", value: systemSpecs.formattedRAM)
-                }
-            }
-            
-            Divider()
-                .background(DesignSystem.Colors.border)
-            
-            // Performance guide
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
-                Text("Performance Guide")
-                    .font(DesignSystem.Typography.headline2)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                    PerformanceGuideRow(
-                        modelSize: "1-3B",
-                        description: "Fast and responsive, good for quick tasks",
-                        recommended: true
-                    )
-                    
-                    PerformanceGuideRow(
-                        modelSize: "7B",
-                        description: "Balanced performance and quality",
-                        recommended: systemSpecs.totalRAM >= 8 * 1024 * 1024 * 1024
-                    )
-                    
-                    PerformanceGuideRow(
-                        modelSize: "13-14B",
-                        description: "High quality, requires 16GB+ RAM",
-                        recommended: systemSpecs.totalRAM >= 16 * 1024 * 1024 * 1024
-                    )
-                    
-                    PerformanceGuideRow(
-                        modelSize: "30B+",
-                        description: "Professional grade, requires 32GB+ RAM",
-                        recommended: systemSpecs.totalRAM >= 32 * 1024 * 1024 * 1024
-                    )
-                }
-            }
-            
-            Spacer()
-        }
-        .padding(.vertical, DesignSystem.Spacing.lg)
-    }
+
     
     private func loadData() async {
         isLoading = true
         defer { isLoading = false }
         
         async let installedTask = ollamaService.getInstalledModels()
-                    systemSpecs = ollamaService.getSystemSpecs()
-            let recommended = ollamaService.getRecommendedModels(for: systemSpecs)
+        let systemSpecs = ollamaService.getSystemSpecs()
+        let recommended = ollamaService.getRecommendedModels(for: systemSpecs)
         
         installedModels = await installedTask
         recommendedModels = recommended
@@ -1687,26 +1629,16 @@ struct ExpandedModelManagerView: View {
     }
     
     private func downloadModel(_ modelName: String) {
-        guard !downloadingModels.contains(modelName) else { return }
-        
-        downloadingModels.insert(modelName)
-        downloadProgress[modelName] = "Starting download..."
+        guard !ollamaService.downloadingModels.contains(modelName) else { return }
         
         Task {
             let success = await ollamaService.downloadModel(modelName) { progress in
-                Task { @MainActor in
-                    downloadProgress[modelName] = progress
-                }
+                // Progress is automatically handled by the shared state in OllamaService
             }
             
-            await MainActor.run {
-                downloadingModels.remove(modelName)
-                downloadProgress.removeValue(forKey: modelName)
-                
-                if success {
-                    // Refresh installed models
-                    Task { await loadData() }
-                }
+            if success {
+                // Refresh installed models
+                await loadData()
             }
         }
     }
@@ -1792,7 +1724,18 @@ struct RecommendedModelRow: View {
     let isDownloading: Bool
     let downloadProgress: String
     let onDownload: () -> Void
+    let onCancel: (() -> Void)?
+    let onClearProgress: (() -> Void)?
     @State private var isHovered = false
+    
+    init(model: RecommendedModel, isDownloading: Bool, downloadProgress: String, onDownload: @escaping () -> Void, onCancel: (() -> Void)? = nil, onClearProgress: (() -> Void)? = nil) {
+        self.model = model
+        self.isDownloading = isDownloading
+        self.downloadProgress = downloadProgress
+        self.onDownload = onDownload
+        self.onCancel = onCancel
+        self.onClearProgress = onClearProgress
+    }
     
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.md) {
@@ -1843,15 +1786,42 @@ struct RecommendedModelRow: View {
             // Download button/progress
             if isDownloading {
                 VStack(spacing: DesignSystem.Spacing.xs) {
-                    ProgressView()
-                        .scaleEffect(0.8)
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        ProgressView()
+                            .scaleEffect(0.6)
+                        
+                        if let onCancel = onCancel {
+                            Button(action: onCancel) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(DesignSystem.Colors.error)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                     
-                    Text(downloadProgress)
-                        .font(.system(size: 10))
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
-                        .lineLimit(1)
+                    if !downloadProgress.isEmpty {
+                        HStack(spacing: DesignSystem.Spacing.xs) {
+                            Text(downloadProgress)
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(downloadProgress.contains("Error") || downloadProgress.contains("Failed") || downloadProgress.contains("Cancelled") ? DesignSystem.Colors.error : DesignSystem.Colors.warning)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.center)
+                            
+                            // Show clear button for completed/failed downloads
+                            if (downloadProgress.contains("Completed") || downloadProgress.contains("Failed") || downloadProgress.contains("Error") || downloadProgress.contains("Cancelled")),
+                               let onClearProgress = onClearProgress {
+                                Button(action: onClearProgress) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
                 }
-                .frame(width: 80)
+                .frame(width: 100)
             } else {
                 Button("Download") {
                     onDownload()
@@ -1876,53 +1846,7 @@ struct RecommendedModelRow: View {
     }
 }
 
-struct SystemSpecRow: View {
-    let title: String
-    let value: String
-    
-    var body: some View {
-        HStack {
-            Text(title)
-                .font(DesignSystem.Typography.bodySemibold)
-                .foregroundColor(DesignSystem.Colors.textPrimary)
-                .frame(width: 80, alignment: .leading)
-            
-            Text(value)
-                .font(DesignSystem.Typography.body)
-                .foregroundColor(DesignSystem.Colors.textSecondary)
-            
-            Spacer()
-        }
-        .padding(.vertical, DesignSystem.Spacing.xs)
-    }
-}
 
-struct PerformanceGuideRow: View {
-    let modelSize: String
-    let description: String
-    let recommended: Bool
-    
-    var body: some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
-            Circle()
-                .fill(recommended ? DesignSystem.Colors.success : DesignSystem.Colors.warning)
-                .frame(width: 6, height: 6)
-            
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                Text(modelSize)
-                    .font(DesignSystem.Typography.captionSemibold)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                Text(description)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-            }
-            
-            Spacer()
-        }
-        .padding(.vertical, DesignSystem.Spacing.xs)
-    }
-}
 
 
 

@@ -649,12 +649,10 @@ struct InstructionStep: View {
 // MARK: - Compact Model Manager View
 
 struct CompactModelManagerView: View {
-    let ollamaService: OllamaService
+    @ObservedObject var ollamaService: OllamaService
     @State private var installedModels: [OllamaModel] = []
     @State private var recommendedModels: [RecommendedModel] = []
     @State private var isLoading = false
-    @State private var downloadingModels: Set<String> = []
-    @State private var downloadProgress: [String: String] = [:]
     @State private var systemSpecs = SystemSpecs()
     
     var body: some View {
@@ -718,8 +716,8 @@ struct CompactModelManagerView: View {
                                 
                                 ForEach(recommendedModels, id: \.name) { model in
                                     let isInstalled = installedModels.contains { $0.name == model.name }
-                                    let isDownloading = downloadingModels.contains(model.name)
-                                    let progress = downloadProgress[model.name]
+                                    let isDownloading = ollamaService.downloadingModels.contains(model.name)
+                                    let progress = ollamaService.downloadProgress[model.name]
                                     
                                     CompactRecommendedModelRow(
                                         model: model,
@@ -728,6 +726,12 @@ struct CompactModelManagerView: View {
                                         progress: progress,
                                         onDownload: {
                                             downloadModel(model.name)
+                                        },
+                                        onCancel: {
+                                            ollamaService.cancelModelDownload(model.name)
+                                        },
+                                        onClearProgress: {
+                                            ollamaService.clearDownloadProgress(model.name)
                                         }
                                     )
                                 }
@@ -766,24 +770,15 @@ struct CompactModelManagerView: View {
     }
     
     private func downloadModel(_ modelName: String) {
-        downloadingModels.insert(modelName)
-        downloadProgress[modelName] = "Starting..."
-        
         Task {
-            do {
-                try await ollamaService.downloadModel(modelName) { progress in
-                    downloadProgress[modelName] = progress
-                }
-                
-                // Refresh models after download
-                loadModels()
-                
-            } catch {
-                print("Error downloading model: \(error)")
-                downloadProgress[modelName] = "Failed"
+            let success = await ollamaService.downloadModel(modelName) { progress in
+                // Progress is automatically handled by the shared state in OllamaService
             }
             
-            downloadingModels.remove(modelName)
+            if success {
+                // Refresh models after download
+                loadModels()
+            }
         }
     }
     
@@ -879,6 +874,18 @@ struct CompactRecommendedModelRow: View {
     let isDownloading: Bool
     let progress: String?
     let onDownload: () -> Void
+    let onCancel: (() -> Void)?
+    let onClearProgress: (() -> Void)?
+    
+    init(model: RecommendedModel, isInstalled: Bool, isDownloading: Bool, progress: String?, onDownload: @escaping () -> Void, onCancel: (() -> Void)? = nil, onClearProgress: (() -> Void)? = nil) {
+        self.model = model
+        self.isInstalled = isInstalled
+        self.isDownloading = isDownloading
+        self.progress = progress
+        self.onDownload = onDownload
+        self.onCancel = onCancel
+        self.onClearProgress = onClearProgress
+    }
     
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.sm) {
@@ -913,14 +920,39 @@ struct CompactRecommendedModelRow: View {
                     .foregroundColor(DesignSystem.Colors.success)
             } else if isDownloading {
                 VStack(alignment: .trailing, spacing: 2) {
-                    ProgressView()
-                        .scaleEffect(0.6)
+                    HStack(spacing: 4) {
+                        ProgressView()
+                            .scaleEffect(0.5)
+                        
+                        if let onCancel = onCancel {
+                            Button(action: onCancel) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(DesignSystem.Colors.error)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                     
-                    if let progress = progress {
-                        Text(progress)
-                            .font(.system(size: 10))
-                            .foregroundColor(DesignSystem.Colors.warning)
-                            .lineLimit(1)
+                    if let progress = progress, !progress.isEmpty {
+                        HStack(spacing: 2) {
+                            Text(progress)
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(progress.contains("Error") || progress.contains("Failed") || progress.contains("Cancelled") ? DesignSystem.Colors.error : DesignSystem.Colors.warning)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.trailing)
+                            
+                            // Show clear button for completed/failed downloads
+                            if (progress.contains("Completed") || progress.contains("Failed") || progress.contains("Error") || progress.contains("Cancelled")),
+                               let onClearProgress = onClearProgress {
+                                Button(action: onClearProgress) {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 8))
+                                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     }
                 }
             } else {
