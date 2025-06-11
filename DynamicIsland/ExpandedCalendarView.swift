@@ -1081,12 +1081,281 @@ struct WeekView: View {
     let onTimeSlotTap: (Date) -> Void
     let onEventTap: (CalendarEvent) -> Void
     
-    var body: some View {
-        ScrollView {
-            Text("Week View - Week of \(startDate.formatted(.dateTime.month().day()))")
-                .font(DesignSystem.Typography.headline3)
-                .padding()
+    private var weekDays: [Date] {
+        var days: [Date] = []
+        for i in 0..<7 {
+            if let day = Calendar.current.date(byAdding: .day, value: i, to: startDate) {
+                days.append(day)
+            }
         }
+        return days
+    }
+    
+    private var allDayEvents: [CalendarEvent] {
+        events.filter { $0.isAllDay }
+    }
+    
+    private var timedEvents: [CalendarEvent] {
+        events.filter { !$0.isAllDay }
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Week header with day names and dates
+            weekHeader
+                .background(.ultraThinMaterial, in: Rectangle())
+            
+            // All-day events section
+            if allDayEvents.count > 0 {
+                allDayEventsSection
+                    .background(.ultraThinMaterial, in: Rectangle())
+            }
+            
+            // Hourly timeline
+            ScrollViewReader { proxy in
+                ScrollView(.vertical, showsIndicators: true) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(0..<24, id: \.self) { hour in
+                            WeekHourSlotView(
+                                hour: hour,
+                                weekDays: weekDays,
+                                events: eventsForHour(hour),
+                                currentTime: currentTime,
+                                onTimeSlotTap: onTimeSlotTap,
+                                onEventTap: onEventTap
+                            )
+                            .id("hour-\(hour)")
+                        }
+                    }
+                }
+                .onAppear {
+                    // Scroll to current hour if viewing current week
+                    if Calendar.current.isDate(Date(), equalTo: startDate, toGranularity: .weekOfYear) {
+                        let currentHour = Calendar.current.component(.hour, from: currentTime)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation(.easeInOut(duration: 0.5)) {
+                                proxy.scrollTo("hour-\(max(0, currentHour - 2))", anchor: .top)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private var weekHeader: some View {
+        HStack(spacing: 0) {
+            // Time column header
+            VStack {
+                Spacer()
+            }
+            .frame(width: 60)
+            
+            // Day headers
+            ForEach(weekDays, id: \.self) { day in
+                VStack(spacing: 4) {
+                    Text(day.formatted(.dateTime.weekday(.abbreviated)))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                    
+                    Text("\(Calendar.current.component(.day, from: day))")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(
+                            Calendar.current.isDateInToday(day) ? 
+                            DesignSystem.Colors.primary : 
+                            DesignSystem.Colors.textPrimary
+                        )
+                        .frame(width: 28, height: 28)
+                        .background(
+                            Circle()
+                                .fill(Calendar.current.isDateInToday(day) ? DesignSystem.Colors.primary : Color.clear)
+                        )
+                        .foregroundColor(Calendar.current.isDateInToday(day) ? .white : DesignSystem.Colors.textPrimary)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.vertical, DesignSystem.Spacing.sm)
+    }
+    
+    private var allDayEventsSection: some View {
+        HStack(spacing: 0) {
+            // Time column placeholder
+            VStack {
+                Text("all-day")
+                    .font(.system(size: 10))
+                    .foregroundColor(DesignSystem.Colors.textTertiary)
+                Spacer()
+            }
+            .frame(width: 60)
+            
+            // All-day events for each day
+            ForEach(weekDays, id: \.self) { day in
+                VStack(spacing: DesignSystem.Spacing.xs) {
+                    ForEach(allDayEventsForDay(day)) { event in
+                        Button(action: { onEventTap(event) }) {
+                            Text(event.title)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.white)
+                                .lineLimit(1)
+                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 2)
+                                .background(event.category.color, in: RoundedRectangle(cornerRadius: 4))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 32)
+                .frame(alignment: .top)
+            }
+        }
+        .padding(.vertical, DesignSystem.Spacing.sm)
+    }
+    
+    private func allDayEventsForDay(_ day: Date) -> [CalendarEvent] {
+        allDayEvents.filter { event in
+            Calendar.current.isDate(event.startDate, inSameDayAs: day)
+        }
+    }
+    
+    private func eventsForHour(_ hour: Int) -> [CalendarEvent] {
+        timedEvents.filter { event in
+            let eventHour = Calendar.current.component(.hour, from: event.startDate)
+            return eventHour == hour
+        }
+    }
+}
+
+struct WeekHourSlotView: View {
+    let hour: Int
+    let weekDays: [Date]
+    let events: [CalendarEvent]
+    let currentTime: Date
+    let onTimeSlotTap: (Date) -> Void
+    let onEventTap: (CalendarEvent) -> Void
+    
+    private var hourString: String {
+        let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date()) ?? Date()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h a"
+        return formatter.string(from: date)
+    }
+    
+    private var isCurrentHour: Bool {
+        Calendar.current.component(.hour, from: currentTime) == hour
+    }
+    
+    private var currentTimeIndicatorPosition: CGFloat {
+        guard isCurrentHour else { return 0 }
+        let minutes = Calendar.current.component(.minute, from: currentTime)
+        return CGFloat(minutes) / 60.0
+    }
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            // Time label
+            VStack {
+                Text(hourString)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(isCurrentHour ? DesignSystem.Colors.primary : DesignSystem.Colors.textTertiary)
+                Spacer()
+            }
+            .frame(width: 60)
+            .padding(.top, DesignSystem.Spacing.xs)
+            
+            // Day columns
+            ForEach(weekDays, id: \.self) { day in
+                let dayEvents = eventsForDay(day)
+                let isToday = Calendar.current.isDateInToday(day)
+                let hourDate = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: day) ?? day
+                
+                ZStack(alignment: .topLeading) {
+                    // Background
+                    Rectangle()
+                        .fill(isToday && isCurrentHour ? DesignSystem.Colors.primary.opacity(0.05) : Color.clear)
+                        .frame(height: 60)
+                        .overlay(
+                            Rectangle()
+                                .frame(height: 0.5)
+                                .foregroundColor(DesignSystem.Colors.surface),
+                            alignment: .top
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onTimeSlotTap(hourDate)
+                        }
+                    
+                    // Current time indicator (only for today)
+                    if isToday && isCurrentHour {
+                        HStack(spacing: DesignSystem.Spacing.xs) {
+                            Circle()
+                                .fill(DesignSystem.Colors.primary)
+                                .frame(width: 6, height: 6)
+                            
+                            Rectangle()
+                                .fill(DesignSystem.Colors.primary)
+                                .frame(height: 2)
+                        }
+                        .offset(y: currentTimeIndicatorPosition * 60)
+                        .zIndex(10)
+                    }
+                    
+                    // Events
+                    ForEach(Array(dayEvents.enumerated()), id: \.element.id) { index, event in
+                        WeekEventBlockView(
+                            event: event,
+                            onEventTap: onEventTap
+                        )
+                        .offset(x: CGFloat(index * 2)) // Slight offset for overlapping events
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .frame(height: 60)
+    }
+    
+    private func eventsForDay(_ day: Date) -> [CalendarEvent] {
+        events.filter { event in
+            Calendar.current.isDate(event.startDate, inSameDayAs: day)
+        }
+    }
+}
+
+struct WeekEventBlockView: View {
+    let event: CalendarEvent
+    let onEventTap: (CalendarEvent) -> Void
+    
+    var body: some View {
+        Button(action: { onEventTap(event) }) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(event.title)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                
+                if let location = event.location, !location.isEmpty {
+                    Text(location)
+                        .font(.system(size: 8))
+                        .foregroundColor(.white.opacity(0.8))
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+            .background(event.category.color, in: RoundedRectangle(cornerRadius: 3))
+            .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
+        }
+        .buttonStyle(.plain)
+        .frame(height: eventHeight)
+    }
+    
+    private var eventHeight: CGFloat {
+        let duration = event.endDate.timeIntervalSince(event.startDate)
+        let hours = duration / 3600
+        return max(20, CGFloat(hours) * 60) // Minimum 20pt height for week view
     }
 }
 
@@ -1097,12 +1366,188 @@ struct MonthView: View {
     let onDateTap: (Date) -> Void
     let onEventTap: (CalendarEvent) -> Void
     
-    var body: some View {
-        ScrollView {
-            Text("Month View - \(date.formatted(.dateTime.month().year()))")
-                .font(DesignSystem.Typography.headline3)
-                .padding()
+    private var calendar: Calendar { Calendar.current }
+    
+    private var monthDays: [Date?] {
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: date))!
+        let firstWeekday = calendar.component(.weekday, from: startOfMonth)
+        let daysInMonth = calendar.range(of: .day, in: .month, for: startOfMonth)?.count ?? 0
+        
+        var days: [Date?] = []
+        
+        // Empty cells for days before the first day of the month
+        for _ in 1..<firstWeekday {
+            days.append(nil)
         }
+        
+        // Days of the month
+        for day in 1...daysInMonth {
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: startOfMonth) {
+                days.append(date)
+            }
+        }
+        
+        // Fill remaining cells to complete the grid (6 weeks max)
+        while days.count < 42 {
+            days.append(nil)
+        }
+        
+        return days
+    }
+    
+    private var weekdayHeaders: [String] {
+        let formatter = DateFormatter()
+        return formatter.shortWeekdaySymbols
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Weekday headers
+            weekdayHeaderView
+                .background(.ultraThinMaterial, in: Rectangle())
+            
+            // Calendar grid
+            calendarGrid
+        }
+    }
+    
+    private var weekdayHeaderView: some View {
+        HStack(spacing: 0) {
+            ForEach(weekdayHeaders, id: \.self) { weekday in
+                Text(weekday)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.vertical, DesignSystem.Spacing.sm)
+    }
+    
+    private var calendarGrid: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
+            ForEach(Array(monthDays.enumerated()), id: \.offset) { index, day in
+                MonthDayCell(
+                    date: day,
+                    events: day != nil ? eventsForDate(day!) : [],
+                    isToday: day != nil && calendar.isDateInToday(day!),
+                    isCurrentMonth: day != nil && calendar.isDate(day!, equalTo: date, toGranularity: .month),
+                    onDateTap: onDateTap,
+                    onEventTap: onEventTap
+                )
+                .frame(height: 100)
+                .border(DesignSystem.Colors.surface.opacity(0.3), width: 0.5)
+            }
+        }
+    }
+    
+    private func eventsForDate(_ date: Date) -> [CalendarEvent] {
+        events.filter { event in
+            calendar.isDate(event.startDate, inSameDayAs: date)
+        }.sorted { $0.startDate < $1.startDate }
+    }
+}
+
+struct MonthDayCell: View {
+    let date: Date?
+    let events: [CalendarEvent]
+    let isToday: Bool
+    let isCurrentMonth: Bool
+    let onDateTap: (Date) -> Void
+    let onEventTap: (CalendarEvent) -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        VStack(spacing: 2) {
+            if let date = date {
+                // Date number
+                HStack {
+                    Text("\(Calendar.current.component(.day, from: date))")
+                        .font(.system(size: 14, weight: isToday ? .bold : .medium))
+                        .foregroundColor(
+                            isToday ? .white :
+                            isCurrentMonth ? DesignSystem.Colors.textPrimary :
+                            DesignSystem.Colors.textTertiary
+                        )
+                        .frame(width: 24, height: 24)
+                        .background(
+                            Circle()
+                                .fill(isToday ? DesignSystem.Colors.primary : Color.clear)
+                        )
+                    
+                    Spacer()
+                }
+                
+                // Events (max 3 visible)
+                VStack(spacing: 1) {
+                    ForEach(Array(events.prefix(3).enumerated()), id: \.element.id) { index, event in
+                        MonthEventView(event: event, onEventTap: onEventTap)
+                    }
+                    
+                    // More events indicator
+                    if events.count > 3 {
+                        HStack {
+                            Text("+\(events.count - 3) more")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.textTertiary)
+                            Spacer()
+                        }
+                    }
+                }
+                
+                Spacer()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(4)
+        .background(
+            Rectangle()
+                .fill(
+                    isHovered ? DesignSystem.Colors.surface.opacity(0.5) :
+                    isCurrentMonth ? Color.clear :
+                    DesignSystem.Colors.surface.opacity(0.1)
+                )
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if let date = date {
+                onDateTap(date)
+            }
+        }
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovered = hovering
+            }
+        }
+    }
+}
+
+struct MonthEventView: View {
+    let event: CalendarEvent
+    let onEventTap: (CalendarEvent) -> Void
+    
+    var body: some View {
+        Button(action: { onEventTap(event) }) {
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(event.category.color)
+                    .frame(width: 6, height: 6)
+                
+                Text(event.title)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .lineLimit(1)
+                
+                Spacer()
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+            .background(
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(event.category.color.opacity(0.15))
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -1112,11 +1557,196 @@ struct YearView: View {
     @Binding var selectedDate: Date
     let onDateTap: (Date) -> Void
     
+    private var calendar: Calendar { Calendar.current }
+    
+    private var monthsOfYear: [Date] {
+        var months: [Date] = []
+        for month in 1...12 {
+            if let date = calendar.date(from: DateComponents(year: year, month: month, day: 1)) {
+                months.append(date)
+            }
+        }
+        return months
+    }
+    
     var body: some View {
         ScrollView {
-            Text("Year View - \(year)")
-                .font(DesignSystem.Typography.headline3)
-                .padding()
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: DesignSystem.Spacing.md), count: 3), spacing: DesignSystem.Spacing.lg) {
+                ForEach(monthsOfYear, id: \.self) { month in
+                    YearMonthView(
+                        month: month,
+                        events: eventsForMonth(month),
+                        selectedDate: $selectedDate,
+                        onDateTap: onDateTap
+                    )
+                }
+            }
+            .padding(DesignSystem.Spacing.lg)
+        }
+    }
+    
+    private func eventsForMonth(_ month: Date) -> [CalendarEvent] {
+        events.filter { event in
+            calendar.isDate(event.startDate, equalTo: month, toGranularity: .month)
+        }
+    }
+}
+
+struct YearMonthView: View {
+    let month: Date
+    let events: [CalendarEvent]
+    @Binding var selectedDate: Date
+    let onDateTap: (Date) -> Void
+    
+    @State private var isHovered = false
+    private var calendar: Calendar { Calendar.current }
+    
+    private var monthDays: [Date?] {
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: month))!
+        let firstWeekday = calendar.component(.weekday, from: startOfMonth)
+        let daysInMonth = calendar.range(of: .day, in: .month, for: startOfMonth)?.count ?? 0
+        
+        var days: [Date?] = []
+        
+        // Empty cells for days before the first day of the month
+        for _ in 1..<firstWeekday {
+            days.append(nil)
+        }
+        
+        // Days of the month
+        for day in 1...daysInMonth {
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: startOfMonth) {
+                days.append(date)
+            }
+        }
+        
+        return days
+    }
+    
+    private var monthFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM"
+        return formatter
+    }
+    
+    var body: some View {
+        VStack(spacing: DesignSystem.Spacing.xs) {
+            // Month header
+            Button(action: {
+                onDateTap(month)
+            }) {
+                Text(monthFormatter.string(from: month))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, DesignSystem.Spacing.xs)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm)
+                            .fill(isHovered ? DesignSystem.Colors.surface.opacity(0.5) : Color.clear)
+                    )
+            }
+            .buttonStyle(.plain)
+            
+            // Weekday headers (abbreviated)
+            HStack(spacing: 2) {
+                ForEach(["S", "M", "T", "W", "T", "F", "S"], id: \.self) { weekday in
+                    Text(weekday)
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            
+            // Mini calendar grid
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: 7), spacing: 1) {
+                ForEach(Array(monthDays.enumerated()), id: \.offset) { index, day in
+                    YearDayCell(
+                        date: day,
+                        hasEvents: day != nil && hasEventsOnDate(day!),
+                        isToday: day != nil && calendar.isDateInToday(day!),
+                        isSelected: day != nil && calendar.isDate(day!, inSameDayAs: selectedDate),
+                        onDateTap: onDateTap
+                    )
+                }
+            }
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+        )
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovered = hovering
+            }
+        }
+    }
+    
+    private func hasEventsOnDate(_ date: Date) -> Bool {
+        events.contains { event in
+            calendar.isDate(event.startDate, inSameDayAs: date)
+        }
+    }
+}
+
+struct YearDayCell: View {
+    let date: Date?
+    let hasEvents: Bool
+    let isToday: Bool
+    let isSelected: Bool
+    let onDateTap: (Date) -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        Group {
+            if let date = date {
+                Button(action: { onDateTap(date) }) {
+                    ZStack {
+                        Text("\(Calendar.current.component(.day, from: date))")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(
+                                isToday ? .white :
+                                isSelected ? DesignSystem.Colors.primary :
+                                DesignSystem.Colors.textPrimary
+                            )
+                        
+                        // Event indicator
+                        if hasEvents {
+                            VStack {
+                                Spacer()
+                                HStack {
+                                    Spacer()
+                                    Circle()
+                                        .fill(isToday ? .white : DesignSystem.Colors.primary)
+                                        .frame(width: 3, height: 3)
+                                }
+                            }
+                        }
+                    }
+                    .frame(width: 20, height: 20)
+                    .background(
+                        Circle()
+                            .fill(
+                                isToday ? DesignSystem.Colors.primary :
+                                isSelected ? DesignSystem.Colors.primary.opacity(0.2) :
+                                isHovered ? DesignSystem.Colors.surface.opacity(0.5) :
+                                Color.clear
+                            )
+                    )
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.1)) {
+                        isHovered = hovering
+                    }
+                }
+            } else {
+                // Empty cell for padding
+                Color.clear
+                    .frame(width: 20, height: 20)
+            }
         }
     }
 }
