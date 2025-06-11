@@ -285,13 +285,6 @@ struct CalendarView: View {
             if let selectedTimeZone = selectedWorldTimeZone {
                 selectedTimeZoneDisplay(selectedTimeZone)
             }
-            
-            // Quick Access Time Zone Cards
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: DesignSystem.Spacing.sm) {
-                ForEach(worldTimeZones.prefix(4), id: \.name) { timeZone in
-                    WorldTimeCard(worldTimeZone: timeZone, currentTime: currentTime)
-                }
-            }
         }
     }
     
@@ -320,34 +313,6 @@ struct CalendarView: View {
             )
             .frame(height: 200)
             .cornerRadius(DesignSystem.BorderRadius.md)
-            
-            // Legend
-            HStack(spacing: DesignSystem.Spacing.md) {
-                HStack(spacing: DesignSystem.Spacing.xs) {
-                    Circle()
-                        .fill(.yellow.opacity(0.8))
-                        .frame(width: 8, height: 8)
-                    Text("Daytime")
-                        .font(.system(size: 10))
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
-                }
-                
-                HStack(spacing: DesignSystem.Spacing.xs) {
-                    Rectangle()
-                        .fill(.black.opacity(0.5))
-                        .frame(width: 8, height: 8)
-                        .cornerRadius(2)
-                    Text("Nighttime")
-                        .font(.system(size: 10))
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
-                }
-                
-                Spacer()
-                
-                Text("Updated: \(formatTimeWithSeconds(currentTime))")
-                    .font(.system(size: 9))
-                    .foregroundColor(DesignSystem.Colors.textTertiary)
-            }
         }
         .padding(DesignSystem.Spacing.md)
         .background(
@@ -565,85 +530,6 @@ struct WorldTimeZone {
     }
 }
 
-// MARK: - World Time Card
-
-struct WorldTimeCard: View {
-    let worldTimeZone: WorldTimeZone
-    let currentTime: Date
-    
-    private var timeInZone: Date {
-        worldTimeZone.currentTime(from: currentTime)
-    }
-    
-    private var offsetFormatter: String {
-        guard let timeZone = worldTimeZone.timeZone else { return "" }
-        let offset = timeZone.secondsFromGMT() / 3600
-        let sign = offset >= 0 ? "+" : ""
-        return "GMT\(sign)\(offset)"
-    }
-    
-    private var isDaytime: Bool {
-        guard let timeZone = worldTimeZone.timeZone else { return true }
-        let calendar = Calendar.current
-        let components = calendar.dateComponents(in: timeZone, from: currentTime)
-        let hour = components.hour ?? 12
-        return hour >= 6 && hour < 18
-    }
-    
-    var body: some View {
-        VStack(spacing: DesignSystem.Spacing.xs) {
-            HStack {
-                Circle()
-                    .fill(worldTimeZone.color)
-                    .frame(width: 8, height: 8)
-                
-                Text(worldTimeZone.name)
-                    .font(DesignSystem.Typography.captionSemibold)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                Spacer()
-                
-                // Day/Night indicator
-                Image(systemName: isDaytime ? "sun.max.fill" : "moon.fill")
-                    .font(.system(size: 10))
-                    .foregroundColor(isDaytime ? .orange : .purple)
-            }
-            
-            HStack {
-                Text(formatTimeWithSecondsInZone(currentTime, timeZone: worldTimeZone.timeZone))
-                    .font(.system(size: 16, weight: .medium, design: .monospaced))
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                Spacer()
-            }
-            
-            HStack {
-                Text(offsetFormatter)
-                    .font(.system(size: 10))
-                    .foregroundColor(DesignSystem.Colors.textTertiary)
-                
-                Spacer()
-            }
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                        .stroke(.white.opacity(0.2), lineWidth: 1)
-                )
-        )
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-    
-    private func formatTimeWithSecondsInZone(_ date: Date, timeZone: TimeZone?) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .medium // Shows seconds
-        formatter.timeZone = timeZone ?? TimeZone.current
-        return formatter.string(from: date)
-    }
-}
 
 // MARK: - MapKit World Map View
 
@@ -655,16 +541,26 @@ struct WorldMapView: NSViewRepresentable {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
         mapView.mapType = .standard
-        mapView.showsCompass = false
-        mapView.showsZoomControls = false
-        mapView.showsScale = false
+        mapView.showsCompass = true
+        mapView.showsZoomControls = true
+        mapView.showsScale = true
         mapView.isZoomEnabled = true
         mapView.isScrollEnabled = true
         mapView.isRotateEnabled = false
         mapView.isPitchEnabled = false
         
-        // Set to show the entire world
-        mapView.setVisibleMapRect(MKMapRect.world, animated: false)
+        // Set to show the entire world properly centered and fitted
+        let worldRegion = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 20, longitude: 0), // Slightly north to center better
+            span: MKCoordinateSpan(latitudeDelta: 140, longitudeDelta: 360) // Cover entire world
+        )
+        mapView.setRegion(worldRegion, animated: false)
+        
+        // Set zoom limits to allow good interaction while keeping world context
+        mapView.cameraZoomRange = MKMapView.CameraZoomRange(
+            minCenterCoordinateDistance: 20000000, // ~World view
+            maxCenterCoordinateDistance: 100000000 // ~Continental view
+        )
         
         // Add city annotations
         let cities = [
@@ -690,6 +586,22 @@ struct WorldMapView: NSViewRepresentable {
         nsView.removeOverlays(nsView.overlays)
         let dayNightOverlay = DayNightOverlay(date: currentTime)
         nsView.addOverlay(dayNightOverlay)
+        
+        // Ensure world view is maintained if user hasn't zoomed/panned significantly
+        let currentCenter = nsView.region.center
+        let worldCenter = CLLocationCoordinate2D(latitude: 20, longitude: 0)
+        
+        // If the map has drifted too far from world view, gently guide it back
+        let latDiff = abs(currentCenter.latitude - worldCenter.latitude)
+        let lonDiff = abs(currentCenter.longitude - worldCenter.longitude)
+        
+        if latDiff > 60 || lonDiff > 180 {
+            let worldRegion = MKCoordinateRegion(
+                center: worldCenter,
+                span: MKCoordinateSpan(latitudeDelta: 140, longitudeDelta: 360)
+            )
+            nsView.setRegion(worldRegion, animated: true)
+        }
     }
     
     func makeCoordinator() -> Coordinator {
@@ -715,6 +627,24 @@ struct WorldMapView: NSViewRepresentable {
             
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                 parent.selectedTimeZone = worldTimeZone
+            }
+            
+            // Zoom to selected city region for better context
+            let cityRegion = MKCoordinateRegion(
+                center: cityAnnotation.coordinate,
+                span: MKCoordinateSpan(latitudeDelta: 20, longitudeDelta: 20)
+            )
+            mapView.setRegion(cityRegion, animated: true)
+        }
+        
+        func mapView(_ mapView: MKMapView, didDeselect view: MKAnnotationView) {
+            // When deselecting, zoom back to world view
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                let worldRegion = MKCoordinateRegion(
+                    center: CLLocationCoordinate2D(latitude: 20, longitude: 0),
+                    span: MKCoordinateSpan(latitudeDelta: 140, longitudeDelta: 360)
+                )
+                mapView.setRegion(worldRegion, animated: true)
             }
         }
         
