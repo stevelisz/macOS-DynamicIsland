@@ -22,49 +22,22 @@ struct ExpandedCalendarView: View {
                 // Sidebar with enhanced glass effect
                 sidebar
                     .frame(width: 280)
-                    .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 0))
-                    .overlay(
-                        Rectangle()
-                            .fill(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        Color.white.opacity(0.1),
-                                        Color.clear,
-                                        Color.black.opacity(0.05)
-                                    ]),
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .allowsHitTesting(false)
-                    )
+                    .padding(.top, 40) // Space for window controls within glass
+                    .background(.clear) // Let the main glass background show through
                 
                 // Main Calendar Area with glass effect
                 VStack(spacing: 0) {
-                    // Header with glass background
+                    // Header with space for window controls
                     calendarHeader
                         .padding(.horizontal, DesignSystem.Spacing.lg)
                         .padding(.vertical, DesignSystem.Spacing.md)
-                        .background(.regularMaterial, in: Rectangle())
-                        .overlay(
-                            Rectangle()
-                                .fill(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [
-                                            Color.white.opacity(0.15),
-                                            Color.clear
-                                        ]),
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-                                .allowsHitTesting(false)
-                        )
+                        .padding(.top, 40) // Space for window controls within glass
+                        .background(.clear) // Let the main glass background show through
                     
-                    // Calendar Content with subtle glass background
+                    // Calendar Content
                     mainCalendarArea
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(.thinMaterial, in: Rectangle())
+                        .background(.clear) // Let the main glass background show through
                 }
             }
         }

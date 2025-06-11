@@ -164,7 +164,7 @@ class ExpandedWindowManager: ObservableObject {
             defer: false
         )
         
-        // Glass window setup
+        // Glass window setup - seamless integration
         window.title = title
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
@@ -179,6 +179,13 @@ class ExpandedWindowManager: ObservableObject {
         
         // Enhanced shadow for glass effect
         window.invalidateShadow()
+        
+        // Remove any titlebar background
+        if let titlebarView = window.standardWindowButton(.closeButton)?.superview {
+            titlebarView.wantsLayer = true
+            titlebarView.layer?.backgroundColor = NSColor.clear.cgColor
+            titlebarView.layer?.isOpaque = false
+        }
         
         // Start at floating level to pop up on top of everything
         window.level = .floating
@@ -286,50 +293,39 @@ struct GlassExpandedWindowContainer<Content: View>: View {
     }
     
     var body: some View {
+        // Full-frame glass panel that extends under titlebar
         ZStack {
-            // Glass background effect - non-interactive
+            // Glass background that covers the entire window including titlebar
             Rectangle()
                 .fill(.ultraThinMaterial)
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.white.opacity(0.2),
-                            Color.white.opacity(0.1),
-                            Color.black.opacity(0.05)
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
                 .overlay(
-                    // Subtle border for glass effect
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(
+                    Rectangle()
+                        .fill(
                             LinearGradient(
                                 gradient: Gradient(colors: [
-                                    Color.white.opacity(0.3),
-                                    Color.white.opacity(0.1),
+                                    Color.white.opacity(0.2),
+                                    Color.white.opacity(0.05),
                                     Color.clear
                                 ]),
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
+                            )
                         )
+                        .allowsHitTesting(false)
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .shadow(
-                    color: Color.black.opacity(0.2),
+                    color: Color.black.opacity(0.15),
                     radius: 20,
                     x: 0,
                     y: 8
                 )
-                .allowsHitTesting(false) // This prevents the background from blocking interactions
+                .allowsHitTesting(false)
             
-            // Content with padding to ensure it doesn't touch edges
+            // Content positioned within the glass
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(8)
         }
+        .ignoresSafeArea(.all) // Extend under titlebar
     }
 } 
