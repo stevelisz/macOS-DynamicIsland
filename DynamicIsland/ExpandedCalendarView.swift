@@ -6,6 +6,7 @@ struct ExpandedCalendarView: View {
     @State private var currentTime = Date()
     @State private var selectedWorldTimeZone: WorldTimeZone?
     @State private var viewMode: CalendarViewMode = .month
+    @State private var showingDatePicker = false
     
     // Timer for real-time updates
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -216,11 +217,45 @@ struct ExpandedCalendarView: View {
             
             Spacer()
             
-            Text(navigationTitle)
-                .font(DesignSystem.Typography.headline2)
-                .foregroundColor(DesignSystem.Colors.textPrimary)
+            // Clickable Date Title
+            Button(action: {
+                showingDatePicker = true
+            }) {
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Text(navigationTitle)
+                        .font(DesignSystem.Typography.headline2)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Image(systemName: "calendar")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+            }
+            .buttonStyle(.plain)
             
             Spacer()
+            
+            // Today Button
+            Button(action: goToToday) {
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Image(systemName: "calendar.circle.fill")
+                        .font(.system(size: 14, weight: .medium))
+                    Text("Today")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .foregroundColor(DesignSystem.Colors.primary)
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .padding(.vertical, DesignSystem.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                        .fill(DesignSystem.Colors.primary.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                                .stroke(DesignSystem.Colors.primary.opacity(0.3), lineWidth: 1)
+                        )
+                )
+            }
+            .buttonStyle(.plain)
             
             Button(action: nextPeriod) {
                 Image(systemName: "chevron.right")
@@ -239,6 +274,9 @@ struct ExpandedCalendarView: View {
             .buttonStyle(.plain)
         }
         .padding(DesignSystem.Spacing.xl)
+        .sheet(isPresented: $showingDatePicker) {
+            DatePickerSheet(selectedDate: $selectedDate)
+        }
     }
     
     private var monthCalendarView: some View {
@@ -278,20 +316,14 @@ struct ExpandedCalendarView: View {
     }
     
     private var yearCalendarView: some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            Text("Year View")
-                .font(DesignSystem.Typography.headline3)
-                .foregroundColor(DesignSystem.Colors.textSecondary)
-            
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .frame(height: 200)
-                .cornerRadius(DesignSystem.BorderRadius.lg)
-                .overlay(
-                    Text("Year view coming soon")
-                        .font(DesignSystem.Typography.body)
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: DesignSystem.Spacing.lg) {
+            ForEach(1...12, id: \.self) { month in
+                YearCalendarMonthView(
+                    month: month,
+                    year: Calendar.current.component(.year, from: selectedDate),
+                    selectedDate: $selectedDate
                 )
+            }
         }
     }
     
@@ -513,6 +545,12 @@ struct ExpandedCalendarView: View {
         }
     }
     
+    private func goToToday() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            selectedDate = Date()
+        }
+    }
+    
     private var daysInMonth: [Date?] {
         let calendar = Calendar.current
         let startOfMonth = calendar.dateInterval(of: .month, for: selectedDate)?.start ?? selectedDate
@@ -604,4 +642,169 @@ struct ExpandedCalendarDayView: View {
         .scaleEffect(isSelected ? 1.05 : 1.0)
         .animation(.easeInOut(duration: 0.2), value: isSelected)
     }
-} 
+}
+
+// MARK: - Date Picker Sheet
+
+struct DatePickerSheet: View {
+    @Binding var selectedDate: Date
+    @Environment(\.dismiss) private var dismiss
+    @State private var tempDate: Date
+    
+    init(selectedDate: Binding<Date>) {
+        self._selectedDate = selectedDate
+        self._tempDate = State(initialValue: selectedDate.wrappedValue)
+    }
+    
+    var body: some View {
+        VStack(spacing: DesignSystem.Spacing.xl) {
+            // Header
+            HStack {
+                Text("Select Date")
+                    .font(DesignSystem.Typography.headline2)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Spacer()
+                
+                Button("Done") {
+                    selectedDate = tempDate
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            
+            // Date Picker
+            DatePicker(
+                "Select Date",
+                selection: $tempDate,
+                displayedComponents: [.date]
+            )
+            .datePickerStyle(.graphical)
+            .frame(maxWidth: 400)
+            
+            // Quick Actions
+            HStack(spacing: DesignSystem.Spacing.md) {
+                Button("Today") {
+                    tempDate = Date()
+                }
+                .buttonStyle(.bordered)
+                
+                Button("Cancel") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(DesignSystem.Spacing.xl)
+        .frame(minWidth: 450, minHeight: 450)
+        .background(.regularMaterial)
+    }
+}
+
+// MARK: - Year Calendar Month View
+
+struct YearCalendarMonthView: View {
+    let month: Int
+    let year: Int
+    @Binding var selectedDate: Date
+    
+    private var monthName: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM"
+        let date = Calendar.current.date(from: DateComponents(year: year, month: month)) ?? Date()
+        return formatter.string(from: date)
+    }
+    
+    private var monthDate: Date {
+        Calendar.current.date(from: DateComponents(year: year, month: month)) ?? Date()
+    }
+    
+    private var daysInMonth: [Date?] {
+        let calendar = Calendar.current
+        let startOfMonth = calendar.date(from: DateComponents(year: year, month: month)) ?? Date()
+        let range = calendar.range(of: .day, in: .month, for: startOfMonth) ?? 1..<32
+        
+        let firstWeekday = calendar.component(.weekday, from: startOfMonth)
+        let numberOfDays = range.count
+        
+        var days: [Date?] = []
+        
+        // Empty cells for days before month starts
+        for _ in 1..<firstWeekday {
+            days.append(nil)
+        }
+        
+        // Actual days of the month
+        for day in 1...numberOfDays {
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: startOfMonth) {
+                days.append(date)
+            }
+        }
+        
+        return days
+    }
+    
+    var body: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            // Month header
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    selectedDate = monthDate
+                }
+            }) {
+                Text(monthName.uppercased())
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+            
+            // Mini calendar grid
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 2) {
+                ForEach(Array(daysInMonth.enumerated()), id: \.offset) { index, date in
+                    if let date = date {
+                        let isToday = Calendar.current.isDate(date, inSameDayAs: Date())
+                        let isSelected = Calendar.current.isDate(date, inSameDayAs: selectedDate)
+                        
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedDate = date
+                            }
+                        }) {
+                            Text("\(Calendar.current.component(.day, from: date))")
+                                .font(.system(size: 10, weight: isToday ? .semibold : .regular))
+                                .foregroundColor(
+                                    isSelected ? .white :
+                                    isToday ? .orange :
+                                    DesignSystem.Colors.textPrimary
+                                )
+                                .frame(width: 16, height: 16)
+                                .background(
+                                    Circle()
+                                        .fill(
+                                            isSelected ? .orange :
+                                            isToday ? .orange.opacity(0.2) :
+                                            Color.clear
+                                        )
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Rectangle()
+                            .fill(Color.clear)
+                            .frame(width: 16, height: 16)
+                    }
+                }
+            }
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
+                        .stroke(DesignSystem.Colors.border.opacity(0.5), lineWidth: 1)
+                )
+        )
+    }
+}
