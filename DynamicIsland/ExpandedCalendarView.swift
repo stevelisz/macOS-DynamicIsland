@@ -864,32 +864,213 @@ struct DayView: View {
     let onEventTap: (CalendarEvent) -> Void
     
     var body: some View {
-        ScrollView {
-            VStack {
-                Text("Day View - \(date.formatted(.dateTime.weekday().month().day()))")
-                    .font(DesignSystem.Typography.headline3)
-                    .padding()
-                
-                ForEach(events) { event in
-                    Button(action: { onEventTap(event) }) {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(event.title)
-                                    .font(DesignSystem.Typography.bodySemibold)
-                                Text(event.startDate.formatted(.dateTime.hour().minute()))
-                                    .font(DesignSystem.Typography.caption)
-                            }
-                            Spacer()
+        VStack(spacing: 0) {
+            // All-day events section
+            if allDayEvents.count > 0 {
+                allDayEventsSection
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+                    .background(.ultraThinMaterial, in: Rectangle())
+            }
+            
+            // Hourly timeline
+            ScrollViewReader { proxy in
+                ScrollView(.vertical, showsIndicators: true) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(0..<24, id: \.self) { hour in
+                            HourSlotView(
+                                hour: hour,
+                                date: date,
+                                events: eventsForHour(hour),
+                                currentTime: currentTime,
+                                isToday: Calendar.current.isDateInToday(date),
+                                onTimeSlotTap: onTimeSlotTap,
+                                onEventTap: onEventTap
+                            )
+                            .id("hour-\(hour)")
                         }
-                        .padding()
-                        .background(event.category.color.opacity(0.2))
-                        .cornerRadius(8)
                     }
-                    .buttonStyle(.plain)
+                }
+                .onAppear {
+                    // Scroll to current hour if viewing today
+                    if Calendar.current.isDateInToday(date) {
+                        let currentHour = Calendar.current.component(.hour, from: currentTime)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation(.easeInOut(duration: 0.5)) {
+                                proxy.scrollTo("hour-\(max(0, currentHour - 2))", anchor: .top)
+                            }
+                        }
+                    }
                 }
             }
-            .padding()
         }
+    }
+    
+    private var allDayEvents: [CalendarEvent] {
+        events.filter { $0.isAllDay }
+    }
+    
+    private var timedEvents: [CalendarEvent] {
+        events.filter { !$0.isAllDay }
+    }
+    
+    private var allDayEventsSection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            Text("All Day")
+                .font(DesignSystem.Typography.captionSemibold)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+            
+            ForEach(allDayEvents) { event in
+                Button(action: { onEventTap(event) }) {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Circle()
+                            .fill(event.category.color)
+                            .frame(width: 8, height: 8)
+                        
+                        Text(event.title)
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .lineLimit(1)
+                        
+                        Spacer()
+                    }
+                    .padding(.horizontal, DesignSystem.Spacing.sm)
+                    .padding(.vertical, DesignSystem.Spacing.xs)
+                    .background(event.category.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+    
+    private func eventsForHour(_ hour: Int) -> [CalendarEvent] {
+        timedEvents.filter { event in
+            let eventHour = Calendar.current.component(.hour, from: event.startDate)
+            return eventHour == hour
+        }
+    }
+}
+
+struct HourSlotView: View {
+    let hour: Int
+    let date: Date
+    let events: [CalendarEvent]
+    let currentTime: Date
+    let isToday: Bool
+    let onTimeSlotTap: (Date) -> Void
+    let onEventTap: (CalendarEvent) -> Void
+    
+    private var hourDate: Date {
+        Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: date) ?? date
+    }
+    
+    private var isCurrentHour: Bool {
+        isToday && Calendar.current.component(.hour, from: currentTime) == hour
+    }
+    
+    private var currentTimeIndicatorPosition: CGFloat {
+        guard isCurrentHour else { return 0 }
+        let minutes = Calendar.current.component(.minute, from: currentTime)
+        return CGFloat(minutes) / 60.0
+    }
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            // Time label
+            VStack {
+                Text(hourString)
+                    .font(.system(size: 12, weight: .medium, design: .default))
+                    .foregroundColor(isCurrentHour ? DesignSystem.Colors.primary : DesignSystem.Colors.textTertiary)
+                Spacer()
+            }
+            .frame(width: 60)
+            .padding(.top, DesignSystem.Spacing.xs)
+            
+            // Time slot area
+            ZStack(alignment: .topLeading) {
+                // Background
+                Rectangle()
+                    .fill(isCurrentHour ? DesignSystem.Colors.primary.opacity(0.05) : Color.clear)
+                    .frame(height: 60)
+                    .overlay(
+                        Rectangle()
+                            .frame(height: 0.5)
+                            .foregroundColor(DesignSystem.Colors.surface),
+                        alignment: .top
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        onTimeSlotTap(hourDate)
+                    }
+                
+                // Current time indicator
+                if isCurrentHour {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Circle()
+                            .fill(DesignSystem.Colors.primary)
+                            .frame(width: 8, height: 8)
+                        
+                        Rectangle()
+                            .fill(DesignSystem.Colors.primary)
+                            .frame(height: 2)
+                    }
+                    .offset(y: currentTimeIndicatorPosition * 60)
+                    .zIndex(10)
+                }
+                
+                // Events
+                ForEach(Array(events.enumerated()), id: \.element.id) { index, event in
+                    EventBlockView(
+                        event: event,
+                        onEventTap: onEventTap
+                    )
+                    .offset(x: CGFloat(index * 4)) // Slight offset for overlapping events
+                }
+            }
+        }
+        .frame(height: 60)
+    }
+    
+    private var hourString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h a"
+        return formatter.string(from: hourDate)
+    }
+}
+
+struct EventBlockView: View {
+    let event: CalendarEvent
+    let onEventTap: (CalendarEvent) -> Void
+    
+    var body: some View {
+        Button(action: { onEventTap(event) }) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(event.title)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white)
+                    .lineLimit(2)
+                
+                if let location = event.location, !location.isEmpty {
+                    Text(location)
+                        .font(.system(size: 9))
+                        .foregroundColor(.white.opacity(0.8))
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .background(event.category.color, in: RoundedRectangle(cornerRadius: 4))
+            .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        }
+        .buttonStyle(.plain)
+        .frame(height: eventHeight)
+    }
+    
+    private var eventHeight: CGFloat {
+        let duration = event.endDate.timeIntervalSince(event.startDate)
+        let hours = duration / 3600
+        return max(24, CGFloat(hours) * 60) // Minimum 24pt height
     }
 }
 
