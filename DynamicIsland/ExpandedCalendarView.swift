@@ -2,6 +2,18 @@ import SwiftUI
 import MapKit
 import Foundation
 
+// MARK: - Calendar Extension
+
+extension Calendar {
+    func endOfDay(for date: Date) -> Date? {
+        var components = dateComponents([.year, .month, .day], from: date)
+        components.hour = 23
+        components.minute = 59
+        components.second = 59
+        return self.date(from: components)
+    }
+}
+
 // MARK: - Main Expanded Calendar View
 
 struct ExpandedCalendarView: View {
@@ -695,128 +707,358 @@ struct EventCreatorView: View {
     @State private var category: EventCategory = .work
     @State private var location = ""
     @State private var notes = ""
+    @State private var isAllDay = false
+    @State private var showingDeleteConfirmation = false
+    @State private var validationError: String?
+    
+    private var isEditing: Bool { eventToEdit != nil }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Button("Cancel") { 
-                    dismiss() 
+        ZStack {
+            // Glass background
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .ignoresSafeArea(.all)
+            
+            // Glass panel
+            VStack(spacing: 0) {
+                // Header with glass effect
+                headerView
+                
+                // Content with glass sections
+                ScrollView {
+                    VStack(spacing: DesignSystem.Spacing.lg) {
+                        titleSection
+                        dateTimeSection
+                        categorySection
+                        locationSection
+                        notesSection
+                        
+                        // Delete button for existing events
+                        if isEditing {
+                            deleteSection
+                        }
+                    }
+                    .padding(DesignSystem.Spacing.xl)
+                    .padding(.bottom, DesignSystem.Spacing.xl)
                 }
-                .buttonStyle(.bordered)
-                
-                Spacer()
-                
-                Text(eventToEdit == nil ? "New Event" : "Edit Event")
-                    .font(DesignSystem.Typography.headline2)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                Spacer()
-                
-                Button("Save") { 
-                    saveEvent() 
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(title.isEmpty)
             }
-            .padding(DesignSystem.Spacing.lg)
-            .background(.regularMaterial, in: Rectangle())
+            .frame(maxWidth: 550, maxHeight: 700)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
+                    .fill(.ultraThinMaterial)
+            )
             .overlay(
-                Rectangle()
-                    .fill(
+                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.xl)
+                    .stroke(
                         LinearGradient(
                             gradient: Gradient(colors: [
-                                Color.white.opacity(0.1),
+                                Color.white.opacity(0.6),
+                                Color.white.opacity(0.2),
                                 Color.clear
                             ]),
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.5
                     )
-                    .allowsHitTesting(false)
             )
-            
-            // Content
-            ScrollView {
-                VStack(spacing: DesignSystem.Spacing.lg) {
-                    // Title
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                        Text("Event Title")
-                            .font(DesignSystem.Typography.captionSemibold)
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                        TextField("Enter event title", text: $title)
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    
-                    // Date & Time
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                        Text("Date & Time")
-                            .font(DesignSystem.Typography.captionSemibold)
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                        
-                        HStack(spacing: DesignSystem.Spacing.md) {
-                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                                Text("Start")
-                                    .font(DesignSystem.Typography.caption)
-                                    .foregroundColor(DesignSystem.Colors.textTertiary)
-                                DatePicker("", selection: $startDate)
-                                    .datePickerStyle(.compact)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                                Text("End")
-                                    .font(DesignSystem.Typography.caption)
-                                    .foregroundColor(DesignSystem.Colors.textTertiary)
-                                DatePicker("", selection: $endDate)
-                                    .datePickerStyle(.compact)
-                            }
-                        }
-                    }
-                    
-                    // Category
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                        Text("Category")
-                            .font(DesignSystem.Typography.captionSemibold)
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                        Picker("Category", selection: $category) {
-                            ForEach(EventCategory.allCases, id: \.self) { category in
-                                HStack {
-                                    Circle()
-                                        .fill(category.color)
-                                        .frame(width: 12, height: 12)
-                                    Text(category.rawValue)
-                                }.tag(category)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                    }
-                    
-                    // Location
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                        Text("Location")
-                            .font(DesignSystem.Typography.captionSemibold)
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                        TextField("Enter location (optional)", text: $location)
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    
-                    // Notes
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                        Text("Notes")
-                            .font(DesignSystem.Typography.captionSemibold)
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                        TextField("Enter notes (optional)", text: $notes, axis: .vertical)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(minHeight: 60)
-                    }
-                }
-                .padding(DesignSystem.Spacing.lg)
-            }
+            .shadow(
+                color: Color.black.opacity(0.3),
+                radius: 30,
+                x: 0,
+                y: 15
+            )
         }
-        .frame(minWidth: 450, minHeight: 500)
         .onAppear {
             setupInitialValues()
         }
+        .alert("Delete Event", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                deleteEvent()
+            }
+        } message: {
+            Text("Are you sure you want to delete this event? This action cannot be undone.")
+        }
+    }
+    
+    private var headerView: some View {
+        HStack {
+            // Cancel Button
+            Button("Cancel") { 
+                dismiss() 
+            }
+            .font(DesignSystem.Typography.bodySemibold)
+            .foregroundColor(DesignSystem.Colors.textSecondary)
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            )
+            
+            Spacer()
+            
+            // Title
+            VStack(spacing: 2) {
+                Text(isEditing ? "Edit Event" : "New Event")
+                    .font(DesignSystem.Typography.headline1)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                if let error = validationError {
+                    Text(error)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.error)
+                }
+            }
+            
+            Spacer()
+            
+            // Save Button
+            Button("Save") { 
+                saveEvent() 
+            }
+            .font(DesignSystem.Typography.bodySemibold)
+            .foregroundColor(.white)
+            .disabled(!isValidEvent)
+            .buttonStyle(.plain)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        isValidEvent ? DesignSystem.Colors.primary : DesignSystem.Colors.textTertiary,
+                        isValidEvent ? DesignSystem.Colors.primary.opacity(0.8) : DesignSystem.Colors.textTertiary.opacity(0.8)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                ),
+                in: RoundedRectangle(cornerRadius: 20)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+            )
+            .shadow(
+                color: isValidEvent ? DesignSystem.Colors.primary.opacity(0.4) : Color.clear,
+                radius: 6,
+                x: 0,
+                y: 3
+            )
+        }
+        .padding(DesignSystem.Spacing.xl)
+        .background(.regularMaterial, in: Rectangle())
+        .overlay(
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.white.opacity(0.1),
+                            Color.clear
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .allowsHitTesting(false)
+        )
+    }
+    
+    private var titleSection: some View {
+        GlassSection(title: "Event Title", icon: "text.cursor") {
+            TextField("Enter event title", text: $title)
+                .font(DesignSystem.Typography.body)
+                .textFieldStyle(GlassTextFieldStyle())
+        }
+    }
+    
+    private var dateTimeSection: some View {
+        GlassSection(title: "Date & Time", icon: "calendar.badge.clock") {
+            VStack(spacing: DesignSystem.Spacing.md) {
+                // All Day Toggle
+                HStack {
+                    Toggle("All Day", isOn: $isAllDay)
+                        .font(DesignSystem.Typography.bodySemibold)
+                        .toggleStyle(SwitchToggleStyle(tint: DesignSystem.Colors.primary))
+                    Spacer()
+                }
+                
+                // Date Pickers
+                if isAllDay {
+                    // Single date picker for all-day events
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        Text("Date")
+                            .font(DesignSystem.Typography.captionSemibold)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        
+                        DatePicker("Event Date", selection: $startDate, displayedComponents: .date)
+                            .datePickerStyle(.graphical)
+                            .onChange(of: startDate) {
+                                endDate = Calendar.current.endOfDay(for: startDate) ?? startDate
+                                validateDates()
+                            }
+                    }
+                } else {
+                    // Separate date and time pickers
+                    HStack(spacing: DesignSystem.Spacing.lg) {
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                            Text("Start")
+                                .font(DesignSystem.Typography.captionSemibold)
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                            
+                            DatePicker("Start Date & Time", selection: $startDate, displayedComponents: [.date, .hourAndMinute])
+                                .datePickerStyle(.compact)
+                                .onChange(of: startDate) {
+                                    // Auto-adjust end date if it's before start date
+                                    if endDate <= startDate {
+                                        endDate = Calendar.current.date(byAdding: .hour, value: 1, to: startDate) ?? startDate
+                                    }
+                                    validateDates()
+                                }
+                        }
+                        .frame(maxWidth: .infinity)
+                        
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                            Text("End")
+                                .font(DesignSystem.Typography.captionSemibold)
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                            
+                            DatePicker("End Date & Time", selection: $endDate, displayedComponents: [.date, .hourAndMinute])
+                                .datePickerStyle(.compact)
+                                .onChange(of: endDate) {
+                                    validateDates()
+                                }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+    }
+    
+    private var categorySection: some View {
+        GlassSection(title: "Category", icon: "tag.fill") {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: DesignSystem.Spacing.sm) {
+                ForEach(EventCategory.allCases, id: \.self) { cat in
+                    Button(action: {
+                        category = cat
+                    }) {
+                        HStack(spacing: DesignSystem.Spacing.xs) {
+                            Circle()
+                                .fill(cat.color)
+                                .frame(width: 12, height: 12)
+                            Text(cat.rawValue)
+                                .font(DesignSystem.Typography.caption)
+                                .lineLimit(1)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(category == cat ? cat.color.opacity(0.2) : Color.clear)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(category == cat ? cat.color : Color.clear, lineWidth: 1.5)
+                                )
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(category == cat ? cat.color : DesignSystem.Colors.textSecondary)
+                }
+            }
+        }
+    }
+    
+    private var locationSection: some View {
+        GlassSection(title: "Location", icon: "location.fill") {
+            TextField("Enter location (optional)", text: $location)
+                .font(DesignSystem.Typography.body)
+                .textFieldStyle(GlassTextFieldStyle())
+        }
+    }
+    
+    private var notesSection: some View {
+        GlassSection(title: "Notes", icon: "note.text") {
+            TextField("Enter notes (optional)", text: $notes, axis: .vertical)
+                .font(DesignSystem.Typography.body)
+                .textFieldStyle(GlassTextFieldStyle())
+                .frame(minHeight: 80)
+        }
+    }
+    
+    private var deleteSection: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            Divider()
+                .background(Color.white.opacity(0.2))
+            
+            Button(action: {
+                showingDeleteConfirmation = true
+            }) {
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 14))
+                    Text("Delete Event")
+                        .font(DesignSystem.Typography.bodySemibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            DesignSystem.Colors.error,
+                            DesignSystem.Colors.error.opacity(0.8)
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    in: RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                )
+                .shadow(
+                    color: DesignSystem.Colors.error.opacity(0.4),
+                    radius: 6,
+                    x: 0,
+                    y: 3
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+    
+    private var isValidEvent: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && 
+        validationError == nil
+    }
+    
+    private func validateDates() {
+        validationError = nil
+        
+        if endDate <= startDate {
+            validationError = "End time must be after start time"
+            return
+        }
+        
+        // Check if event duration is reasonable (max 24 hours for non-all-day events)
+        if !isAllDay {
+            let duration = endDate.timeIntervalSince(startDate)
+            if duration > 24 * 60 * 60 { // 24 hours
+                validationError = "Event duration cannot exceed 24 hours"
+                return
+            }
+        }
+        
+        // Check for conflicts (optional - you could implement this)
+        // let conflicts = checkForConflicts()
+        // if !conflicts.isEmpty {
+        //     validationError = "Event conflicts with existing events"
+        // }
     }
     
     private func setupInitialValues() {
@@ -827,21 +1069,29 @@ struct EventCreatorView: View {
             category = event.category
             location = event.location ?? ""
             notes = event.notes ?? ""
+            isAllDay = event.isAllDay
         } else {
             startDate = initialDate
             endDate = Calendar.current.date(byAdding: .hour, value: 1, to: initialDate) ?? initialDate
+            isAllDay = false
         }
+        validateDates()
     }
     
     private func saveEvent() {
+        // Final validation
+        validateDates()
+        guard isValidEvent else { return }
+        
         let event = CalendarEvent(
             id: eventToEdit?.id ?? UUID(),
-            title: title,
+            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             startDate: startDate,
             endDate: endDate,
             category: category,
-            location: location.isEmpty ? nil : location,
-            notes: notes.isEmpty ? nil : notes
+            location: location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : location.trimmingCharacters(in: .whitespacesAndNewlines),
+            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : notes.trimmingCharacters(in: .whitespacesAndNewlines),
+            isAllDay: isAllDay
         )
         
         if let editIndex = events.firstIndex(where: { $0.id == eventToEdit?.id }) {
@@ -851,6 +1101,73 @@ struct EventCreatorView: View {
         }
         
         dismiss()
+    }
+    
+    private func deleteEvent() {
+        guard let eventToEdit = eventToEdit else { return }
+        
+        events.removeAll { $0.id == eventToEdit.id }
+        dismiss()
+    }
+}
+
+// MARK: - Glass Components
+
+struct GlassSection<Content: View>: View {
+    let title: String
+    let icon: String
+    @ViewBuilder let content: Content
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.primary)
+                
+                Text(title)
+                    .font(DesignSystem.Typography.captionSemibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+            }
+            
+            content
+        }
+        .padding(DesignSystem.Spacing.lg)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg))
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.white.opacity(0.3),
+                            Color.white.opacity(0.1),
+                            Color.clear
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(
+            color: Color.black.opacity(0.05),
+            radius: 4,
+            x: 0,
+            y: 2
+        )
+    }
+}
+
+struct GlassTextFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        configuration
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            )
     }
 }
 
