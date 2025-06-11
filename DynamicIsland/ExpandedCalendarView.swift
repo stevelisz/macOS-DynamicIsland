@@ -960,6 +960,8 @@ struct HourSlotView: View {
     let onTimeSlotTap: (Date) -> Void
     let onEventTap: (CalendarEvent) -> Void
     
+    @State private var isHovered = false
+    
     private var hourDate: Date {
         Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: date) ?? date
     }
@@ -990,7 +992,11 @@ struct HourSlotView: View {
             ZStack(alignment: .topLeading) {
                 // Background
                 Rectangle()
-                    .fill(isCurrentHour ? DesignSystem.Colors.primary.opacity(0.05) : Color.clear)
+                    .fill(
+                        isCurrentHour ? DesignSystem.Colors.primary.opacity(0.05) :
+                        isHovered ? DesignSystem.Colors.surface.opacity(0.3) :
+                        Color.clear
+                    )
                     .frame(height: 60)
                     .overlay(
                         Rectangle()
@@ -1001,6 +1007,11 @@ struct HourSlotView: View {
                     .contentShape(Rectangle())
                     .onTapGesture {
                         onTimeSlotTap(hourDate)
+                    }
+                    .onHover { hovering in
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isHovered = hovering
+                        }
                     }
                 
                 // Current time indicator
@@ -1153,26 +1164,30 @@ struct WeekView: View {
             
             // Day headers
             ForEach(weekDays, id: \.self) { day in
-                VStack(spacing: 4) {
-                    Text(day.formatted(.dateTime.weekday(.abbreviated)))
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
-                    
-                    Text("\(Calendar.current.component(.day, from: day))")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(
-                            Calendar.current.isDateInToday(day) ? 
-                            DesignSystem.Colors.primary : 
-                            DesignSystem.Colors.textPrimary
-                        )
-                        .frame(width: 28, height: 28)
-                        .background(
-                            Circle()
-                                .fill(Calendar.current.isDateInToday(day) ? DesignSystem.Colors.primary : Color.clear)
-                        )
-                        .foregroundColor(Calendar.current.isDateInToday(day) ? .white : DesignSystem.Colors.textPrimary)
+                Button(action: {
+                    // Create a date at the start of the day
+                    let dayStart = Calendar.current.startOfDay(for: day)
+                    onTimeSlotTap(dayStart)
+                }) {
+                    VStack(spacing: 4) {
+                        Text(day.formatted(.dateTime.weekday(.abbreviated)))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        
+                        Text("\(Calendar.current.component(.day, from: day))")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(
+                                Calendar.current.isDateInToday(day) ? .white : DesignSystem.Colors.textPrimary
+                            )
+                            .frame(width: 28, height: 28)
+                            .background(
+                                Circle()
+                                    .fill(Calendar.current.isDateInToday(day) ? DesignSystem.Colors.primary : Color.clear)
+                            )
+                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
+                .buttonStyle(.plain)
             }
         }
         .padding(.vertical, DesignSystem.Spacing.sm)
@@ -1235,6 +1250,8 @@ struct WeekHourSlotView: View {
     let onTimeSlotTap: (Date) -> Void
     let onEventTap: (CalendarEvent) -> Void
     
+    @State private var hoveredDay: Date? = nil
+    
     private var hourString: String {
         let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date()) ?? Date()
         let formatter = DateFormatter()
@@ -1269,11 +1286,16 @@ struct WeekHourSlotView: View {
                 let dayEvents = eventsForDay(day)
                 let isToday = Calendar.current.isDateInToday(day)
                 let hourDate = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: day) ?? day
+                let isHovered = hoveredDay == day
                 
                 ZStack(alignment: .topLeading) {
                     // Background
                     Rectangle()
-                        .fill(isToday && isCurrentHour ? DesignSystem.Colors.primary.opacity(0.05) : Color.clear)
+                        .fill(
+                            isToday && isCurrentHour ? DesignSystem.Colors.primary.opacity(0.05) :
+                            isHovered ? DesignSystem.Colors.surface.opacity(0.3) :
+                            Color.clear
+                        )
                         .frame(height: 60)
                         .overlay(
                             Rectangle()
@@ -1281,9 +1303,20 @@ struct WeekHourSlotView: View {
                                 .foregroundColor(DesignSystem.Colors.surface),
                             alignment: .top
                         )
+                        .overlay(
+                            Rectangle()
+                                .frame(width: 0.5)
+                                .foregroundColor(DesignSystem.Colors.surface.opacity(0.5)),
+                            alignment: .trailing
+                        )
                         .contentShape(Rectangle())
                         .onTapGesture {
                             onTimeSlotTap(hourDate)
+                        }
+                        .onHover { hovering in
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                hoveredDay = hovering ? day : nil
+                            }
                         }
                     
                     // Current time indicator (only for today)
@@ -1579,6 +1612,7 @@ struct YearView: View {
                         selectedDate: $selectedDate,
                         onDateTap: onDateTap
                     )
+                    .frame(height: 180) // Fixed height for consistency
                 }
             }
             .padding(DesignSystem.Spacing.lg)
@@ -1653,7 +1687,7 @@ struct YearMonthView: View {
                     Text(weekday)
                         .font(.system(size: 8, weight: .medium))
                         .foregroundColor(DesignSystem.Colors.textTertiary)
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, minHeight: 12)
                 }
             }
             
@@ -1667,9 +1701,14 @@ struct YearMonthView: View {
                         isSelected: day != nil && calendar.isDate(day!, inSameDayAs: selectedDate),
                         onDateTap: onDateTap
                     )
+                    .frame(height: 18) // Fixed height for day cells
                 }
             }
+            .frame(maxHeight: .infinity) // Allow grid to expand to fill remaining space
+            
+            Spacer(minLength: 0) // Push everything to top but allow flexibility
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(DesignSystem.Spacing.sm)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
@@ -1725,7 +1764,7 @@ struct YearDayCell: View {
                             }
                         }
                     }
-                    .frame(width: 20, height: 20)
+                    .frame(width: 18, height: 18)
                     .background(
                         Circle()
                             .fill(
@@ -1745,7 +1784,7 @@ struct YearDayCell: View {
             } else {
                 // Empty cell for padding
                 Color.clear
-                    .frame(width: 20, height: 20)
+                    .frame(width: 18, height: 18)
             }
         }
     }
