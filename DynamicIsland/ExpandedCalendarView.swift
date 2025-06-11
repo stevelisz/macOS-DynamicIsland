@@ -1409,10 +1409,12 @@ struct WeekView: View {
     let onTimeSlotTap: (Date) -> Void
     let onEventTap: (CalendarEvent) -> Void
     
+    private var calendar: Calendar { Calendar.current }
+    
     private var weekDays: [Date] {
         var days: [Date] = []
         for i in 0..<7 {
-            if let day = Calendar.current.date(byAdding: .day, value: i, to: startDate) {
+            if let day = calendar.date(byAdding: .day, value: i, to: startDate) {
                 days.append(day)
             }
         }
@@ -1429,25 +1431,25 @@ struct WeekView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Week header with day names and dates
+            // Traditional Week Header (Days of the week)
             weekHeader
                 .background(.ultraThinMaterial, in: Rectangle())
             
-            // All-day events section
-            if allDayEvents.count > 0 {
+            // All-day events section (only if there are any)
+            if !allDayEvents.isEmpty {
                 allDayEventsSection
                     .background(.ultraThinMaterial, in: Rectangle())
             }
             
-            // Hourly timeline
+            // Traditional Week Grid (Time slots Y-axis, Days X-axis)
             ScrollViewReader { proxy in
                 ScrollView(.vertical, showsIndicators: true) {
                     LazyVStack(spacing: 0) {
                         ForEach(0..<24, id: \.self) { hour in
-                            WeekHourSlotView(
+                            WeekTimeRowView(
                                 hour: hour,
                                 weekDays: weekDays,
-                                events: eventsForHour(hour),
+                                events: timedEvents,
                                 currentTime: currentTime,
                                 onTimeSlotTap: onTimeSlotTap,
                                 onEventTap: onEventTap
@@ -1457,10 +1459,10 @@ struct WeekView: View {
                     }
                 }
                 .onAppear {
-                    // Scroll to current hour if viewing current week
-                    if Calendar.current.isDate(Date(), equalTo: startDate, toGranularity: .weekOfYear) {
-                        let currentHour = Calendar.current.component(.hour, from: currentTime)
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    // Auto-scroll to current hour if viewing current week
+                    if calendar.isDate(Date(), equalTo: startDate, toGranularity: .weekOfYear) {
+                        let currentHour = calendar.component(.hour, from: currentTime)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             withAnimation(.easeInOut(duration: 0.5)) {
                                 proxy.scrollTo("hour-\(max(0, currentHour - 2))", anchor: .top)
                             }
@@ -1474,37 +1476,30 @@ struct WeekView: View {
     private var weekHeader: some View {
         HStack(spacing: 0) {
             // Time column header
-            VStack {
-                Spacer()
-            }
-            .frame(width: 60)
+            Text("Time")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+                .frame(width: 70)
             
-            // Day headers
+            // Day headers (Mon, Tue, Wed, Thu, Fri, Sat, Sun)
             ForEach(weekDays, id: \.self) { day in
-                Button(action: {
-                    // Create a date at the start of the day
-                    let dayStart = Calendar.current.startOfDay(for: day)
-                    onTimeSlotTap(dayStart)
-                }) {
-                    VStack(spacing: 4) {
-                        Text(day.formatted(.dateTime.weekday(.abbreviated)))
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                        
-                        Text("\(Calendar.current.component(.day, from: day))")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(
-                                Calendar.current.isDateInToday(day) ? .white : DesignSystem.Colors.textPrimary
-                            )
-                            .frame(width: 28, height: 28)
-                            .background(
-                                Circle()
-                                    .fill(Calendar.current.isDateInToday(day) ? DesignSystem.Colors.primary : Color.clear)
-                            )
-                    }
-                    .frame(maxWidth: .infinity)
+                VStack(spacing: 4) {
+                    Text(day.formatted(.dateTime.weekday(.abbreviated)))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                    
+                    Text("\(calendar.component(.day, from: day))")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(
+                            calendar.isDateInToday(day) ? .white : DesignSystem.Colors.textPrimary
+                        )
+                        .frame(width: 28, height: 28)
+                        .background(
+                            Circle()
+                                .fill(calendar.isDateInToday(day) ? DesignSystem.Colors.primary : Color.clear)
+                        )
                 }
-                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
             }
         }
         .padding(.vertical, DesignSystem.Spacing.sm)
@@ -1512,14 +1507,11 @@ struct WeekView: View {
     
     private var allDayEventsSection: some View {
         HStack(spacing: 0) {
-            // Time column placeholder
-            VStack {
-                Text("all-day")
-                    .font(.system(size: 10))
-                    .foregroundColor(DesignSystem.Colors.textTertiary)
-                Spacer()
-            }
-            .frame(width: 60)
+            // Time column label
+            Text("all-day")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(DesignSystem.Colors.textTertiary)
+                .frame(width: 70)
             
             // All-day events for each day
             ForEach(weekDays, id: \.self) { day in
@@ -1531,15 +1523,17 @@ struct WeekView: View {
                                 .foregroundColor(.white)
                                 .lineLimit(1)
                                 .frame(maxWidth: .infinity)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 2)
-                                .background(event.category.color, in: RoundedRectangle(cornerRadius: 4))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(event.category.color)
+                                )
                         }
                         .buttonStyle(.plain)
                     }
                 }
-                .frame(maxWidth: .infinity, minHeight: 32)
-                .frame(alignment: .top)
+                .frame(maxWidth: .infinity, minHeight: 36, alignment: .top)
             }
         }
         .padding(.vertical, DesignSystem.Spacing.sm)
@@ -1547,19 +1541,13 @@ struct WeekView: View {
     
     private func allDayEventsForDay(_ day: Date) -> [CalendarEvent] {
         allDayEvents.filter { event in
-            Calendar.current.isDate(event.startDate, inSameDayAs: day)
-        }
-    }
-    
-    private func eventsForHour(_ hour: Int) -> [CalendarEvent] {
-        timedEvents.filter { event in
-            let eventHour = Calendar.current.component(.hour, from: event.startDate)
-            return eventHour == hour
+            calendar.isDate(event.startDate, inSameDayAs: day)
         }
     }
 }
 
-struct WeekHourSlotView: View {
+// Traditional Week Time Row - represents one hour across all 7 days
+struct WeekTimeRowView: View {
     let hour: Int
     let weekDays: [Date]
     let events: [CalendarEvent]
@@ -1568,62 +1556,69 @@ struct WeekHourSlotView: View {
     let onEventTap: (CalendarEvent) -> Void
     
     @State private var hoveredDay: Date? = nil
+    private var calendar: Calendar { Calendar.current }
     
     private var hourString: String {
-        let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date()) ?? Date()
+        let date = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: Date()) ?? Date()
         let formatter = DateFormatter()
-        formatter.dateFormat = "h a"
+        formatter.dateFormat = hour == 0 || hour == 12 ? "h a" : "h"
         return formatter.string(from: date)
     }
     
     private var isCurrentHour: Bool {
-        Calendar.current.component(.hour, from: currentTime) == hour
+        calendar.component(.hour, from: currentTime) == hour
     }
     
     private var currentTimeIndicatorPosition: CGFloat {
         guard isCurrentHour else { return 0 }
-        let minutes = Calendar.current.component(.minute, from: currentTime)
+        let minutes = calendar.component(.minute, from: currentTime)
         return CGFloat(minutes) / 60.0
+    }
+    
+    private func eventsForDayAndHour(_ day: Date) -> [CalendarEvent] {
+        return events.filter { event in
+            let eventStartHour = calendar.component(.hour, from: event.startDate)
+            return calendar.isDate(event.startDate, inSameDayAs: day) && eventStartHour == hour
+        }
     }
     
     var body: some View {
         HStack(spacing: 0) {
-            // Time label
-            VStack {
-                Text(hourString)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(isCurrentHour ? DesignSystem.Colors.primary : DesignSystem.Colors.textTertiary)
-                Spacer()
-            }
-            .frame(width: 60)
-            .padding(.top, DesignSystem.Spacing.xs)
+            // Time label column (70pt width)
+            Text(hourString)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(isCurrentHour ? DesignSystem.Colors.primary : DesignSystem.Colors.textTertiary)
+                .frame(width: 70, alignment: .trailing)
+                .padding(.trailing, DesignSystem.Spacing.xs)
             
-            // Day columns
+            // 7 Day columns
             ForEach(weekDays, id: \.self) { day in
-                let dayEvents = eventsForDay(day)
-                let isToday = Calendar.current.isDateInToday(day)
-                let hourDate = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: day) ?? day
+                let dayEvents = eventsForDayAndHour(day)
+                let isToday = calendar.isDateInToday(day)
+                let hourDate = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: day) ?? day
                 let isHovered = hoveredDay == day
                 
                 ZStack(alignment: .topLeading) {
-                    // Background
+                    // Time slot background
                     Rectangle()
                         .fill(
-                            isToday && isCurrentHour ? DesignSystem.Colors.primary.opacity(0.05) :
-                            isHovered ? DesignSystem.Colors.surface.opacity(0.3) :
+                            isToday && isCurrentHour ? DesignSystem.Colors.primary.opacity(0.08) :
+                            isHovered ? DesignSystem.Colors.surface.opacity(0.4) :
                             Color.clear
                         )
                         .frame(height: 60)
                         .overlay(
+                            // Horizontal divider
                             Rectangle()
                                 .frame(height: 0.5)
-                                .foregroundColor(DesignSystem.Colors.surface),
+                                .foregroundColor(DesignSystem.Colors.surface.opacity(0.6)),
                             alignment: .top
                         )
                         .overlay(
+                            // Vertical divider
                             Rectangle()
                                 .frame(width: 0.5)
-                                .foregroundColor(DesignSystem.Colors.surface.opacity(0.5)),
+                                .foregroundColor(DesignSystem.Colors.surface.opacity(0.3)),
                             alignment: .trailing
                         )
                         .contentShape(Rectangle())
@@ -1636,12 +1631,38 @@ struct WeekHourSlotView: View {
                             }
                         }
                     
-                    // Current time indicator (only for today)
+                    // Events for this time slot
+                    VStack(spacing: 2) {
+                        ForEach(dayEvents) { event in
+                            Button(action: { onEventTap(event) }) {
+                                HStack(spacing: 4) {
+                                    Text(event.title)
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(.white)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.leading)
+                                    Spacer(minLength: 0)
+                                }
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 2)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(event.category.color)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(2)
+                    
+                    // Current time indicator (red line across the current hour)
                     if isToday && isCurrentHour {
-                        HStack(spacing: DesignSystem.Spacing.xs) {
+                        HStack(spacing: 0) {
                             Circle()
                                 .fill(DesignSystem.Colors.primary)
-                                .frame(width: 6, height: 6)
+                                .frame(width: 8, height: 8)
+                                .offset(x: -4)
                             
                             Rectangle()
                                 .fill(DesignSystem.Colors.primary)
@@ -1650,64 +1671,15 @@ struct WeekHourSlotView: View {
                         .offset(y: currentTimeIndicatorPosition * 60)
                         .zIndex(10)
                     }
-                    
-                    // Events
-                    ForEach(Array(dayEvents.enumerated()), id: \.element.id) { index, event in
-                        WeekEventBlockView(
-                            event: event,
-                            onEventTap: onEventTap
-                        )
-                        .offset(x: CGFloat(index * 2)) // Slight offset for overlapping events
-                    }
                 }
                 .frame(maxWidth: .infinity)
             }
         }
         .frame(height: 60)
     }
-    
-    private func eventsForDay(_ day: Date) -> [CalendarEvent] {
-        events.filter { event in
-            Calendar.current.isDate(event.startDate, inSameDayAs: day)
-        }
-    }
 }
 
-struct WeekEventBlockView: View {
-    let event: CalendarEvent
-    let onEventTap: (CalendarEvent) -> Void
-    
-    var body: some View {
-        Button(action: { onEventTap(event) }) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(event.title)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                
-                if let location = event.location, !location.isEmpty {
-                    Text(location)
-                        .font(.system(size: 8))
-                        .foregroundColor(.white.opacity(0.8))
-                        .lineLimit(1)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
-            .background(event.category.color, in: RoundedRectangle(cornerRadius: 3))
-            .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
-        }
-        .buttonStyle(.plain)
-        .frame(height: eventHeight)
-    }
-    
-    private var eventHeight: CGFloat {
-        let duration = event.endDate.timeIntervalSince(event.startDate)
-        let hours = duration / 3600
-        return max(20, CGFloat(hours) * 60) // Minimum 20pt height for week view
-    }
-}
+
 
 struct MonthView: View {
     let date: Date
