@@ -1,534 +1,454 @@
 import SwiftUI
 import MapKit
+import Foundation
+
+// MARK: - Main Expanded Calendar View
 
 struct ExpandedCalendarView: View {
-    @State private var selectedDate = Date()
     @State private var currentTime = Date()
-    @State private var selectedWorldTimeZone: WorldTimeZone?
+    @State private var selectedDate = Date()
     @State private var viewMode: CalendarViewMode = .month
-    @State private var showingDatePicker = false
+    @State private var events: [CalendarEvent] = []
+    @State private var showingEventCreator = false
+    @State private var eventToEdit: CalendarEvent?
+    @State private var selectedTimeSlot: Date?
     
     // Timer for real-time updates
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
-    enum CalendarViewMode: String, CaseIterable {
-        case month = "Month"
-        case year = "Year"
-        
-        var icon: String {
-            switch self {
-            case .month: return "calendar"
-            case .year: return "calendar.circle"
-            }
-        }
-    }
-    
     var body: some View {
         GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // Header Section
-                headerSection
+            HStack(spacing: 0) {
+                // Sidebar with enhanced glass effect
+                sidebar
+                    .frame(width: 280)
+                    .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 0))
+                    .overlay(
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        Color.white.opacity(0.1),
+                                        Color.clear,
+                                        Color.black.opacity(0.05)
+                                    ]),
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .allowsHitTesting(false)
+                    )
                 
-                Divider()
-                    .background(DesignSystem.Colors.border)
-                
-                // Main Content
-                HStack(spacing: 0) {
-                    // Left Panel - Calendar Views
-                    leftPanel
-                        .frame(width: max(400, geometry.size.width * 0.4))
+                // Main Calendar Area with glass effect
+                VStack(spacing: 0) {
+                    // Header with glass background
+                    calendarHeader
+                        .padding(.horizontal, DesignSystem.Spacing.lg)
+                        .padding(.vertical, DesignSystem.Spacing.md)
+                        .background(.regularMaterial, in: Rectangle())
+                        .overlay(
+                            Rectangle()
+                                .fill(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            Color.white.opacity(0.15),
+                                            Color.clear
+                                        ]),
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                                .allowsHitTesting(false)
+                        )
                     
-                    Divider()
-                        .background(DesignSystem.Colors.border)
-                    
-                    // Right Panel - World Time & Details
-                    rightPanel
-                        .frame(maxWidth: .infinity)
+                    // Calendar Content with subtle glass background
+                    mainCalendarArea
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(.thinMaterial, in: Rectangle())
                 }
-                .frame(maxHeight: .infinity)
             }
         }
-        .background(Color.clear)
         .onReceive(timer) { _ in
             currentTime = Date()
         }
+        .onAppear {
+            loadSampleEvents()
+        }
+        .sheet(isPresented: $showingEventCreator) {
+            EventCreatorView(
+                events: $events,
+                initialDate: selectedTimeSlot ?? selectedDate,
+                eventToEdit: eventToEdit
+            )
+            .onDisappear {
+                eventToEdit = nil
+                selectedTimeSlot = nil
+            }
+        }
     }
     
-    // MARK: - Header Section
+    // MARK: - Sidebar
     
-    private var headerSection: some View {
+    private var sidebar: some View {
         VStack(spacing: DesignSystem.Spacing.lg) {
-            // Title and Controls
+            // Real-time Clock
+            realTimeClock
+                .padding(.top, DesignSystem.Spacing.lg)
+            
+            // Mini Calendar Navigator
+            miniCalendar
+            
+            // Quick Actions
+            quickActions
+            
+            Spacer()
+        }
+        .padding(DesignSystem.Spacing.lg)
+    }
+    
+    private var realTimeClock: some View {
+        VStack(spacing: DesignSystem.Spacing.xs) {
+            // Digital Time
+            Text(currentTime.formatted(.dateTime.hour().minute().second()))
+                .font(.system(size: 28, weight: .light, design: .monospaced))
+                .foregroundColor(DesignSystem.Colors.textPrimary)
+            
+            // Current Date
+            Text(currentTime.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                .font(DesignSystem.Typography.bodySemibold)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg))
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.white.opacity(0.4),
+                            Color.white.opacity(0.1),
+                            Color.clear
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(
+            color: Color.black.opacity(0.1),
+            radius: 8,
+            x: 0,
+            y: 4
+        )
+    }
+    
+    private var miniCalendar: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            // Mini Calendar Header
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Calendar")
-                        .font(DesignSystem.Typography.headline1)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Text(formatSelectedDate())
-                        .font(DesignSystem.Typography.body)
+                Button(action: previousMonth) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundColor(DesignSystem.Colors.textSecondary)
                 }
+                .buttonStyle(.plain)
                 
                 Spacer()
                 
-                // View Mode Selector
-                viewModeSelector
-                
-                // Today Button
-                Button(action: { selectedDate = Date() }) {
-                    HStack(spacing: DesignSystem.Spacing.xs) {
-                        Image(systemName: "clock")
-                            .font(.system(size: 14, weight: .medium))
-                        Text("Today")
-                            .font(DesignSystem.Typography.captionMedium)
-                    }
+                Text(selectedDate.formatted(.dateTime.month(.wide).year()))
+                    .font(DesignSystem.Typography.captionSemibold)
                     .foregroundColor(DesignSystem.Colors.textPrimary)
-                    .padding(.horizontal, DesignSystem.Spacing.lg)
-                    .padding(.vertical, DesignSystem.Spacing.md)
-                    .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
+                
+                Spacer()
+                
+                Button(action: nextMonth) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
                 }
                 .buttonStyle(.plain)
             }
             
-            // Current Time Display
-            currentTimeDisplay
+            // Calendar Grid
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 4) {
+                // Weekday headers
+                ForEach(Calendar.current.shortWeekdaySymbols, id: \.self) { weekday in
+                    Text(weekday)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                        .frame(height: 20)
+                }
+                
+                // Calendar days
+                ForEach(miniCalendarDays, id: \.self) { date in
+                    if let date = date {
+                        MiniCalendarDayView(
+                            date: date,
+                            selectedDate: selectedDate,
+                            currentDate: currentTime,
+                            hasEvents: hasEvents(on: date)
+                        ) {
+                            selectedDate = date
+                        }
+                    } else {
+                        Text("")
+                            .frame(height: 24)
+                    }
+                }
+            }
         }
-        .padding(.horizontal, DesignSystem.Spacing.xxl)
-        .padding(.vertical, DesignSystem.Spacing.xl)
+        .padding(DesignSystem.Spacing.md)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg))
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.white.opacity(0.3),
+                            Color.white.opacity(0.1),
+                            Color.clear
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(
+            color: Color.black.opacity(0.08),
+            radius: 6,
+            x: 0,
+            y: 3
+        )
+    }
+    
+    private var quickActions: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            // Today Button with glass effect
+            Button(action: goToToday) {
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Image(systemName: "calendar.circle.fill")
+                        .font(.system(size: 16))
+                    Text("Today")
+                        .font(DesignSystem.Typography.captionSemibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 36)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            DesignSystem.Colors.primary,
+                            DesignSystem.Colors.primary.opacity(0.8)
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    in: RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
+                .shadow(
+                    color: DesignSystem.Colors.primary.opacity(0.3),
+                    radius: 4,
+                    x: 0,
+                    y: 2
+                )
+            }
+            .buttonStyle(.plain)
+            
+            // New Event Button with glass effect
+            Button(action: createNewEvent) {
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 16))
+                    Text("New Event")
+                        .font(DesignSystem.Typography.captionSemibold)
+                }
+                .foregroundColor(DesignSystem.Colors.textPrimary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 36)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                        .stroke(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.white.opacity(0.2),
+                                    Color.clear
+                                ]),
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 1
+                        )
+                )
+                .shadow(
+                    color: Color.black.opacity(0.05),
+                    radius: 3,
+                    x: 0,
+                    y: 1
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+    
+    // MARK: - Calendar Header
+    
+    private var calendarHeader: some View {
+        HStack {
+            // View Mode Selector
+            viewModeSelector
+            
+            Spacer()
+            
+            // Navigation
+            navigationControls
+        }
     }
     
     private var viewModeSelector: some View {
         HStack(spacing: DesignSystem.Spacing.xs) {
             ForEach(CalendarViewMode.allCases, id: \.self) { mode in
                 Button(action: {
-                    withAnimation(DesignSystem.Animation.gentle) {
+                    withAnimation(.easeInOut(duration: 0.3)) {
                         viewMode = mode
                     }
                 }) {
-                    HStack(spacing: DesignSystem.Spacing.xs) {
-                        Image(systemName: mode.icon)
-                            .font(.system(size: 12, weight: .medium))
-                        Text(mode.rawValue)
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                    .foregroundColor(viewMode == mode ? .white : DesignSystem.Colors.textSecondary)
-                    .padding(.horizontal, DesignSystem.Spacing.md)
-                    .padding(.vertical, DesignSystem.Spacing.sm)
-                    .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                            .fill(viewMode == mode ? DesignSystem.Colors.primary : Color.clear)
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(DesignSystem.Spacing.xs)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                        .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                )
-        )
-    }
-    
-    private var currentTimeDisplay: some View {
-        HStack(spacing: DesignSystem.Spacing.lg) {
-            // Local Time
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Local Time")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.textTertiary)
-                    .textCase(.uppercase)
-                
-                Text(formatTimeWithSeconds(currentTime))
-                    .font(.system(size: 32, weight: .light, design: .monospaced))
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-            }
-            
-            Spacer()
-            
-            // Date Info
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(formatFullDate(selectedDate))
-                    .font(DesignSystem.Typography.headline3)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                Text(formatWeekday(selectedDate))
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.textTertiary)
-                    .textCase(.uppercase)
-            }
-        }
-    }
-    
-    // MARK: - Left Panel
-    
-    private var leftPanel: some View {
-        VStack(spacing: 0) {
-            // Calendar Navigation
-            calendarNavigation
-            
-            Divider()
-                .background(DesignSystem.Colors.border)
-            
-            // Calendar Content
-            ScrollView {
-                VStack(spacing: DesignSystem.Spacing.xl) {
-                    switch viewMode {
-                    case .month:
-                        monthCalendarView
-                    case .year:
-                        yearCalendarView
-                    }
-                }
-                .padding(DesignSystem.Spacing.xl)
-            }
-        }
-        .background(.ultraThinMaterial)
-    }
-    
-    private var calendarNavigation: some View {
-        HStack {
-            Button(action: previousPeriod) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                    .frame(width: 32, height: 32)
-                    .background(
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                Circle()
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-            }
-            .buttonStyle(.plain)
-            
-            Spacer()
-            
-            // Clickable Date Title
-            Button(action: {
-                showingDatePicker = true
-            }) {
-                HStack(spacing: DesignSystem.Spacing.xs) {
-                    Text(navigationTitle)
-                        .font(DesignSystem.Typography.headline2)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Image(systemName: "calendar")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
-                }
-            }
-            .buttonStyle(.plain)
-            
-            Spacer()
-            
-            // Today Button
-            Button(action: goToToday) {
-                HStack(spacing: DesignSystem.Spacing.xs) {
-                    Image(systemName: "calendar.circle.fill")
-                        .font(.system(size: 14, weight: .medium))
-                    Text("Today")
+                    Text(mode.title)
                         .font(.system(size: 12, weight: .medium))
-                }
-                .foregroundColor(DesignSystem.Colors.primary)
-                .padding(.horizontal, DesignSystem.Spacing.md)
-                .padding(.vertical, DesignSystem.Spacing.sm)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                        .fill(DesignSystem.Colors.primary.opacity(0.1))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                                .stroke(DesignSystem.Colors.primary.opacity(0.3), lineWidth: 1)
+                        .foregroundColor(viewMode == mode ? .white : DesignSystem.Colors.textSecondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(viewMode == mode ? DesignSystem.Colors.primary : Color.clear)
                         )
-                )
-            }
-            .buttonStyle(.plain)
-            
-            Button(action: nextPeriod) {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                    .frame(width: 32, height: 32)
-                    .background(
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                Circle()
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(DesignSystem.Spacing.xl)
-        .sheet(isPresented: $showingDatePicker) {
-            DatePickerSheet(selectedDate: $selectedDate)
-        }
-    }
-    
-    private var monthCalendarView: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            // Weekday headers
-            HStack {
-                ForEach(["S", "M", "T", "W", "T", "F", "S"], id: \.self) { day in
-                    Text(day)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.textTertiary)
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            
-            // Calendar grid
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: DesignSystem.Spacing.sm) {
-                ForEach(daysInMonth, id: \.self) { date in
-                    if let date = date {
-                        ExpandedCalendarDayView(
-                            date: date,
-                            isSelected: Calendar.current.isDate(date, inSameDayAs: selectedDate),
-                            isToday: Calendar.current.isDate(date, inSameDayAs: Date()),
-                            isCurrentMonth: Calendar.current.isDate(date, equalTo: selectedDate, toGranularity: .month)
-                        ) {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedDate = date
-                            }
-                        }
-                    } else {
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(height: 40)
-                    }
-                }
-            }
-        }
-    }
-    
-    private var yearCalendarView: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: DesignSystem.Spacing.lg) {
-            ForEach(1...12, id: \.self) { month in
-                YearCalendarMonthView(
-                    month: month,
-                    year: Calendar.current.component(.year, from: selectedDate),
-                    selectedDate: $selectedDate
-                )
-            }
-        }
-    }
-    
-    // MARK: - Right Panel
-    
-    private var rightPanel: some View {
-        VStack(spacing: 0) {
-            // World Time Header
-            worldTimeHeader
-            
-            Divider()
-                .background(DesignSystem.Colors.border)
-            
-            // World Map
-            worldMapSection
-            
-            // Selected Time Zone Info
-            if let selectedTimeZone = selectedWorldTimeZone {
-                Divider()
-                    .background(DesignSystem.Colors.border)
-                
-                selectedTimeZoneInfo(selectedTimeZone)
-                    .padding(DesignSystem.Spacing.xl)
-            }
-        }
-        .background(.ultraThinMaterial)
-    }
-    
-    private var worldTimeHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("World Time")
-                    .font(DesignSystem.Typography.headline2)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                Text("Tap cities to explore time zones")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-            }
-            
-            Spacer()
-            
-            if selectedWorldTimeZone != nil {
-                Button(action: {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        selectedWorldTimeZone = nil
-                    }
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(DesignSystem.Colors.textTertiary)
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(DesignSystem.Spacing.xl)
-    }
-    
-    private var worldMapSection: some View {
-        WorldMapView(
-            selectedTimeZone: $selectedWorldTimeZone,
-            currentTime: currentTime
-        )
-        .frame(maxHeight: .infinity)
-        .cornerRadius(DesignSystem.BorderRadius.lg)
-        .padding(.horizontal, DesignSystem.Spacing.xl)
-        .padding(.bottom, DesignSystem.Spacing.xl)
-    }
-    
-    private func selectedTimeZoneInfo(_ timeZone: WorldTimeZone) -> some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            HStack {
-                Image(systemName: "location.fill")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(timeZone.color)
-                
-                Text(timeZone.name)
-                    .font(DesignSystem.Typography.headline3)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                Spacer()
-            }
-            
-            VStack(spacing: DesignSystem.Spacing.md) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Current Time")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(DesignSystem.Colors.textTertiary)
-                            .textCase(.uppercase)
-                        
-                        Text(formatTimeWithSecondsForTimeZone(currentTime, in: timeZone.timeZone))
-                            .font(.system(size: 28, weight: .light, design: .monospaced))
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                    }
-                    
-                    Spacer()
-                    
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text(isDaytimeInTimeZone(timeZone) ? "Daytime" : "Nighttime")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(isDaytimeInTimeZone(timeZone) ? .orange : .purple)
-                            .padding(.horizontal, DesignSystem.Spacing.sm)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule()
-                                    .fill((isDaytimeInTimeZone(timeZone) ? Color.orange : Color.purple).opacity(0.2))
-                            )
-                        
-                        Text(offsetFormatterForTimeZone(timeZone))
-                            .font(.system(size: 11))
-                            .foregroundColor(DesignSystem.Colors.textTertiary)
-                    }
-                }
-                
-                Divider()
-                    .background(DesignSystem.Colors.border)
-                
-                // Additional time zone info
-                VStack(spacing: DesignSystem.Spacing.sm) {
-                    infoRow("Date", formatFullDate(currentTime, timeZone: timeZone.timeZone))
-                    infoRow("Day of Week", formatWeekday(currentTime, timeZone: timeZone.timeZone))
-                    infoRow("Time Zone", timeZone.identifier)
-                }
-            }
-        }
-        .padding(DesignSystem.Spacing.lg)
+        .padding(4)
         .background(
-            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                .fill(timeZone.color.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
-                        .stroke(timeZone.color.opacity(0.3), lineWidth: 1)
-                )
+            RoundedRectangle(cornerRadius: 12)
+                .fill(DesignSystem.Colors.surface.opacity(0.5))
         )
     }
     
-    private func infoRow(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(DesignSystem.Colors.textSecondary)
-            
-            Spacer()
-            
-            Text(value)
-                .font(.system(size: 12))
+    private var navigationControls: some View {
+        HStack(spacing: DesignSystem.Spacing.md) {
+            // Period Title
+            Text(periodTitle)
+                .font(DesignSystem.Typography.headline2)
                 .foregroundColor(DesignSystem.Colors.textPrimary)
+            
+            // Navigation Buttons
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                Button(action: previousPeriod) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            Circle()
+                                .fill(DesignSystem.Colors.surface.opacity(0.5))
+                        )
+                }
+                .buttonStyle(.plain)
+                
+                Button(action: nextPeriod) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            Circle()
+                                .fill(DesignSystem.Colors.surface.opacity(0.5))
+                        )
+                }
+                .buttonStyle(.plain)
+            }
         }
+    }
+    
+    // MARK: - Main Calendar Area
+    
+    private var mainCalendarArea: some View {
+        Group {
+            switch viewMode {
+            case .day:
+                DayView(
+                    date: selectedDate,
+                    events: eventsForDate(selectedDate),
+                    currentTime: currentTime,
+                    onTimeSlotTap: handleTimeSlotTap,
+                    onEventTap: handleEventTap
+                )
+            case .week:
+                WeekView(
+                    startDate: startOfWeek(selectedDate),
+                    events: eventsForWeek(selectedDate),
+                    currentTime: currentTime,
+                    onTimeSlotTap: handleTimeSlotTap,
+                    onEventTap: handleEventTap
+                )
+            case .month:
+                MonthView(
+                    date: selectedDate,
+                    events: events,
+                    currentTime: currentTime,
+                    onDateTap: handleDateTap,
+                    onEventTap: handleEventTap
+                )
+            case .year:
+                YearView(
+                    year: Calendar.current.component(.year, from: selectedDate),
+                    events: events,
+                    selectedDate: $selectedDate,
+                    onDateTap: handleDateTap
+                )
+            case .agenda:
+                AgendaView(
+                    events: upcomingEvents,
+                    onEventTap: handleEventTap
+                )
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: viewMode)
     }
     
     // MARK: - Helper Functions
     
-    private func formatSelectedDate() -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        return formatter.string(from: selectedDate)
-    }
-    
-    private func formatTimeWithSeconds(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .medium
-        return formatter.string(from: date)
-    }
-    
-    private func formatTimeWithSecondsForTimeZone(_ date: Date, in timeZone: TimeZone?) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .medium
-        formatter.timeZone = timeZone ?? TimeZone.current
-        return formatter.string(from: date)
-    }
-    
-    private func formatFullDate(_ date: Date, timeZone: TimeZone? = nil) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .long
-        formatter.timeZone = timeZone ?? TimeZone.current
-        return formatter.string(from: date)
-    }
-    
-    private func formatWeekday(_ date: Date, timeZone: TimeZone? = nil) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE"
-        formatter.timeZone = timeZone ?? TimeZone.current
-        return formatter.string(from: date)
-    }
-    
-    private var navigationTitle: String {
-        let formatter = DateFormatter()
-        switch viewMode {
-        case .month:
-            formatter.dateFormat = "MMMM yyyy"
-        case .year:
-            formatter.dateFormat = "yyyy"
+    private func previousMonth() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            selectedDate = Calendar.current.date(byAdding: .month, value: -1, to: selectedDate) ?? selectedDate
         }
-        return formatter.string(from: selectedDate)
+    }
+    
+    private func nextMonth() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            selectedDate = Calendar.current.date(byAdding: .month, value: 1, to: selectedDate) ?? selectedDate
+        }
     }
     
     private func previousPeriod() {
         withAnimation(.easeInOut(duration: 0.3)) {
             let calendar = Calendar.current
             switch viewMode {
+            case .day:
+                selectedDate = calendar.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
+            case .week:
+                selectedDate = calendar.date(byAdding: .weekOfYear, value: -1, to: selectedDate) ?? selectedDate
             case .month:
                 selectedDate = calendar.date(byAdding: .month, value: -1, to: selectedDate) ?? selectedDate
             case .year:
                 selectedDate = calendar.date(byAdding: .year, value: -1, to: selectedDate) ?? selectedDate
+            case .agenda:
+                selectedDate = calendar.date(byAdding: .month, value: -1, to: selectedDate) ?? selectedDate
             }
         }
     }
@@ -537,10 +457,16 @@ struct ExpandedCalendarView: View {
         withAnimation(.easeInOut(duration: 0.3)) {
             let calendar = Calendar.current
             switch viewMode {
+            case .day:
+                selectedDate = calendar.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
+            case .week:
+                selectedDate = calendar.date(byAdding: .weekOfYear, value: 1, to: selectedDate) ?? selectedDate
             case .month:
                 selectedDate = calendar.date(byAdding: .month, value: 1, to: selectedDate) ?? selectedDate
             case .year:
                 selectedDate = calendar.date(byAdding: .year, value: 1, to: selectedDate) ?? selectedDate
+            case .agenda:
+                selectedDate = calendar.date(byAdding: .month, value: 1, to: selectedDate) ?? selectedDate
             }
         }
     }
@@ -551,21 +477,45 @@ struct ExpandedCalendarView: View {
         }
     }
     
-    private var daysInMonth: [Date?] {
+    private func createNewEvent() {
+        selectedTimeSlot = selectedDate
+        showingEventCreator = true
+    }
+    
+    private func handleTimeSlotTap(date: Date) {
+        selectedTimeSlot = date
+        showingEventCreator = true
+    }
+    
+    private func handleEventTap(event: CalendarEvent) {
+        eventToEdit = event
+        showingEventCreator = true
+    }
+    
+    private func handleDateTap(date: Date) {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            selectedDate = date
+            viewMode = .day
+        }
+    }
+    
+    // MARK: - Data Helpers
+    
+    private var miniCalendarDays: [Date?] {
         let calendar = Calendar.current
-        let startOfMonth = calendar.dateInterval(of: .month, for: selectedDate)?.start ?? selectedDate
-        let range = calendar.range(of: .day, in: .month, for: selectedDate) ?? 1..<32
-        
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedDate))!
         let firstWeekday = calendar.component(.weekday, from: startOfMonth)
-        let numberOfDays = range.count
+        let daysInMonth = calendar.range(of: .day, in: .month, for: startOfMonth)?.count ?? 0
         
         var days: [Date?] = []
         
+        // Empty cells for days before the first day of the month
         for _ in 1..<firstWeekday {
             days.append(nil)
         }
         
-        for day in 1...numberOfDays {
+        // Days of the month
+        for day in 1...daysInMonth {
             if let date = calendar.date(byAdding: .day, value: day - 1, to: startOfMonth) {
                 days.append(date)
             }
@@ -574,237 +524,495 @@ struct ExpandedCalendarView: View {
         return days
     }
     
-    private func isDaytimeInTimeZone(_ timeZone: WorldTimeZone) -> Bool {
-        guard let tz = timeZone.timeZone else { return true }
-        let calendar = Calendar.current
-        let components = calendar.dateComponents(in: tz, from: currentTime)
-        let hour = components.hour ?? 12
-        return hour >= 6 && hour < 18
+    private var periodTitle: String {
+        let formatter = DateFormatter()
+        switch viewMode {
+        case .day:
+            formatter.dateFormat = "EEEE, MMMM d, yyyy"
+        case .week:
+            let startWeek = startOfWeek(selectedDate)
+            let endWeek = Calendar.current.date(byAdding: .day, value: 6, to: startWeek)!
+            return "\(startWeek.formatted(.dateTime.month().day())) - \(endWeek.formatted(.dateTime.month().day().year()))"
+        case .month:
+            formatter.dateFormat = "MMMM yyyy"
+        case .year:
+            formatter.dateFormat = "yyyy"
+        case .agenda:
+            return "Upcoming Events"
+        }
+        return formatter.string(from: selectedDate)
     }
     
-    private func offsetFormatterForTimeZone(_ timeZone: WorldTimeZone) -> String {
-        guard let tz = timeZone.timeZone else { return "" }
-        let offset = tz.secondsFromGMT() / 3600
-        let sign = offset >= 0 ? "+" : ""
-        return "GMT\(sign)\(offset)"
+    private func hasEvents(on date: Date) -> Bool {
+        let calendar = Calendar.current
+        return events.contains { event in
+            calendar.isDate(event.startDate, inSameDayAs: date)
+        }
+    }
+    
+    private func eventsForDate(_ date: Date) -> [CalendarEvent] {
+        let calendar = Calendar.current
+        return events.filter { event in
+            calendar.isDate(event.startDate, inSameDayAs: date)
+        }.sorted { $0.startDate < $1.startDate }
+    }
+    
+    private func eventsForWeek(_ date: Date) -> [CalendarEvent] {
+        let startWeek = startOfWeek(date)
+        let endWeek = Calendar.current.date(byAdding: .day, value: 6, to: startWeek)!
+        
+        return events.filter { event in
+            event.startDate >= startWeek && event.startDate <= endWeek
+        }.sorted { $0.startDate < $1.startDate }
+    }
+    
+    private var upcomingEvents: [CalendarEvent] {
+        let now = Date()
+        return events.filter { event in
+            event.startDate >= now
+        }.sorted { $0.startDate < $1.startDate }
+    }
+    
+    private func startOfWeek(_ date: Date) -> Date {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+        return calendar.date(from: components) ?? date
+    }
+    
+    private func loadSampleEvents() {
+        // Sample events for demonstration
+        let calendar = Calendar.current
+        let today = Date()
+        
+        events = [
+            CalendarEvent(
+                id: UUID(),
+                title: "Team Standup",
+                startDate: calendar.date(byAdding: .hour, value: 2, to: today)!,
+                endDate: calendar.date(byAdding: .hour, value: 3, to: today)!,
+                category: .work,
+                location: "Conference Room A"
+            ),
+            CalendarEvent(
+                id: UUID(),
+                title: "Lunch with Sarah",
+                startDate: calendar.date(byAdding: .day, value: 1, to: today)!,
+                endDate: calendar.date(byAdding: .day, value: 1, to: calendar.date(byAdding: .hour, value: 1, to: today)!)!,
+                category: .personal,
+                location: "Downtown Cafe"
+            ),
+            CalendarEvent(
+                id: UUID(),
+                title: "Product Review",
+                startDate: calendar.date(byAdding: .day, value: 2, to: today)!,
+                endDate: calendar.date(byAdding: .day, value: 2, to: calendar.date(byAdding: .hour, value: 2, to: today)!)!,
+                category: .work,
+                location: "Zoom"
+            )
+        ]
     }
 }
 
-// MARK: - Expanded Calendar Day View
+// MARK: - Supporting Types
 
-struct ExpandedCalendarDayView: View {
+enum CalendarViewMode: String, CaseIterable {
+    case day = "Day"
+    case week = "Week"
+    case month = "Month"
+    case year = "Year"
+    case agenda = "Agenda"
+    
+    var title: String {
+        return self.rawValue
+    }
+}
+
+struct CalendarEvent: Identifiable, Codable {
+    let id: UUID
+    var title: String
+    var startDate: Date
+    var endDate: Date
+    var category: EventCategory
+    var location: String?
+    var notes: String?
+    var isAllDay: Bool = false
+    
+    init(id: UUID = UUID(), title: String, startDate: Date, endDate: Date, category: EventCategory, location: String? = nil, notes: String? = nil, isAllDay: Bool = false) {
+        self.id = id
+        self.title = title
+        self.startDate = startDate
+        self.endDate = endDate
+        self.category = category
+        self.location = location
+        self.notes = notes
+        self.isAllDay = isAllDay
+    }
+}
+
+enum EventCategory: String, CaseIterable, Codable {
+    case work = "Work"
+    case personal = "Personal"
+    case health = "Health"
+    case travel = "Travel"
+    case social = "Social"
+    
+    var color: Color {
+        switch self {
+        case .work: return .blue
+        case .personal: return .green
+        case .health: return .red
+        case .travel: return .orange
+        case .social: return .purple
+        }
+    }
+}
+
+// MARK: - Mini Calendar Day View
+
+struct MiniCalendarDayView: View {
     let date: Date
-    let isSelected: Bool
-    let isToday: Bool
-    let isCurrentMonth: Bool
-    let action: () -> Void
+    let selectedDate: Date
+    let currentDate: Date
+    let hasEvents: Bool
+    let onTap: () -> Void
+    
+    private var isSelected: Bool {
+        Calendar.current.isDate(date, inSameDayAs: selectedDate)
+    }
+    
+    private var isToday: Bool {
+        Calendar.current.isDate(date, inSameDayAs: currentDate)
+    }
     
     var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Text("\(Calendar.current.component(.day, from: date))")
-                    .font(.system(size: 16, weight: isToday ? .semibold : .medium))
-                    .foregroundColor(
-                        isSelected ? .white :
-                        isToday ? .orange :
-                        isCurrentMonth ? DesignSystem.Colors.textPrimary : DesignSystem.Colors.textTertiary
-                    )
+        Button(action: onTap) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isSelected ? DesignSystem.Colors.primary : (isToday ? DesignSystem.Colors.primary.opacity(0.2) : Color.clear))
                 
-                // Event indicator dots (placeholder)
-                HStack(spacing: 2) {
-                    if isToday && !isSelected {
+                VStack(spacing: 2) {
+                    Text("\(Calendar.current.component(.day, from: date))")
+                        .font(.system(size: 12, weight: isToday ? .semibold : .regular))
+                        .foregroundColor(isSelected ? .white : (isToday ? DesignSystem.Colors.primary : DesignSystem.Colors.textPrimary))
+                    
+                    if hasEvents {
                         Circle()
-                            .fill(.orange)
+                            .fill(isSelected ? .white : DesignSystem.Colors.primary)
                             .frame(width: 4, height: 4)
                     }
                 }
-                .frame(height: 4)
             }
-            .frame(height: 40)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                    .fill(
-                        isSelected ? .orange :
-                        isToday ? .orange.opacity(0.1) : 
-                        Color.clear
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                    .stroke(
-                        isToday && !isSelected ? .orange.opacity(0.5) : .clear, 
-                        lineWidth: 1
-                    )
-            )
         }
         .buttonStyle(.plain)
-        .scaleEffect(isSelected ? 1.05 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
+        .frame(height: 24)
     }
 }
 
-// MARK: - Date Picker Sheet
+// MARK: - Event Creator View (Placeholder)
 
-struct DatePickerSheet: View {
-    @Binding var selectedDate: Date
+struct EventCreatorView: View {
+    @Binding var events: [CalendarEvent]
+    let initialDate: Date
+    let eventToEdit: CalendarEvent?
     @Environment(\.dismiss) private var dismiss
-    @State private var tempDate: Date
     
-    init(selectedDate: Binding<Date>) {
-        self._selectedDate = selectedDate
-        self._tempDate = State(initialValue: selectedDate.wrappedValue)
-    }
+    @State private var title = ""
+    @State private var startDate = Date()
+    @State private var endDate = Date()
+    @State private var category: EventCategory = .work
+    @State private var location = ""
+    @State private var notes = ""
     
     var body: some View {
-        VStack(spacing: DesignSystem.Spacing.xl) {
+        VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Select Date")
+                Button("Cancel") { 
+                    dismiss() 
+                }
+                .buttonStyle(.bordered)
+                
+                Spacer()
+                
+                Text(eventToEdit == nil ? "New Event" : "Edit Event")
                     .font(DesignSystem.Typography.headline2)
                     .foregroundColor(DesignSystem.Colors.textPrimary)
                 
                 Spacer()
                 
-                Button("Done") {
-                    selectedDate = tempDate
-                    dismiss()
+                Button("Save") { 
+                    saveEvent() 
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(title.isEmpty)
             }
-            
-            // Date Picker
-            DatePicker(
-                "Select Date",
-                selection: $tempDate,
-                displayedComponents: [.date]
+            .padding(DesignSystem.Spacing.lg)
+            .background(.regularMaterial, in: Rectangle())
+            .overlay(
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.white.opacity(0.1),
+                                Color.clear
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .allowsHitTesting(false)
             )
-            .datePickerStyle(.graphical)
-            .frame(maxWidth: 400)
             
-            // Quick Actions
-            HStack(spacing: DesignSystem.Spacing.md) {
-                Button("Today") {
-                    tempDate = Date()
+            // Content
+            ScrollView {
+                VStack(spacing: DesignSystem.Spacing.lg) {
+                    // Title
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        Text("Event Title")
+                            .font(DesignSystem.Typography.captionSemibold)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        TextField("Enter event title", text: $title)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    
+                    // Date & Time
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                        Text("Date & Time")
+                            .font(DesignSystem.Typography.captionSemibold)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        
+                        HStack(spacing: DesignSystem.Spacing.md) {
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                                Text("Start")
+                                    .font(DesignSystem.Typography.caption)
+                                    .foregroundColor(DesignSystem.Colors.textTertiary)
+                                DatePicker("", selection: $startDate)
+                                    .datePickerStyle(.compact)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                                Text("End")
+                                    .font(DesignSystem.Typography.caption)
+                                    .foregroundColor(DesignSystem.Colors.textTertiary)
+                                DatePicker("", selection: $endDate)
+                                    .datePickerStyle(.compact)
+                            }
+                        }
+                    }
+                    
+                    // Category
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        Text("Category")
+                            .font(DesignSystem.Typography.captionSemibold)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        Picker("Category", selection: $category) {
+                            ForEach(EventCategory.allCases, id: \.self) { category in
+                                HStack {
+                                    Circle()
+                                        .fill(category.color)
+                                        .frame(width: 12, height: 12)
+                                    Text(category.rawValue)
+                                }.tag(category)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+                    
+                    // Location
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        Text("Location")
+                            .font(DesignSystem.Typography.captionSemibold)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        TextField("Enter location (optional)", text: $location)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    
+                    // Notes
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        Text("Notes")
+                            .font(DesignSystem.Typography.captionSemibold)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        TextField("Enter notes (optional)", text: $notes, axis: .vertical)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(minHeight: 60)
+                    }
                 }
-                .buttonStyle(.bordered)
-                
-                Button("Cancel") {
-                    dismiss()
-                }
-                .buttonStyle(.bordered)
+                .padding(DesignSystem.Spacing.lg)
             }
         }
-        .padding(DesignSystem.Spacing.xl)
-        .frame(minWidth: 450, minHeight: 450)
-        .background(.regularMaterial)
+        .frame(minWidth: 450, minHeight: 500)
+        .onAppear {
+            setupInitialValues()
+        }
+    }
+    
+    private func setupInitialValues() {
+        if let event = eventToEdit {
+            title = event.title
+            startDate = event.startDate
+            endDate = event.endDate
+            category = event.category
+            location = event.location ?? ""
+            notes = event.notes ?? ""
+        } else {
+            startDate = initialDate
+            endDate = Calendar.current.date(byAdding: .hour, value: 1, to: initialDate) ?? initialDate
+        }
+    }
+    
+    private func saveEvent() {
+        let event = CalendarEvent(
+            id: eventToEdit?.id ?? UUID(),
+            title: title,
+            startDate: startDate,
+            endDate: endDate,
+            category: category,
+            location: location.isEmpty ? nil : location,
+            notes: notes.isEmpty ? nil : notes
+        )
+        
+        if let editIndex = events.firstIndex(where: { $0.id == eventToEdit?.id }) {
+            events[editIndex] = event
+        } else {
+            events.append(event)
+        }
+        
+        dismiss()
     }
 }
 
-// MARK: - Year Calendar Month View
+// MARK: - Calendar View Components (Placeholders for now)
 
-struct YearCalendarMonthView: View {
-    let month: Int
-    let year: Int
-    @Binding var selectedDate: Date
-    
-    private var monthName: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        let date = Calendar.current.date(from: DateComponents(year: year, month: month)) ?? Date()
-        return formatter.string(from: date)
-    }
-    
-    private var monthDate: Date {
-        Calendar.current.date(from: DateComponents(year: year, month: month)) ?? Date()
-    }
-    
-    private var daysInMonth: [Date?] {
-        let calendar = Calendar.current
-        let startOfMonth = calendar.date(from: DateComponents(year: year, month: month)) ?? Date()
-        let range = calendar.range(of: .day, in: .month, for: startOfMonth) ?? 1..<32
-        
-        let firstWeekday = calendar.component(.weekday, from: startOfMonth)
-        let numberOfDays = range.count
-        
-        var days: [Date?] = []
-        
-        // Empty cells for days before month starts
-        for _ in 1..<firstWeekday {
-            days.append(nil)
-        }
-        
-        // Actual days of the month
-        for day in 1...numberOfDays {
-            if let date = calendar.date(byAdding: .day, value: day - 1, to: startOfMonth) {
-                days.append(date)
-            }
-        }
-        
-        return days
-    }
+struct DayView: View {
+    let date: Date
+    let events: [CalendarEvent]
+    let currentTime: Date
+    let onTimeSlotTap: (Date) -> Void
+    let onEventTap: (CalendarEvent) -> Void
     
     var body: some View {
-        VStack(spacing: DesignSystem.Spacing.sm) {
-            // Month header
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    selectedDate = monthDate
-                }
-            }) {
-                Text(monthName.uppercased())
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.plain)
-            
-            // Mini calendar grid
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 2) {
-                ForEach(Array(daysInMonth.enumerated()), id: \.offset) { index, date in
-                    if let date = date {
-                        let isToday = Calendar.current.isDate(date, inSameDayAs: Date())
-                        let isSelected = Calendar.current.isDate(date, inSameDayAs: selectedDate)
-                        
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedDate = date
+        ScrollView {
+            VStack {
+                Text("Day View - \(date.formatted(.dateTime.weekday().month().day()))")
+                    .font(DesignSystem.Typography.headline3)
+                    .padding()
+                
+                ForEach(events) { event in
+                    Button(action: { onEventTap(event) }) {
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(event.title)
+                                    .font(DesignSystem.Typography.bodySemibold)
+                                Text(event.startDate.formatted(.dateTime.hour().minute()))
+                                    .font(DesignSystem.Typography.caption)
                             }
-                        }) {
-                            Text("\(Calendar.current.component(.day, from: date))")
-                                .font(.system(size: 10, weight: isToday ? .semibold : .regular))
-                                .foregroundColor(
-                                    isSelected ? .white :
-                                    isToday ? .orange :
-                                    DesignSystem.Colors.textPrimary
-                                )
-                                .frame(width: 16, height: 16)
-                                .background(
-                                    Circle()
-                                        .fill(
-                                            isSelected ? .orange :
-                                            isToday ? .orange.opacity(0.2) :
-                                            Color.clear
-                                        )
-                                )
+                            Spacer()
                         }
-                        .buttonStyle(.plain)
-                    } else {
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(width: 16, height: 16)
+                        .padding()
+                        .background(event.category.color.opacity(0.2))
+                        .cornerRadius(8)
                     }
+                    .buttonStyle(.plain)
                 }
             }
+            .padding()
         }
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.md)
-                        .stroke(DesignSystem.Colors.border.opacity(0.5), lineWidth: 1)
-                )
-        )
+    }
+}
+
+struct WeekView: View {
+    let startDate: Date
+    let events: [CalendarEvent]
+    let currentTime: Date
+    let onTimeSlotTap: (Date) -> Void
+    let onEventTap: (CalendarEvent) -> Void
+    
+    var body: some View {
+        ScrollView {
+            Text("Week View - Week of \(startDate.formatted(.dateTime.month().day()))")
+                .font(DesignSystem.Typography.headline3)
+                .padding()
+        }
+    }
+}
+
+struct MonthView: View {
+    let date: Date
+    let events: [CalendarEvent]
+    let currentTime: Date
+    let onDateTap: (Date) -> Void
+    let onEventTap: (CalendarEvent) -> Void
+    
+    var body: some View {
+        ScrollView {
+            Text("Month View - \(date.formatted(.dateTime.month().year()))")
+                .font(DesignSystem.Typography.headline3)
+                .padding()
+        }
+    }
+}
+
+struct YearView: View {
+    let year: Int
+    let events: [CalendarEvent]
+    @Binding var selectedDate: Date
+    let onDateTap: (Date) -> Void
+    
+    var body: some View {
+        ScrollView {
+            Text("Year View - \(year)")
+                .font(DesignSystem.Typography.headline3)
+                .padding()
+        }
+    }
+}
+
+struct AgendaView: View {
+    let events: [CalendarEvent]
+    let onEventTap: (CalendarEvent) -> Void
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                Text("Upcoming Events")
+                    .font(DesignSystem.Typography.headline3)
+                    .padding(.horizontal)
+                
+                ForEach(events.prefix(20)) { event in
+                    Button(action: { onEventTap(event) }) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(event.title)
+                                    .font(DesignSystem.Typography.bodySemibold)
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                                
+                                Text(event.startDate.formatted(.dateTime.weekday().month().day().hour().minute()))
+                                    .font(DesignSystem.Typography.caption)
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                
+                                if let location = event.location {
+                                    Text(location)
+                                        .font(DesignSystem.Typography.caption)
+                                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            Circle()
+                                .fill(event.category.color)
+                                .frame(width: 12, height: 12)
+                        }
+                        .padding(DesignSystem.Spacing.md)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.lg)
+                                .fill(DesignSystem.Colors.surface.opacity(0.3))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding()
+        }
     }
 }

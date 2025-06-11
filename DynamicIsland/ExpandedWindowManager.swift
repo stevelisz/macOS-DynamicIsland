@@ -164,12 +164,21 @@ class ExpandedWindowManager: ObservableObject {
             defer: false
         )
         
+        // Glass window setup
         window.title = title
-        window.titlebarAppearsTransparent = false
-        window.titleVisibility = .visible
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
         window.minSize = minSize
         window.center()
+        
+        // Glass effect styling
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = true
+        
+        // Enhanced shadow for glass effect
+        window.invalidateShadow()
         
         // Start at floating level to pop up on top of everything
         window.level = .floating
@@ -178,15 +187,14 @@ class ExpandedWindowManager: ObservableObject {
         let delegate = ExpandedWindowDelegate()
         window.delegate = delegate
         
-        // Create hosting view with custom background
+        // Create hosting view with glass background
         let hostingView = NSHostingView(rootView: 
-            ExpandedWindowContainer {
+            GlassExpandedWindowContainer {
                 contentView
             }
         )
         
         window.contentView = hostingView
-        window.backgroundColor = NSColor.controlBackgroundColor
         
         // Add window controller for proper memory management
         let windowController = NSWindowController(window: window)
@@ -267,5 +275,61 @@ struct ExpandedWindowContainer<Content: View>: View {
                 content
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(NSColor.controlBackgroundColor))
+    }
+}
+
+struct GlassExpandedWindowContainer<Content: View>: View {
+    let content: Content
+    
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+    
+    var body: some View {
+        ZStack {
+            // Glass background effect - non-interactive
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.white.opacity(0.2),
+                            Color.white.opacity(0.1),
+                            Color.black.opacity(0.05)
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    // Subtle border for glass effect
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.white.opacity(0.3),
+                                    Color.white.opacity(0.1),
+                                    Color.clear
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .shadow(
+                    color: Color.black.opacity(0.2),
+                    radius: 20,
+                    x: 0,
+                    y: 8
+                )
+                .allowsHitTesting(false) // This prevents the background from blocking interactions
+            
+            // Content with padding to ensure it doesn't touch edges
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(8)
+        }
     }
 } 
