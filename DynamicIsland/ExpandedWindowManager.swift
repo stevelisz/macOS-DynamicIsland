@@ -7,6 +7,7 @@ class ExpandedWindowManager: ObservableObject {
     private var clipboardWindow: NSWindow?
     private var aiAssistantWindow: NSWindow?
     private var devToolsWindow: NSWindow?
+    private var calendarWindow: NSWindow?
     private var dynamicIslandWindow: NSWindow?
     private var originalDynamicIslandLevel: NSWindow.Level?
     
@@ -46,7 +47,8 @@ class ExpandedWindowManager: ObservableObject {
     private func hasVisibleExpandedWindow() -> Bool {
         return (clipboardWindow?.isVisible == true) ||
                (aiAssistantWindow?.isVisible == true) ||
-               (devToolsWindow?.isVisible == true)
+               (devToolsWindow?.isVisible == true) ||
+               (calendarWindow?.isVisible == true)
     }
     
     // MARK: - Window Creation
@@ -97,6 +99,30 @@ class ExpandedWindowManager: ObservableObject {
         )
         
         aiAssistantWindow?.makeKeyAndOrderFront(nil)
+    }
+    
+    func showCalendarWindow() {
+        // Clean up any closed window references first
+        cleanupClosedWindows()
+        
+        if calendarWindow?.isVisible == true {
+            calendarWindow?.orderFront(nil)
+            return
+        }
+        
+        // Lower Dynamic Island level before showing expanded window
+        if !hasVisibleExpandedWindow() {
+            lowerDynamicIslandLevel()
+        }
+        
+        calendarWindow = createWindow(
+            title: "Calendar",
+            contentView: ExpandedCalendarView(),
+            size: NSSize(width: 1000, height: 700),
+            minSize: NSSize(width: 800, height: 600)
+        )
+        
+        calendarWindow?.makeKeyAndOrderFront(nil)
     }
     
     func showDevToolsWindow() {
@@ -178,10 +204,12 @@ class ExpandedWindowManager: ObservableObject {
         clipboardWindow?.close()
         aiAssistantWindow?.close()
         devToolsWindow?.close()
+        calendarWindow?.close()
         
         clipboardWindow = nil
         aiAssistantWindow = nil
         devToolsWindow = nil
+        calendarWindow = nil
         
         // Restore Dynamic Island level when all windows are closed
         restoreDynamicIslandLevel()
@@ -197,6 +225,9 @@ class ExpandedWindowManager: ObservableObject {
         }
         if devToolsWindow?.isVisible != true {
             devToolsWindow = nil
+        }
+        if calendarWindow?.isVisible != true {
+            calendarWindow = nil
         }
     }
     

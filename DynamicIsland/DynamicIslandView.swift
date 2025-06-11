@@ -317,7 +317,7 @@ struct DynamicIslandView: View {
     
     private func shouldShowExpandButton(for viewType: MainViewType) -> Bool {
         switch viewType {
-        case .clipboard, .aiAssistant, .developerTools:
+        case .clipboard, .aiAssistant, .developerTools, .calendar:
             return true
         default:
             return false
@@ -335,6 +335,8 @@ struct DynamicIslandView: View {
             ExpandedWindowManager.shared.showAIAssistantWindow()
         case .developerTools:
             ExpandedWindowManager.shared.showDevToolsWindow()
+        case .calendar:
+            ExpandedWindowManager.shared.showCalendarWindow()
         default:
             break
         }
