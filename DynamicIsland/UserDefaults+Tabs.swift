@@ -27,7 +27,7 @@ extension UserDefaults {
                 return Set(enabledTypes)
             }
             // Default: all tabs enabled
-            return Set([.clipboard, .quickApp, .systemMonitor, .weather, .timer, .unitConverter, .developerTools, .aiAssistant])
+            return Set([.clipboard, .quickApp, .systemMonitor, .weather, .timer, .unitConverter, .calendar, .developerTools, .aiAssistant])
         }
         set {
             let rawValues = newValue.map { $0.rawValue }
@@ -45,7 +45,7 @@ extension UserDefaults {
                 }
             }
             // Default order
-            return [.clipboard, .quickApp, .systemMonitor, .weather, .timer, .unitConverter, .developerTools, .aiAssistant]
+            return [.clipboard, .quickApp, .systemMonitor, .weather, .timer, .unitConverter, .calendar, .developerTools, .aiAssistant]
         }
         set {
             let rawValues = newValue.map { $0.rawValue }
@@ -70,6 +70,7 @@ extension MainViewType: RawRepresentable {
         case .weather: return "weather"
         case .timer: return "timer"
         case .unitConverter: return "unitConverter"
+        case .calendar: return "calendar"
         case .developerTools: return "developerTools"
         case .aiAssistant: return "aiAssistant"
         }
@@ -83,6 +84,7 @@ extension MainViewType: RawRepresentable {
         case "weather": self = .weather
         case "timer": self = .timer
         case "unitConverter": self = .unitConverter
+        case "calendar": self = .calendar
         case "developerTools": self = .developerTools
         case "aiAssistant": self = .aiAssistant
         default: return nil

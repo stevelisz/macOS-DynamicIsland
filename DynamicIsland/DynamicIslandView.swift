@@ -129,6 +129,8 @@ struct DynamicIslandView: View {
                             TimerView()
                         case .unitConverter:
                             UnitConverterView()
+                        case .calendar:
+                            CalendarView()
                         case .developerTools:
                             DeveloperToolsView()
                         case .aiAssistant:
@@ -262,6 +264,7 @@ struct DynamicIslandView: View {
         case .weather: return "Weather"
         case .timer: return "Timer"
         case .unitConverter: return "Unit Converter"
+        case .calendar: return "Calendar & Time"
         case .developerTools: return "Developer Tools"
         case .aiAssistant: return "AI Assistant"
         }
@@ -345,6 +348,7 @@ enum MainViewType: CaseIterable, Codable, Transferable {
     case weather
     case timer
     case unitConverter
+    case calendar
     case developerTools
     case aiAssistant
     

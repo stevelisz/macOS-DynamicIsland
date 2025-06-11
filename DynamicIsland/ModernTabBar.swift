@@ -14,6 +14,7 @@ struct ModernTabBar: View {
         .weather: ("cloud.sun.fill", "Weather", DesignSystem.Colors.weather),
         .timer: ("timer", "Timer", DesignSystem.Colors.timer),
         .unitConverter: ("arrow.triangle.2.circlepath", "Converter", DesignSystem.Colors.files),
+        .calendar: ("calendar", "Calendar", .orange),
         .developerTools: ("hammer.fill", "Dev Tools", DesignSystem.Colors.developer),
         .aiAssistant: ("brain.head.profile", "AI Assistant", DesignSystem.Colors.ai)
     ]

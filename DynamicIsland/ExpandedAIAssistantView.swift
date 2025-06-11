@@ -568,7 +568,7 @@ struct ExpandedAIAssistantView: View {
                 Task {
                     await ollamaService.checkConnection()
                     isStartingOllama = false
-                }
+                }	
             }
         } catch {
             isStartingOllama = false

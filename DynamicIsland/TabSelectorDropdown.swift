@@ -11,6 +11,7 @@ struct TabSelectorDropdown: View {
         (.weather, "cloud.sun.fill", "Weather", DesignSystem.Colors.weather),
         (.timer, "timer", "Timer", DesignSystem.Colors.timer),
         (.unitConverter, "arrow.triangle.2.circlepath", "Converter", DesignSystem.Colors.files),
+        (.calendar, "calendar", "Calendar", .orange),
         (.developerTools, "hammer.fill", "Dev Tools", DesignSystem.Colors.developer),
         (.aiAssistant, "brain.head.profile", "AI Assistant", DesignSystem.Colors.ai)
     ]
@@ -89,10 +90,12 @@ extension MainViewType: Hashable {
             hasher.combine(4)
         case .unitConverter:
             hasher.combine(5)
-        case .developerTools:
+        case .calendar:
             hasher.combine(6)
-        case .aiAssistant:
+        case .developerTools:
             hasher.combine(7)
+        case .aiAssistant:
+            hasher.combine(8)
         }
     }
 } 
