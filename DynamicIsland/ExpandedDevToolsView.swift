@@ -121,6 +121,7 @@ struct ExpandedDevToolsView: View {
                     .buttonStyle(.plain)
         }
                 .padding(.all, DesignSystem.Spacing.lg)
+                .padding(.top, 40) // Space for window controls within glass
                 
                 Divider()
                 
@@ -206,7 +207,20 @@ struct ExpandedDevToolsView: View {
             }
         }
             .padding(.all, DesignSystem.Spacing.sm)
+            .padding(.top, 40) // Space for window controls within glass
         }
+        .mask(
+            // Gradient mask to fade content at top
+            LinearGradient(
+                gradient: Gradient(stops: [
+                    .init(color: Color.clear, location: 0.0),
+                    .init(color: Color.black, location: 0.15),
+                    .init(color: Color.black, location: 1.0)
+                ]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
         .frame(width: 220)
         .background(DesignSystem.Colors.surface.opacity(0.3))
     }

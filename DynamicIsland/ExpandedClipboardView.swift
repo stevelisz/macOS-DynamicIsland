@@ -173,6 +173,7 @@ struct ExpandedClipboardView: View {
         }
         .padding(.horizontal, DesignSystem.Spacing.xxl)
         .padding(.vertical, DesignSystem.Spacing.xl)
+        .padding(.top, 40) // Space for window controls within glass
     }
     
     private var categoryFilter: some View {

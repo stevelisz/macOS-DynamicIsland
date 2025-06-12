@@ -132,6 +132,7 @@ struct ExpandedAIAssistantView: View {
         }
         .padding(.horizontal, DesignSystem.Spacing.xxl)
         .padding(.vertical, DesignSystem.Spacing.xl)
+        .padding(.top, 40) // Space for window controls within glass
     }
     
     private var modelSelector: some View {
