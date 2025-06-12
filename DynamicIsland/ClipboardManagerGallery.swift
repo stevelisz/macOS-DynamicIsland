@@ -34,19 +34,29 @@ struct ClipboardManagerGallery: View {
         }
     }
     
-    private func clearAll() { clipboardItems.removeAll() }
+    private func clearAll() { 
+        clipboardItems.removeAll()
+        // Also clear the persistent storage
+        GlobalClipboardWatcher.shared.clearAll()
+    }
     private func pin(_ item: ClipboardItem) {
         if let idx = clipboardItems.firstIndex(of: item) {
             clipboardItems[idx].pinned = true
         }
+        // Also update persistent storage
+        GlobalClipboardWatcher.shared.pin(item)
     }
     private func unpin(_ item: ClipboardItem) {
         if let idx = clipboardItems.firstIndex(of: item) {
             clipboardItems[idx].pinned = false
         }
+        // Also update persistent storage
+        GlobalClipboardWatcher.shared.unpin(item)
     }
     private func remove(_ item: ClipboardItem) {
         clipboardItems.removeAll { $0.id == item.id }
+        // Also remove from persistent storage
+        GlobalClipboardWatcher.shared.remove(item)
     }
     private func copyToClipboard(_ item: ClipboardItem) {
         let pb = NSPasteboard.general
@@ -55,6 +65,7 @@ struct ClipboardManagerGallery: View {
         case .text:
             if let text = item.content { pb.setString(text, forType: .string) }
         case .image:
+            // Use cached data for immediate clipboard operation
             if let data = item.imageData, let img = NSImage(data: data) {
                 pb.writeObjects([img])
             }
@@ -83,10 +94,35 @@ struct ClipboardManagerGallery: View {
                 NSWorkspace.shared.open(url)
             }
         case .image:
-            if let data = item.imageData, let _ = NSImage(data: data) {
-                let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".png")
-                try? data.write(to: tmp)
-                NSWorkspace.shared.open(tmp)
+            // Create a temporary file and open it with the default image viewer
+            Task {
+                // Try to get the full image first for best quality
+                if let fullImage = await item.fullImage() {
+                    let tempURL = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString)
+                        .appendingPathExtension("png")
+                    
+                    // Convert NSImage to PNG data
+                    if let tiffData = fullImage.tiffRepresentation,
+                       let bitmap = NSBitmapImageRep(data: tiffData),
+                       let pngData = bitmap.representation(using: .png, properties: [:]) {
+                        try? pngData.write(to: tempURL)
+                        await MainActor.run {
+                            NSWorkspace.shared.open(tempURL)
+                        }
+                    }
+                }
+                // Fallback to cached data
+                else if let data = item.imageData {
+                    let tempURL = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString)
+                        .appendingPathExtension("png")
+                    
+                    try? data.write(to: tempURL)
+                    await MainActor.run {
+                        NSWorkspace.shared.open(tempURL)
+                    }
+                }
             }
         default: break
         }
@@ -371,13 +407,9 @@ struct ClipboardItemCard: View {
                     .truncationMode(.tail)
             }
         case .image:
-            if let data = item.imageData, let img = NSImage(data: data) {
-                Image(nsImage: img)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxHeight: 60)
-                    .cornerRadius(DesignSystem.BorderRadius.sm)
-            }
+            AsyncClipboardImage(item: item)
+                .frame(maxHeight: 60)
+                .clipShape(RoundedRectangle(cornerRadius: DesignSystem.BorderRadius.sm))
         case .file:
             if let url = item.fileURL {
                 HStack(spacing: DesignSystem.Spacing.sm) {
@@ -507,6 +539,70 @@ struct FilterChip: View {
             return filter.color
         } else {
             return DesignSystem.Colors.textTertiary
+        }
+    }
+}
+
+// MARK: - Async Clipboard Image Component
+
+struct AsyncClipboardImage: View {
+    let item: ClipboardItem
+    @State private var image: NSImage?
+    @State private var isLoading = true
+    
+    var body: some View {
+        Group {
+            if let image = image {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else if isLoading {
+                // Loading placeholder
+                HStack {
+                    Spacer()
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .frame(width: 20, height: 20)
+                    Spacer()
+                }
+                .frame(height: 40)
+            } else {
+                // Error placeholder
+                HStack {
+                    Spacer()
+                    Image(systemName: "photo")
+                        .font(.system(size: 24, weight: .thin))
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    Spacer()
+                }
+                .frame(height: 40)
+            }
+        }
+        .task {
+            await loadThumbnail()
+        }
+    }
+    
+    private func loadThumbnail() async {
+        // First try to load thumbnail (fast)
+        if let thumbnail = await item.thumbnailImage() {
+            await MainActor.run {
+                self.image = thumbnail
+                self.isLoading = false
+            }
+        }
+        // Fallback to legacy sync method if needed
+        else if let data = item.imageData, let fallbackImage = NSImage(data: data) {
+            await MainActor.run {
+                self.image = fallbackImage
+                self.isLoading = false
+            }
+        }
+        // No image available
+        else {
+            await MainActor.run {
+                self.isLoading = false
+            }
         }
     }
 } 

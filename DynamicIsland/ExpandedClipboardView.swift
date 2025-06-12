@@ -294,6 +294,7 @@ struct ExpandedClipboardView: View {
                 pb.setString(text, forType: .string) 
             }
         case .image:
+            // Use cached data for immediate clipboard operation
             if let data = item.imageData, let img = NSImage(data: data) {
                 pb.writeObjects([img])
             }
@@ -333,10 +334,39 @@ struct ExpandedClipboardView: View {
                 NSWorkspace.shared.open(url)
             }
         case .image:
-            if let data = item.imageData {
-                let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".png")
-                try? data.write(to: tmp)
-                NSWorkspace.shared.open(tmp)
+            Task {
+                // Try to get the full image first for best quality
+                if let fullImage = await item.fullImage() {
+                    let tempURL = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString + ".png")
+                    
+                    // Convert NSImage to PNG data
+                    if let tiffData = fullImage.tiffRepresentation,
+                       let bitmap = NSBitmapImageRep(data: tiffData),
+                       let pngData = bitmap.representation(using: .png, properties: [:]) {
+                        do {
+                            try pngData.write(to: tempURL)
+                            await MainActor.run {
+                                NSWorkspace.shared.open(tempURL)
+                            }
+                        } catch {
+                            print("Failed to write full image to temp file: \(error)")
+                        }
+                    }
+                }
+                // Fallback to cached data
+                else if let data = item.imageData {
+                    let tempURL = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString + ".png")
+                    do {
+                        try data.write(to: tempURL)
+                        await MainActor.run {
+                            NSWorkspace.shared.open(tempURL)
+                        }
+                    } catch {
+                        print("Failed to write cached image to temp file: \(error)")
+                    }
+                }
             }
         default: 
             break
@@ -451,18 +481,9 @@ struct ExpandedClipboardCard: View {
             case .image:
                 HStack {
                     Spacer()
-                if let data = item.imageData, let nsImage = NSImage(data: data) {
-                    Image(nsImage: nsImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                            .frame(maxHeight: 90)
+                    AsyncClipboardImageExpanded(item: item)
+                        .frame(maxHeight: 90)
                         .cornerRadius(DesignSystem.BorderRadius.md)
-                } else {
-                    Image(systemName: "photo")
-                            .font(.system(size: 40, weight: .thin))
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
-                            .frame(height: 90)
-                    }
                     Spacer()
                 }
                 
@@ -544,5 +565,67 @@ struct ClipboardActionButton: View {
                 )
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Async Clipboard Image for Expanded View
+
+struct AsyncClipboardImageExpanded: View {
+    let item: ClipboardItem
+    @State private var image: NSImage?
+    @State private var isLoading = true
+    
+    var body: some View {
+        Group {
+            if let image = image {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else if isLoading {
+                // Loading placeholder
+                ProgressView()
+                    .scaleEffect(0.8)
+                    .frame(height: 60)
+            } else {
+                // Error placeholder
+                Image(systemName: "photo")
+                    .font(.system(size: 40, weight: .thin))
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .frame(height: 60)
+            }
+        }
+        .task {
+            await loadImage()
+        }
+    }
+    
+    private func loadImage() async {
+        // First try to load full image for expanded view
+        if let fullImage = await item.fullImage() {
+            await MainActor.run {
+                self.image = fullImage
+                self.isLoading = false
+            }
+        }
+        // Fallback to thumbnail
+        else if let thumbnail = await item.thumbnailImage() {
+            await MainActor.run {
+                self.image = thumbnail
+                self.isLoading = false
+            }
+        }
+        // Last resort - legacy sync method
+        else if let data = item.imageData, let fallbackImage = NSImage(data: data) {
+            await MainActor.run {
+                self.image = fallbackImage
+                self.isLoading = false
+            }
+        }
+        // No image available
+        else {
+            await MainActor.run {
+                self.isLoading = false
+            }
+        }
     }
 } 

@@ -1081,7 +1081,7 @@ struct EventCreatorView: View {
     }
     
     private func setupInitialValues() {
-        if let event = eventToEdit {
+         if let event = eventToEdit {
             title = event.title
             startDate = event.startDate
             endDate = event.endDate

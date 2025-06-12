@@ -369,97 +369,321 @@ class GlobalClipboardWatcher: ClipboardWatcher {
 
 class ClipboardWatcher: ObservableObject {
     @Published var items: [ClipboardItem] = []
+    
+    // High-performance data structures for O(1) operations
+    private var itemsDict: [String: ClipboardItem] = [:]  // contentHash -> item
+    private var orderedItems: [ClipboardItem] = []        // Ordered list for UI
+    private let maxItems = 100  // Hard limit to prevent memory issues
+    
+    // Background processing
     private var timer: Timer?
     private var lastChangeCount: Int = NSPasteboard.general.changeCount
-    private var pinnedItems: [ClipboardItem] = []
+    private let processingQueue = DispatchQueue(label: "clipboard.processing", qos: .utility)
     private let userDefaultsKey = "clipboardHistory"
+    
+    // Rate limiting & debouncing
+    private var isProcessing = false
+    private var pendingOperations: [() -> Void] = []
+    private let rateLimitDelay: TimeInterval = 0.1  // 100ms minimum between operations
+    private var lastProcessTime = Date()
+    
     init() {
         load()
     }
+    
     func start() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.7, repeats: true) { [weak self] _ in
-            self?.checkClipboard()
+        // High-frequency timer for responsiveness, but with rate limiting
+        timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                await self?.checkClipboard()
+            }
         }
     }
+    
     func stop() {
         timer?.invalidate()
         timer = nil
     }
-    private func checkClipboard() {
+    
+    // MARK: - O(1) Operations
+    
+    @MainActor
+    private func checkClipboard() async {
         let pb = NSPasteboard.general
         guard pb.changeCount != lastChangeCount else { return }
+        guard !isProcessing else { return }  // Skip if already processing
+        
         lastChangeCount = pb.changeCount
-        if let types = pb.types {
-            // 1. File URLs
-            if let urls = pb.readObjects(forClasses: [NSURL.self], options: nil) as? [URL], !urls.isEmpty {
-                for url in urls {
-                    addItem(.init(id: UUID(), type: .file, content: nil, imageData: nil, fileURL: url, date: Date(), pinned: false))
-                }
-            }
-            // 2. Images
-            else if types.contains(.tiff), let data = pb.data(forType: .tiff) {
-                addItem(.init(id: UUID(), type: .image, content: nil, imageData: data, fileURL: nil, date: Date(), pinned: false))
-            }
-            // 3. Text
-            else if types.contains(.string), let str = pb.string(forType: .string), !str.isEmpty {
-                addItem(.init(id: UUID(), type: .text, content: str, imageData: nil, fileURL: nil, date: Date(), pinned: false))
+        isProcessing = true
+        
+        // Rate limiting - ensure minimum delay between operations
+        let timeSinceLastProcess = Date().timeIntervalSince(lastProcessTime)
+        if timeSinceLastProcess < rateLimitDelay {
+            try? await Task.sleep(nanoseconds: UInt64((rateLimitDelay - timeSinceLastProcess) * 1_000_000_000))
+        }
+        
+        // Process in background to never block main thread
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { [weak self] in
+                await self?.processClipboardChange(pasteboard: pb)
             }
         }
+        
+        lastProcessTime = Date()
+        isProcessing = false
     }
-    private func addItem(_ item: ClipboardItem) {
-        // Only allow each distinct item once. If same, update date and move to top.
-        if item.type == .image, let newHash = item.imagePixelHash {
-            if let idx = items.firstIndex(where: { $0.type == .image && $0.imagePixelHash == newHash }) {
-                // Update date and move to top
-                var updated = items[idx]
-                updated.date = Date()
-                items.remove(at: idx)
-                items.insert(updated, at: 0)
-                save()
-                return
-            }
-        } else if let idx = items.firstIndex(where: { $0.type == item.type && $0.content == item.content && $0.fileURL == item.fileURL && $0.imageData == item.imageData }) {
-            // Update date and move to top
-            var updated = items[idx]
-            updated.date = Date()
-            items.remove(at: idx)
-            items.insert(updated, at: 0)
-            save()
+    
+    private func processClipboardChange(pasteboard: NSPasteboard) async {
+        guard let types = pasteboard.types else { return }
+        
+        // Determine item type and extract data
+        let clipboardData: (type: ClipboardItemType, content: String?, data: Data?, urls: [URL])?
+        
+        // 1. File URLs (handle bulk operations efficiently)
+        if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL], !urls.isEmpty {
+            clipboardData = (.file, nil, nil, urls)
+        }
+        // 2. Images
+        else if types.contains(.tiff), let data = pasteboard.data(forType: .tiff) {
+            clipboardData = (.image, nil, data, [])
+        }
+        // 3. Text
+        else if types.contains(.string), let str = pasteboard.string(forType: .string), !str.isEmpty {
+            clipboardData = (.text, str, nil, [])
+        }
+        else {
             return
         }
-        items.insert(item, at: 0)
+        
+        guard let clipData = clipboardData else { return }
+        
+        // Process based on type
+        switch clipData.type {
+        case .file:
+            await handleFileItems(clipData.urls)
+        case .image:
+            if let data = clipData.data {
+                await handleImageItem(data)
+            }
+        case .text:
+            if let content = clipData.content {
+                await handleTextItem(content)
+            }
+        }
+    }
+    
+    // MARK: - Specialized Handlers (All Async)
+    
+    private func handleFileItems(_ urls: [URL]) async {
+        // Handle bulk file operations efficiently
+        let batchSize = 10  // Process in batches to prevent overwhelming
+        
+        for batch in urls.chunked(into: batchSize) {
+            await withTaskGroup(of: ClipboardItem?.self) { group in
+                for url in batch {
+                    group.addTask {
+                        return await self.createFileItem(url)
+                    }
+                }
+                
+                var newItems: [ClipboardItem] = []
+                for await item in group {
+                    if let item = item {
+                        newItems.append(item)
+                    }
+                }
+                
+                // Batch insert for efficiency
+                await MainActor.run {
+                    self.batchInsert(newItems)
+                }
+            }
+        }
+    }
+    
+    private func handleImageItem(_ data: Data) async {
+        let item = await createImageItem(data)
+        await MainActor.run {
+            self.insertItem(item)
+        }
+    }
+    
+    private func handleTextItem(_ content: String) async {
+        let item = createTextItem(content)
+        await MainActor.run {
+            self.insertItem(item)
+        }
+    }
+    
+    // MARK: - Item Creation (Background)
+    
+    private func createTextItem(_ content: String) -> ClipboardItem {
+        return ClipboardItem(
+            id: UUID(),
+            type: .text,
+            content: content,
+            date: Date(),
+            pinned: false
+        )
+    }
+    
+    private func createImageItem(_ data: Data) async -> ClipboardItem {
+        return ClipboardItem(
+            id: UUID(),
+            type: .image,
+            imageData: data,
+            date: Date(),
+            pinned: false
+        )
+    }
+    
+    private func createFileItem(_ url: URL) async -> ClipboardItem? {
+        // Check if file is accessible before creating item
+        guard url.isFileURL && FileManager.default.fileExists(atPath: url.path) else {
+            return nil
+        }
+        
+        return ClipboardItem(
+            id: UUID(),
+            type: .file,
+            fileURL: url,
+            date: Date(),
+            pinned: false
+        )
+    }
+    
+    // MARK: - O(1) Insertion & Deduplication
+    
+    @MainActor
+    private func insertItem(_ item: ClipboardItem) {
+        // O(1) deduplication check
+        if let existingItem = itemsDict[item.contentHash] {
+            // Update existing item's date and move to top
+            var updatedItem = existingItem
+            updatedItem.date = Date()
+            
+            // Remove from current position O(n) - could optimize with linked list
+            orderedItems.removeAll { $0.id == existingItem.id }
+            // Insert at front O(1)
+            orderedItems.insert(updatedItem, at: 0)
+            itemsDict[item.contentHash] = updatedItem
+        } else {
+            // Insert new item O(1)
+            orderedItems.insert(item, at: 0)
+            itemsDict[item.contentHash] = item
+        }
+        
+        // Enforce size limit
+        while orderedItems.count > maxItems {
+            if let removedItem = orderedItems.popLast() {
+                itemsDict.removeValue(forKey: removedItem.contentHash)
+            }
+        }
+        
+        // Update published array
+        items = orderedItems
         save()
     }
+    
+    @MainActor
+    private func batchInsert(_ newItems: [ClipboardItem]) {
+        for item in newItems {
+            // O(1) deduplication check
+            if itemsDict[item.contentHash] == nil {
+                orderedItems.insert(item, at: 0)
+                itemsDict[item.contentHash] = item
+            }
+        }
+        
+        // Enforce size limit
+        while orderedItems.count > maxItems {
+            if let removedItem = orderedItems.popLast() {
+                itemsDict.removeValue(forKey: removedItem.contentHash)
+            }
+        }
+        
+        // Update published array
+        items = orderedItems
+        save()
+    }
+    
+    // MARK: - Public Operations (All O(1) or optimized)
+    
     func pin(_ item: ClipboardItem) {
-        if let idx = items.firstIndex(of: item) {
-            items[idx].pinned = true
-            save()
+        Task { @MainActor in
+            if let index = orderedItems.firstIndex(where: { $0.id == item.id }) {
+                orderedItems[index].pinned = true
+                itemsDict[item.contentHash]?.pinned = true
+                items = orderedItems
+                save()
+            }
         }
     }
+    
     func unpin(_ item: ClipboardItem) {
-        if let idx = items.firstIndex(of: item) {
-            items[idx].pinned = false
+        Task { @MainActor in
+            if let index = orderedItems.firstIndex(where: { $0.id == item.id }) {
+                orderedItems[index].pinned = false
+                itemsDict[item.contentHash]?.pinned = false
+                items = orderedItems
+                save()
+            }
+        }
+    }
+    
+    func remove(_ item: ClipboardItem) {
+        Task { @MainActor in
+            orderedItems.removeAll { $0.id == item.id }
+            itemsDict.removeValue(forKey: item.contentHash)
+            items = orderedItems
             save()
         }
     }
-    func remove(_ item: ClipboardItem) {
-        items.removeAll { $0.id == item.id }
-        save()
-    }
+    
     func clearAll() {
-        items.removeAll()
-        save()
-    }
-    private func save() {
-        let encoder = JSONEncoder()
-        if let data = try? encoder.encode(items) {
-            UserDefaults.standard.set(data, forKey: userDefaultsKey)
+        Task { @MainActor in
+            orderedItems.removeAll()
+            itemsDict.removeAll()
+            items = []
+            save()
         }
     }
+    
+    // MARK: - Persistence (Background)
+    
+    private func save() {
+        Task.detached { [weak self] in
+            guard let self = self else { return }
+            let encoder = JSONEncoder()
+            if let data = try? encoder.encode(self.orderedItems) {
+                UserDefaults.standard.set(data, forKey: self.userDefaultsKey)
+            }
+        }
+    }
+    
     private func load() {
-        if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
-           let decoded = try? JSONDecoder().decode([ClipboardItem].self, from: data) {
-            items = decoded
+        Task.detached { [weak self] in
+            guard let self = self else { return }
+            
+            if let data = UserDefaults.standard.data(forKey: self.userDefaultsKey),
+               let decoded = try? JSONDecoder().decode([ClipboardItem].self, from: data) {
+                
+                await MainActor.run {
+                    self.orderedItems = decoded
+                    self.itemsDict = Dictionary(uniqueKeysWithValues: decoded.map { ($0.contentHash, $0) })
+                    self.items = self.orderedItems
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Array Extension for Batching
+
+extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0..<Swift.min($0 + size, count)])
         }
     }
 }
